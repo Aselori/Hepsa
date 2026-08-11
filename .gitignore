@@ -1,0 +1,14 @@
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.env
+.env.*
+!.env.example
+*.log
+node_modules/
+dist/
+build/
+coverage/
+*.tmp
+*.bak

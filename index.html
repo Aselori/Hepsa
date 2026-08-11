@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HEPSA - Herrería Fina & Ingeniería</title>
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #F9E79F 0%, #D4AF37 50%, #996515 100%);
+            --primary: #D4AF37; --bg-color: #121212; --bg-gradient: radial-gradient(circle at top, #2a2a2a 0%, #121212 100%);
+            --card-bg: rgba(35, 35, 35, 0.85); --secondary: #bdc3c7; --text-main: #ffffff; --text-muted: #95a5a6;
+            --header-bg: linear-gradient(to right, #111111, #1e1e1e); --input-bg: rgba(0,0,0,0.4); --input-text: #ffffff;
+            --input-border: rgba(255, 255, 255, 0.2); --text-label: #bdc3c7; --card-border: rgba(255, 255, 255, 0.08);
+            --shadow-color: rgba(0,0,0,0.5); --form-bg: rgba(20, 20, 20, 0.95); --form-border: rgba(212, 175, 55, 0.3); 
+            --form-shadow: 0 15px 40px rgba(0,0,0,0.7); --table-header-bg: rgba(212, 175, 55, 0.15); --table-row-hover: rgba(150,150,150,0.05);
+            --pattern: url('data:image/svg+xml;utf8,<svg width="60" height="120" viewBox="0 0 60 120" xmlns="http://www.w3.org/2000/svg"><g stroke="%23D4AF37" stroke-opacity="0.04" stroke-width="2" fill="none"><path d="M30 0 v120 M15 0 v120 M45 0 v120 M15 30 h30 M15 90 h30"/></g></svg>');
+        }
+        body.light-mode {
+            --bg-color: #fcfaf8; --bg-gradient: radial-gradient(circle at top, #fffdfa 0%, #f4f1ea 60%, #e8e4d9 100%); 
+            --card-bg: rgba(253, 251, 247, 0.95); --secondary: #5c554b; --text-main: #2b2825; --text-muted: #6e6862;
+            --header-bg: linear-gradient(to right, #ffffff, #fdfbf7); --input-bg: #ffffff; --input-text: #111111; 
+            --input-border: #111111; --text-label: #1a1a1a; --card-border: rgba(212, 175, 55, 0.3); --shadow-color: rgba(0,0,0,0.06);
+            --form-bg: #f2ebd9; --form-border: rgba(212, 175, 55, 0.6); --form-shadow: 0 15px 40px rgba(0,0,0,0.15); 
+            --table-header-bg: #e2d8c3; --table-row-hover: #f9f6f0;
+            --pattern: repeating-linear-gradient(45deg, rgba(212, 175, 55, 0.03) 0px, rgba(212, 175, 55, 0.03) 2px, transparent 2px, transparent 15px);
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: var(--text-main); background-color: var(--bg-color); background-image: var(--pattern), var(--bg-gradient); background-attachment: fixed; margin: 0; padding: 0; transition: background 0.5s ease, color 0.5s ease; }
+        header { background: var(--header-bg); border-bottom: 4px solid var(--primary); padding: 1rem 3rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 20px var(--shadow-color); position: sticky; top: 0; z-index: 100; }
+        .logo-img { height: 90px; border-radius: 6px; box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3); transition: transform 0.4s ease; }
+        .logo-img:hover { transform: scale(1.03); }
+        nav { display: flex; align-items: center; gap: 15px; } 
+        nav button, nav a { background: transparent; border: 2px solid var(--secondary); color: var(--text-main); padding: 10px 22px; font-size: 1rem; font-weight: 600; cursor: pointer; border-radius: 30px; text-decoration: none; transition: all 0.3s ease; }
+        nav button:hover, nav button.active, nav a:hover { background: var(--primary-gradient); color: #111; border-color: transparent; box-shadow: 0 6px 15px rgba(212, 175, 55, 0.4); transform: translateY(-2px); }
+        #cart-btn { background: var(--card-bg); border-color: var(--primary); color: var(--text-main); display: flex; align-items: center; gap: 8px; font-size: 1.1rem; padding: 10px 20px; }
+        #cart-count { background: var(--primary); color: #000; padding: 2px 8px; border-radius: 50%; font-size: 0.9rem; font-weight: bold; }
+        #btn-login { border-color: var(--primary); color: var(--primary); }
+        #btn-login:hover, #btn-login.active { color: #000; }
+        #theme-toggle { border-radius: 50%; padding: 10px 14px; font-size: 1.3rem; border: 2px solid var(--card-border); background: var(--card-bg); margin-left: 10px; cursor: pointer;}
+        main { padding: 3rem 2rem; max-width: 1300px; margin: 0 auto; }
+        .view-section { display: none; animation: fadeIn 0.6s ease-out; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        h2 { border-left: 6px solid var(--primary); padding-left: 15px; font-size: 2rem; margin-bottom: 2rem; }
+        .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 35px; }
+        .product-card { background-color: var(--card-bg); backdrop-filter: blur(10px); border: 1px solid var(--card-border); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px var(--shadow-color); transition: transform 0.3s ease; }
+        .product-card:hover { transform: translateY(-8px); border-color: var(--primary); }
+        .card-img { height: 200px; background: linear-gradient(135deg, rgba(0,0,0,0.1), rgba(0,0,0,0.3)); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-weight: bold; background-size: cover; background-position: center;}
+        .card-body { padding: 25px; } 
+        .product-title { margin: 0 0 10px 0; font-size: 1.4rem; }
+        .price { color: var(--primary); font-size: 1.6rem; font-weight: bold; display: block; margin-bottom: 15px; }
+        button.action-btn { background: var(--primary-gradient); color: #111; border: none; padding: 14px 25px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1.1rem; border-radius: 40px; text-transform: uppercase; transition: all 0.3s; }
+        button.action-btn:hover { filter: brightness(1.15); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(212, 175, 55, 0.4);}
+        .form-container { background: var(--form-bg); padding: 35px; border-radius: 12px; border: 2px solid var(--form-border); box-shadow: var(--form-shadow); transition: background 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease; }
+        .name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        @media (max-width: 768px) { .name-grid { grid-template-columns: 1fr; } } 
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: var(--text-label); font-weight: 700; }
+        input, textarea, select { width: 100%; padding: 14px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--input-text); border-radius: 8px; box-sizing: border-box; font-size: 1rem; transition: border-color 0.3s, box-shadow 0.3s; }
+        input:focus:not(:read-only), textarea:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 8px rgba(212, 175, 55, 0.6);}
+        input:read-only { background-color: rgba(150,150,150,0.1); cursor: not-allowed; color: var(--text-muted);}
+        #cart-modal { position: fixed; top: 0; right: -450px; width: 400px; height: 100vh; background: var(--bg-color); box-shadow: -5px 0 20px rgba(0,0,0,0.5); transition: right 0.4s ease; z-index: 1000; padding: 30px; box-sizing: border-box; border-left: 2px solid var(--primary); overflow-y: auto; }
+        #cart-modal.open { right: 0; }
+        .cart-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 15px; margin-bottom: 20px; }
+        .close-cart { background: transparent; color: var(--text-main); border: none; font-size: 1.5rem; cursor: pointer; }
+        .cart-item { display: flex; justify-content: space-between; border-bottom: 1px dashed var(--card-border); padding: 15px 0; }
+        .cart-total { font-size: 1.5rem; font-weight: bold; text-align: right; margin: 20px 0; color: var(--primary); }
+        .table-container { width: 100%; overflow-x: auto; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; color: var(--input-text); }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid var(--input-border); }
+        th { background: var(--table-header-bg); font-weight: bold; color: var(--text-main);}
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: var(--table-row-hover); }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; text-transform: uppercase;}
+        .status-produccion { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .profile-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; }
+        @media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } }
+
+        /* Cart items */
+        #cart-items-container .cart-item { align-items: center; }
+        .cart-item-name { flex: 1; }
+        .cart-item-price { font-weight: bold; color: var(--primary); }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <img src="imagen.jpg" alt="HEPSA Herrería Fina" class="logo-img" onerror="this.src='https://via.placeholder.com/150x80?text=HEPSA'">
+        </div>
+        <nav>
+            <button onclick="showView('catalog')" id="btn-catalog">Catálogo</button>
+            <button onclick="showView('quote')" id="btn-quote">Solicitud a Medida</button>
+            <a href="admin.html" id="btn-admin">Portal de Empleados</a>
+            <button id="cart-btn" onclick="toggleCart()">🛒 <span id="cart-count">0</span></button>
+            <button onclick="showView('login')" id="btn-login">👤 Iniciar Sesión</button>
+            <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar Tema">🌙</button>
+        </nav>
+    </header>
+
+    <div id="cart-modal">
+        <div class="cart-header">
+            <h2 style="margin:0; border:none; padding:0; color: var(--text-main);">Tu Pedido</h2>
+            <button class="close-cart" onclick="toggleCart()">✖</button>
+        </div>
+        <div id="cart-items-container"><p style="color: var(--text-muted); text-align:center;">El carrito está vacío</p></div>
+        <div class="cart-total">Total: $<span id="cart-total-price">0.00</span></div>
+        <button class="action-btn" onclick="alert('Redirigiendo a pasarela de pago o contacto de ventas...')">Proceder al Pago</button>
+    </div>
+
+    <main>
+        <!-- VISTA CATÁLOGO -->
+        <section id="view-catalog" class="view-section active">
+            <h2>Línea Residencial e Industrial</h2>
+            <div class="catalog-grid" id="public-catalog-grid">
+                <div class="product-card"><div class="card-img">Foto referencial</div><div class="card-body"><h3 class="product-title">Cargando catálogo...</h3></div></div>
+            </div>
+        </section>
+
+        <!-- VISTA COTIZACIÓN -->
+        <section id="view-quote" class="view-section">
+            <h2>Solicita un Proyecto a la Medida</h2>
+            <div class="form-container" style="max-width: 700px; margin: 0 auto;">
+                <p style="color: var(--text-label); margin-bottom: 25px;">Si tienes medidas específicas o un diseño de arquitecto, envíanos los detalles para cotizar tu proyecto.</p>
+                <div class="name-grid">
+                    <div class="form-group" style="margin-bottom: 0;"><label>Primer Nombre *</label><input type="text" id="quote-n1" placeholder="Ej: Juan" required></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Segundo Nombre (Opcional)</label><input type="text" id="quote-n2" placeholder="Ej: Carlos"></div>
+                </div>
+                <div class="name-grid">
+                    <div class="form-group" style="margin-bottom: 0;"><label>Apellido Paterno *</label><input type="text" id="quote-p" placeholder="Ej: Garza" required></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Apellido Materno *</label><input type="text" id="quote-m" placeholder="Ej: Treviño" required></div>
+                </div>
+                <div class="form-group" style="margin-top: 20px;"><label>Correo Electrónico *</label><input type="email" id="quote-email" placeholder="ejemplo@correo.com"></div>
+                <div class="form-group"><label>Teléfono de Contacto *</label><input type="tel" id="quote-tel" placeholder="(81) 0000-0000"></div>
+                <div class="form-group"><label>Especificaciones Técnicas *</label><textarea id="quote-specs" rows="6" placeholder="Describa a detalle lo que necesita..."></textarea></div>
+                <button class="action-btn" onclick="enviarCotizacionBD()">Solicitar Cotización</button>
+            </div>
+        </section>
+
+        <!-- VISTA LOGIN -->
+        <section id="view-login" class="view-section">
+            <div class="form-container" style="max-width: 400px; margin: 40px auto; text-align: center;">
+                <h2 style="border:none; padding:0; margin-bottom: 10px; color: var(--primary);">Bienvenido</h2>
+                <p style="color: var(--text-muted); margin-bottom: 30px; font-weight:bold;">Ingresa para dar seguimiento a tus proyectos.</p>
+                <div class="form-group" style="text-align: left;"><label>Correo</label><input type="email" placeholder="cliente@correo.com" id="log-email"></div>
+                <div class="form-group" style="text-align: left;"><label>Contraseña</label><input type="password" placeholder="••••••••" id="log-pass"></div>
+                <button class="action-btn" style="margin-top: 10px;" onclick="iniciarSesionBD()">Ingresar Seguro</button>
+                <div style="margin-top: 25px; font-size: 0.95rem; border-top: 1px dashed var(--card-border); padding-top: 15px;">
+                    <span style="color: var(--text-label);">¿No tienes cuenta?</span> <a href="#" onclick="showView('register'); return false;" style="color: var(--primary); font-weight:bold; text-decoration:none;">Regístrate aquí</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- VISTA REGISTRO -->
+        <section id="view-register" class="view-section">
+            <div class="form-container" style="max-width: 600px; margin: 40px auto;">
+                <h2 style="border:none; padding:0; margin-bottom: 10px; color: var(--primary); text-align:center;">Crear Cuenta</h2>
+                <div class="name-grid">
+                    <div class="form-group" style="margin-bottom: 0;"><label>Primer Nombre *</label><input type="text" id="reg-n1"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Segundo Nombre</label><input type="text" id="reg-n2"></div>
+                </div>
+                <div class="name-grid">
+                    <div class="form-group" style="margin-bottom: 0;"><label>Paterno *</label><input type="text" id="reg-p"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Materno *</label><input type="text" id="reg-m"></div>
+                </div>
+                <div class="name-grid">
+                    <div class="form-group" style="margin-bottom: 0;"><label>Teléfono</label><input type="tel" id="reg-tel"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Correo *</label><input type="email" id="reg-email"></div>
+                </div>
+                <div class="name-grid" style="margin-top: 15px;">
+                    <div class="form-group" style="margin-bottom: 0;"><label>Contraseña *</label><input type="password" id="reg-pass"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Confirmar *</label><input type="password" id="reg-pass2"></div>
+                </div>
+                <button class="action-btn" style="margin-top: 25px;" onclick="registrarUsuarioBD()">Crear Cuenta</button>
+                <div style="margin-top: 25px; font-size: 0.95rem; border-top: 1px dashed var(--card-border); padding-top: 15px; text-align:center;">
+                    <a href="#" onclick="showView('login'); return false;" style="color: var(--primary); font-weight:bold; text-decoration:none;">Inicia sesión aquí</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- VISTA PERFIL -->
+        <section id="view-profile" class="view-section">
+            <h2>Mi Perfil y Pedidos</h2>
+            <div class="profile-grid">
+                <div class="form-container" style="height: fit-content;">
+                    <h3 style="margin-top:0; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">Info Personal</h3>
+                    <div class="form-group"><label>Nombre Completo</label><input type="text" id="prof-name" readonly></div>
+                    <div class="form-group"><label>Correo Registrado</label><input type="text" id="prof-email" readonly></div>
+                    <div class="form-group"><label>Teléfono</label><input type="tel" id="prof-tel"></div>
+                    <!-- BOTÓN CERRAR SESIÓN CORREGIDO -->
+                    <button onclick="cerrarSesionBD()" style="margin-top: 25px; width: 100%; background: transparent; border: 2px solid #e74c3c; color: #e74c3c; padding: 12px; border-radius: 8px; cursor:pointer; font-weight:bold; font-size: 1rem; transition: all 0.3s;" 
+                        onmouseover="this.style.background='#e74c3c'; this.style.color='#fff';" 
+                        onmouseout="this.style.background='transparent'; this.style.color='#e74c3c';">
+                        🚪 Cerrar Sesión
+                    </button>
+                </div>
+                <div class="form-container">
+                    <h3 style="margin-top:0; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">Proyectos Activos</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>Folio</th><th>Fecha</th><th>Inversión</th><th>Estatus</th></tr></thead>
+                            <tbody id="client-history-body"><tr><td colspan="4" style="text-align:center;">Cargando...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // ─── TEMA PERSISTENTE ───────────────────────────────────────────────
+        (function() {
+            const tema = localStorage.getItem('hepsa_theme') || 'light';
+            if (tema === 'light') document.body.classList.add('light-mode');
+            const btn = document.getElementById('theme-toggle');
+            btn.textContent = tema === 'light' ? '🌙' : '☀️';
+        })();
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const esLight = document.body.classList.contains('light-mode');
+            localStorage.setItem('hepsa_theme', esLight ? 'light' : 'dark');
+            document.getElementById('theme-toggle').textContent = esLight ? '🌙' : '☀️';
+        }
+
+        // ─── SUPABASE ───────────────────────────────────────────────────────
+        const supabaseUrl = 'https://xwxjxvfdfywtjxnsjnbz.supabase.co'; 
+        const supabaseKey = 'sb_publishable_CT7Mk7q3H6HPVswFJ8Z98g_HrTmNlrV'; 
+        if (window.supabase) {
+            window.supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+            cargarCatalogoPublico();
+            restaurarSesionUI();
+        }
+
+        // ─── CARRITO ────────────────────────────────────────────────────────
+        let cart = [];
+        function addToCart(name, price) {
+            cart.push({ name, price });
+            document.getElementById('cart-count').textContent = cart.length;
+            renderCart();
+        }
+        function renderCart() {
+            const c = document.getElementById('cart-items-container');
+            if (cart.length === 0) { c.innerHTML = '<p style="color: var(--text-muted); text-align:center;">El carrito está vacío</p>'; document.getElementById('cart-total-price').textContent = '0.00'; return; }
+            let total = 0;
+            c.innerHTML = cart.map((item, i) => { total += item.price; return `<div class="cart-item"><span class="cart-item-name">${item.name}</span><span class="cart-item-price">$${item.price.toLocaleString()}</span></div>`; }).join('');
+            document.getElementById('cart-total-price').textContent = total.toLocaleString('en-US', {minimumFractionDigits:2});
+        }
+        function toggleCart() { document.getElementById('cart-modal').classList.toggle('open'); }
+
+        // ─── NAVEGACIÓN ─────────────────────────────────────────────────────
+        function showView(viewId) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('nav button:not(#theme-toggle):not(#cart-btn)').forEach(el => el.classList.remove('active'));
+            document.getElementById('view-' + viewId).classList.add('active');
+            let navBtn = document.getElementById('btn-' + viewId);
+            if(navBtn) navBtn.classList.add('active');
+        }
+        showView('catalog');
+
+        // ─── CATÁLOGO PÚBLICO ───────────────────────────────────────────────
+        async function cargarCatalogoPublico() {
+            const { data } = await window.supabaseClient.from('products').select('*').eq('is_active', true);
+            if(data && data.length > 0) {
+                document.getElementById('public-catalog-grid').innerHTML = data.map(p => `
+                    <div class="product-card">
+                        <div class="card-img" style="${p.image_url ? `background-image: url('${p.image_url}'); background-size: cover; background-position: center;` : 'background: linear-gradient(135deg,#1a1a1a,#2a2a2a); display:flex; align-items:center; justify-content:center;'}">
+                            ${!p.image_url ? '<span style="color:#666; font-size:2rem;">🔩</span>' : ''}
+                        </div>
+                        <div class="card-body">
+                            <h3 class="product-title">${p.name}</h3>
+                            <span class="price">$${p.price.toLocaleString()} MXN</span>
+                            <button class="action-btn" onclick="addToCart('${p.name}', ${p.price})">Añadir al Carrito</button>
+                        </div>
+                    </div>`).join('');
+            } else {
+                document.getElementById('public-catalog-grid').innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1; text-align:center; padding: 40px;">No hay productos disponibles en este momento.</p>';
+            }
+        }
+
+        // ─── COTIZACIÓN ─────────────────────────────────────────────────────
+        async function enviarCotizacionBD() {
+            const n1 = document.getElementById('quote-n1').value;
+            const n2 = document.getElementById('quote-n2').value;
+            const p = document.getElementById('quote-p').value;
+            const m = document.getElementById('quote-m').value;
+            const email = document.getElementById('quote-email').value;
+            const tel = document.getElementById('quote-tel').value;
+            const specs = document.getElementById('quote-specs').value;
+            if(!n1 || !p || !m || !email || !tel || !specs) return alert("Completa los campos obligatorios.");
+            const { error } = await window.supabaseClient.from('custom_requests').insert([{
+                first_name: n1, middle_name: n2, last_name_p: p, last_name_m: m, email: email, phone: tel, specifications: specs
+            }]);
+            if (error) alert("Error: " + error.message);
+            else { alert("✅ Solicitud enviada. En breve nos comunicaremos contigo."); document.querySelectorAll('#view-quote input, #view-quote textarea').forEach(i => i.value = ''); }
+        }
+
+        // ─── AUTENTICACIÓN ──────────────────────────────────────────────────
+        async function iniciarSesionBD() {
+            const { error } = await window.supabaseClient.auth.signInWithPassword({
+                email: document.getElementById('log-email').value,
+                password: document.getElementById('log-pass').value
+            });
+            if (error) alert("❌ Credenciales incorrectas. Verifica tu correo y contraseña.");
+            else location.reload();
+        }
+
+        async function registrarUsuarioBD() {
+            const n1 = document.getElementById('reg-n1').value;
+            const p = document.getElementById('reg-p').value;
+            const m = document.getElementById('reg-m').value;
+            const email = document.getElementById('reg-email').value;
+            const pass = document.getElementById('reg-pass').value;
+            const pass2 = document.getElementById('reg-pass2').value;
+            if (!n1 || !p || !m || !email || !pass) return alert("Completa todos los campos obligatorios.");
+            if (pass !== pass2) return alert("Las contraseñas no coinciden.");
+            const { error } = await window.supabaseClient.auth.signUp({
+                email, password: pass,
+                options: { data: { first_name: n1, middle_name: document.getElementById('reg-n2').value, last_name_p: p, last_name_m: m, phone: document.getElementById('reg-tel').value, role: 'cliente' } }
+            });
+            if (error) alert("Error: " + error.message);
+            else { alert("✅ Cuenta creada. Revisa tu correo para verificarla."); showView('login'); }
+        }
+
+        async function restaurarSesionUI() {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (session) {
+                const btnLogin = document.getElementById('btn-login');
+                btnLogin.innerHTML = "👤 Mi Perfil";
+                btnLogin.onclick = () => showView('profile');
+                const m = session.user.user_metadata;
+                document.getElementById('prof-name').value = `${m.first_name||''} ${m.last_name_p||''}`.trim();
+                document.getElementById('prof-email').value = session.user.email;
+                document.getElementById('prof-tel').value = m.phone || '';
+            }
+        }
+
+        // ─── CERRAR SESIÓN CORREGIDO ─────────────────────────────────────────
+        async function cerrarSesionBD() {
+            if (!confirm('¿Deseas cerrar sesión?')) return;
+            const { error } = await window.supabaseClient.auth.signOut();
+            if (error) { alert('Error al cerrar sesión: ' + error.message); return; }
+            // Limpiar UI
+            const btnLogin = document.getElementById('btn-login');
+            btnLogin.innerHTML = "👤 Iniciar Sesión";
+            btnLogin.onclick = () => showView('login');
+            document.getElementById('prof-name').value = '';
+            document.getElementById('prof-email').value = '';
+            document.getElementById('prof-tel').value = '';
+            showView('catalog');
+        }
+    </script>
+</body>
+</html>
