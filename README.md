@@ -111,11 +111,9 @@ Después abrir `http://localhost:8000/`.
 
 ## 🔐 Configuración de Supabase
 
-El proyecto actual utiliza Supabase desde el navegador. Antes de desplegar una versión pública, el equipo debe revisar las políticas **RLS (Row Level Security)**, permisos de Storage y reglas de autenticación del proyecto de Supabase.
+El proyecto actual utiliza Supabase desde el navegador. 
 
-> **Importante:** nunca deben agregarse al repositorio claves privadas, `service_role keys`, contraseñas, tokens administrativos ni secretos de servidor.
 
-La clave utilizada actualmente por el frontend es una clave publicable (`publishable`). Aun así, la seguridad real debe depender de las políticas RLS y de los permisos configurados en Supabase.
 
 ## 📁 Estructura
 
