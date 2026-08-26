@@ -1,0 +1,9 @@
+# Vincula esta carpeta con el proyecto de Supabase del equipo.
+#
+# Lo usa el CLI de Supabase y la integración de GitHub para saber a qué
+# proyecto pertenecen las migraciones de supabase/migrations/.
+#
+# El project_id es el subdominio de la URL del proyecto:
+# https://qmyrosmuqfabaedzydsa.supabase.co  ->  qmyrosmuqfabaedzydsa
+
+project_id = "qmyrosmuqfabaedzydsa"

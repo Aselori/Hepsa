@@ -12,8 +12,8 @@
 // ============================================================================
 
 window.HEPSA_CONFIG = {
-    supabaseUrl: 'https://xwxjxvfdfywtjxnsjnbz.supabase.co',
-    supabaseKey: 'sb_publishable_CT7Mk7q3H6HPVswFJ8Z98g_HrTmNlrV',
+    supabaseUrl: 'https://qmyrosmuqfabaedzydsa.supabase.co',
+    supabaseKey: 'sb_publishable_q8vR1rTo4nvlYzrTTPubew_5Cv0wW0x',
 
     // Nombre del bucket de Storage. El código usaba 'product-images', pero el
     // bucket real siempre se llamó 'productos'; por eso fallaba subir imágenes.
