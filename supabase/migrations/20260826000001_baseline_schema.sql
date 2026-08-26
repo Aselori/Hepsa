@@ -174,8 +174,10 @@ CREATE POLICY "Staff update requests" ON public.custom_requests
 
 -- ─── Storage ────────────────────────────────────────────────────────────────
 
--- El bucket real se llama 'productos'. El código sube a 'product-images',
--- que no existe: por eso falla la carga de fotos. Lo corrige 0003.
+-- El bucket real se llama 'productos'. El código subía a 'product-images',
+-- que no existe: por eso fallaba la carga de fotos. Se corrigió en el
+-- cliente (config.js), no en una migración: el nombre correcto siempre fue
+-- este y lo que estaba mal era el código.
 INSERT INTO storage.buckets (id, name, public, file_size_limit)
 VALUES ('productos', 'productos', true, 10485760)
 ON CONFLICT (id) DO NOTHING;
