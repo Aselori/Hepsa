@@ -206,6 +206,7 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
     <script>
         // ─── TEMA PERSISTENTE ───────────────────────────────────────────────
         (function() {
@@ -223,8 +224,7 @@
         }
 
         // ─── SUPABASE ───────────────────────────────────────────────────────
-        const supabaseUrl = 'https://xwxjxvfdfywtjxnsjnbz.supabase.co'; 
-        const supabaseKey = 'sb_publishable_CT7Mk7q3H6HPVswFJ8Z98g_HrTmNlrV'; 
+        const { supabaseUrl, supabaseKey } = window.HEPSA_CONFIG;
         if (window.supabase) {
             window.supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
             cargarCatalogoPublico();
@@ -315,7 +315,8 @@
             if (pass !== pass2) return alert("Las contraseñas no coinciden.");
             const { error } = await window.supabaseClient.auth.signUp({
                 email, password: pass,
-                options: { data: { first_name: n1, middle_name: document.getElementById('reg-n2').value, last_name_p: p, last_name_m: m, phone: document.getElementById('reg-tel').value, role: 'cliente' } }
+                // Sin 'role': lo asigna handle_new_user() en el servidor.
+                options: { data: { first_name: n1, middle_name: document.getElementById('reg-n2').value, last_name_p: p, last_name_m: m, phone: document.getElementById('reg-tel').value } }
             });
             if (error) alert("Error: " + error.message);
             else { alert("✅ Cuenta creada. Revisa tu correo para verificarla."); showView('login'); }
@@ -327,7 +328,11 @@
                 const btnLogin = document.getElementById('btn-login');
                 btnLogin.innerHTML = "👤 Mi Perfil";
                 btnLogin.onclick = () => showView('profile');
-                const m = session.user.user_metadata;
+                // profiles es la fuente de verdad; user_metadata solo refleja
+                // lo que se escribió una vez al registrarse.
+                const { data: perfil } = await window.supabaseClient
+                    .from('profiles').select('first_name, last_name_p, phone').eq('id', session.user.id).single();
+                const m = perfil || session.user.user_metadata;
                 document.getElementById('prof-name').value = `${m.first_name||''} ${m.last_name_p||''}`.trim();
                 document.getElementById('prof-email').value = session.user.email;
                 document.getElementById('prof-tel').value = m.phone || '';

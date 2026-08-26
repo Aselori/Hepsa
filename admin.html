@@ -296,7 +296,7 @@
                 <button class="action-btn" style="width: auto; padding: 10px 20px;" onclick="cargarUsuariosBD()">🔄 Refrescar Directorio</button>
             </div>
             <div class="panel">
-                <p style="color: var(--text-muted); margin-top: 0;">Para ascender a un cliente a empleado, modifícalo directamente en el SQL de Supabase.</p>
+                <p style="color: var(--text-muted); margin-top: 0;">Para ascender a un cliente a vendedor o admin, cambia profiles.role directamente en el SQL de Supabase.</p>
                 <div class="table-container">
                     <table>
                         <thead><tr><th>Nombre Completo</th><th>Teléfono</th><th>Fecha Registro</th><th>Rol de Sistema</th></tr></thead>
@@ -308,6 +308,7 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
     <script>
         (function() {
             const tema = localStorage.getItem('hepsa_theme') || 'light';
@@ -323,19 +324,23 @@
             document.getElementById('theme-toggle').textContent = esLight ? '🌙' : '☀️';
         }
 
-        const supabaseUrl = 'https://xwxjxvfdfywtjxnsjnbz.supabase.co';
-        const supabaseKey = 'sb_publishable_CT7Mk7q3H6HPVswFJ8Z98g_HrTmNlrV';
+        const { supabaseUrl, supabaseKey, storageBucket } = window.HEPSA_CONFIG;
 
         async function verificarAccesoYArrancar() {
             if (window.supabase) { window.supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey); }
             else { console.error("Error cargando Supabase."); return; }
             const { data: { session } } = await window.supabaseClient.auth.getSession();
             if (!session) { window.location.href = 'index.html'; return; }
-            const userRole = session.user.user_metadata.role || 'cliente';
-            if (userRole === 'cliente') { alert("🔒 ACCESO DENEGADO."); window.location.href = 'index.html'; return; }
+            // El rol vive en profiles, no en user_metadata: los metadatos son
+            // escribibles por el propio usuario con auth.updateUser().
+            const { data: perfil, error } = await window.supabaseClient
+                .from('profiles').select('role').eq('id', session.user.id).single();
+            if (error) { alert("No se pudo verificar tu rol. Intenta de nuevo."); window.location.href = 'index.html'; return; }
+            const userRole = perfil?.role || 'cliente';
+            if (userRole !== 'vendedor' && userRole !== 'admin') { alert("🔒 ACCESO DENEGADO."); window.location.href = 'index.html'; return; }
             document.body.style.display = 'flex';
             document.getElementById('user-role-display').innerText = `Rol activo: ${userRole}`;
-            if (userRole === 'empleado') {
+            if (userRole === 'vendedor') {
                 document.getElementById('nav-config').style.display = 'none';
                 document.getElementById('nav-users').style.display = 'none';
             }
@@ -609,10 +614,10 @@
             if (fileInput.files.length > 0) {
                 const file = fileInput.files[0];
                 const fileName = `products/${Date.now()}_${file.name}`;
-                const { data: uploadData, error: uploadError } = await window.supabaseClient.storage.from('product-images').upload(fileName, file);
+                const { data: uploadData, error: uploadError } = await window.supabaseClient.storage.from(storageBucket).upload(fileName, file);
                 if (uploadError) { showToast('Error subiendo imagen: ' + uploadError.message, 'error'); }
                 else {
-                    const { data: urlData } = window.supabaseClient.storage.from('product-images').getPublicUrl(fileName);
+                    const { data: urlData } = window.supabaseClient.storage.from(storageBucket).getPublicUrl(fileName);
                     image_url = urlData.publicUrl;
                 }
             }
