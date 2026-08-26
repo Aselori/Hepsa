@@ -12,3 +12,11 @@ build/
 coverage/
 *.tmp
 *.bak
+
+# Respaldos de base de datos: contienen datos reales de clientes y hashes
+# de contraseñas. Nunca deben entrar al repositorio.
+*.backup
+*.backup.gz
+*.dump
+*.sql.gz
+db_cluster-*
