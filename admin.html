@@ -283,8 +283,8 @@
             <div class="panel">
                 <div class="table-container">
                     <table>
-                        <thead><tr><th>Cliente</th><th>Contacto</th><th>Especificaciones</th><th>Fecha</th><th>Estatus</th></tr></thead>
-                        <tbody id="projects-table-body"><tr><td colspan="5" style="text-align: center;">Cargando solicitudes...</td></tr></tbody>
+                        <thead><tr><th>Cliente</th><th>Contacto</th><th>Pieza</th><th>Estimado</th><th>Fecha</th><th>Estatus</th></tr></thead>
+                        <tbody id="projects-table-body"><tr><td colspan="6" style="text-align: center;">Cargando solicitudes...</td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -711,15 +711,29 @@
                 tbody.innerHTML = data.map(req => {
                     const name = `${req.first_name||''} ${req.last_name_p||''}`.trim();
                     const selector = `<select onchange="actualizarEstatusProyecto('${req.id}', this.value)">${estados.map(est => `<option value="${est}" ${req.status === est ? 'selected' : ''}>${est}</option>`).join('')}</select>`;
+                    const medidas = `${req.largo_mm} × ${req.alto_mm}${req.profundidad_mm ? ' × ' + req.profundidad_mm : ''} mm`;
+                    const area = ((req.largo_mm * req.alto_mm) / 1000000).toFixed(2);
+                    const legible = (v) => (v || '').replace(/_/g, ' ');
+                    const precio = req.precio_estimado != null
+                        ? Number(req.precio_estimado).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+                        : '—';
+                    const notas = req.specifications
+                        ? `<br><small style="opacity:.7;" title="${req.specifications}">📝 ${req.specifications.length > 60 ? req.specifications.substring(0,60)+'…' : req.specifications}</small>`
+                        : '';
                     return `<tr>
                         <td><strong>${name}</strong></td>
                         <td>${req.phone}<br><small>${req.email}</small></td>
-                        <td style="max-width:200px; white-space:normal;" title="${req.specifications}">${req.specifications ? (req.specifications.length > 80 ? req.specifications.substring(0,80)+'...' : req.specifications) : '—'}</td>
+                        <td style="max-width:260px; white-space:normal;">
+                            <strong>${medidas}</strong> <small>(${area} m²)</small><br>
+                            <small style="text-transform:capitalize;">${legible(req.material)} · ${legible(req.acabado)}</small>
+                            ${notas}
+                        </td>
+                        <td><strong>${precio}</strong><br><small style="opacity:.7;">estimado</small></td>
                         <td>${new Date(req.created_at).toLocaleDateString('es-MX')}</td>
                         <td>${selector}</td>
                     </tr>`;
                 }).join('');
-            } else { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No hay solicitudes.</td></tr>`; }
+            } else { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No hay solicitudes.</td></tr>`; }
         }
 
         async function actualizarEstatusProyecto(id, nuevoEstado) {
