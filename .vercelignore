@@ -1,0 +1,18 @@
+# El sitio es estatico y se sirve desde la raiz: todo lo que quede aqui
+# queda PUBLICO en la URL del despliegue. Solo debe publicarse el sitio.
+
+# Esquema y semillas de la base. No son secretos, pero regalan el mapa
+# completo de tablas y politicas a cualquiera que pruebe /supabase/...
+supabase/
+
+# Pruebas: incluyen los correos de las cuentas de prueba.
+tests/
+
+# Documentacion interna del equipo.
+docs/
+
+# Higiene
+.git/
+node_modules/
+*.md
+!README.md
