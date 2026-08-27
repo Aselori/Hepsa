@@ -130,8 +130,50 @@
                 </div>
                 <div class="form-group" style="margin-top: 20px;"><label>Correo Electrónico *</label><input type="email" id="quote-email" placeholder="ejemplo@correo.com"></div>
                 <div class="form-group"><label>Teléfono de Contacto *</label><input type="tel" id="quote-tel" placeholder="(81) 0000-0000"></div>
-                <div class="form-group"><label>Especificaciones Técnicas *</label><textarea id="quote-specs" rows="6" placeholder="Describa a detalle lo que necesita..."></textarea></div>
-                <button class="action-btn" onclick="enviarCotizacionBD()">Solicitar Cotización</button>
+
+                <h3 style="border-top: 1px solid var(--form-border); padding-top: 25px; margin-top: 30px;">Especificaciones de la Pieza</h3>
+
+                <div class="name-grid">
+                    <div class="form-group" style="margin-bottom: 0;"><label>Largo (mm) *</label><input type="number" id="quote-largo" min="10" max="20000" step="1" placeholder="Ej: 1670"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Alto (mm) *</label><input type="number" id="quote-alto" min="10" max="20000" step="1" placeholder="Ej: 1240"></div>
+                </div>
+                <div class="form-group" style="margin-top: 20px;"><label>Profundidad (mm) — opcional</label><input type="number" id="quote-prof" min="10" max="5000" step="1" placeholder="Déjalo vacío si la pieza es plana"></div>
+
+                <div class="name-grid">
+                    <div class="form-group" style="margin-bottom: 0;"><label>Material *</label>
+                        <select id="quote-material">
+                            <option value="">Selecciona...</option>
+                            <option value="acero">Acero</option>
+                            <option value="hierro_forjado">Hierro Forjado</option>
+                            <option value="aluminio">Aluminio</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Acabado *</label>
+                        <select id="quote-acabado">
+                            <option value="">Selecciona...</option>
+                            <option value="pintura_electrostatica">Pintura Electrostática</option>
+                            <option value="pavonado">Pavonado</option>
+                            <option value="cromado">Cromado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;"><label>Notas Adicionales (Opcional)</label><textarea id="quote-specs" rows="4" placeholder="Diseño de arquitecto, color específico, detalles de instalación..."></textarea></div>
+
+                <button class="action-btn" style="background: transparent; border: 2px solid var(--primary); color: var(--primary);" onclick="calcularCotizacion()">Calcular Cotización</button>
+
+                <div id="quote-estimate" style="display:none; margin-top: 20px; padding: 20px; border: 1px solid var(--form-border); border-radius: 8px; background: var(--input-bg);">
+                    <div style="font-size: 0.9rem; color: var(--text-label);">Estimado aproximado</div>
+                    <div id="quote-estimate-amount" style="font-size: 2rem; font-weight: bold; color: var(--primary); margin: 5px 0;"></div>
+                    <div id="quote-estimate-detail" style="font-size: 0.85rem; color: var(--text-label);"></div>
+                    <p style="font-size: 0.8rem; color: var(--text-label); margin: 12px 0 0 0; line-height: 1.5;">
+                        Este monto es <strong>aproximado y no constituye una cotización en firme</strong>.
+                        Se calcula sobre medidas, material y acabado; el precio final depende del diseño,
+                        la instalación y la revisión de nuestro equipo.
+                    </p>
+                </div>
+
+                <button class="action-btn" style="margin-top: 20px;" onclick="enviarCotizacionBD()">Solicitar Cotización</button>
             </div>
         </section>
 
@@ -278,6 +320,49 @@
         }
 
         // ─── COTIZACIÓN ─────────────────────────────────────────────────────
+        // Lee y valida la pieza. Devuelve null y avisa si algo falta o no cuadra,
+        // para que el cliente no descubra el error hasta después de enviar.
+        function leerPieza() {
+            const largo = parseInt(document.getElementById('quote-largo').value, 10);
+            const alto = parseInt(document.getElementById('quote-alto').value, 10);
+            const profTexto = document.getElementById('quote-prof').value.trim();
+            const prof = profTexto === '' ? null : parseInt(profTexto, 10);
+            const material = document.getElementById('quote-material').value;
+            const acabado = document.getElementById('quote-acabado').value;
+
+            if (!largo || !alto) { alert("Indica el largo y el alto en milímetros."); return null; }
+            // Mismos límites que los CHECK de la base: mejor avisar aquí que
+            // dejar que el servidor devuelva un error de restricción.
+            if (largo < 10 || largo > 20000 || alto < 10 || alto > 20000) {
+                alert("Largo y alto deben estar entre 10 mm y 20,000 mm (20 m).\n¿Los capturaste en metros por error?"); return null;
+            }
+            if (prof !== null && (isNaN(prof) || prof < 10 || prof > 5000)) {
+                alert("La profundidad debe estar entre 10 mm y 5,000 mm, o dejarse vacía."); return null;
+            }
+            if (!material || !acabado) { alert("Selecciona el material y el acabado."); return null; }
+            return { largo_mm: largo, alto_mm: alto, profundidad_mm: prof, material, acabado };
+        }
+
+        // El precio lo calcula la base, no el navegador: si viviera aquí,
+        // cualquiera podría alterarlo desde la consola.
+        async function calcularCotizacion() {
+            const pieza = leerPieza();
+            if (!pieza) return;
+            const { data, error } = await window.supabaseClient.rpc('calcular_precio', {
+                p_largo_mm: pieza.largo_mm, p_alto_mm: pieza.alto_mm,
+                p_material: pieza.material, p_acabado: pieza.acabado
+            });
+            if (error) return alert("No se pudo calcular: " + error.message);
+            if (data === null) return alert("No hay tarifa para esa combinación.");
+
+            const area = (pieza.largo_mm * pieza.alto_mm) / 1000000;
+            document.getElementById('quote-estimate-amount').innerText =
+                Number(data).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+            document.getElementById('quote-estimate-detail').innerText =
+                `${area.toFixed(2)} m² · ${pieza.material.replace(/_/g, ' ')} · ${pieza.acabado.replace(/_/g, ' ')}`;
+            document.getElementById('quote-estimate').style.display = 'block';
+        }
+
         async function enviarCotizacionBD() {
             const n1 = document.getElementById('quote-n1').value;
             const n2 = document.getElementById('quote-n2').value;
@@ -286,12 +371,22 @@
             const email = document.getElementById('quote-email').value;
             const tel = document.getElementById('quote-tel').value;
             const specs = document.getElementById('quote-specs').value;
-            if(!n1 || !p || !m || !email || !tel || !specs) return alert("Completa los campos obligatorios.");
+            if(!n1 || !p || !m || !email || !tel) return alert("Completa los campos obligatorios.");
+            const pieza = leerPieza();
+            if (!pieza) return;
+
+            // precio_estimado no se manda: lo pone un trigger en la base.
             const { error } = await window.supabaseClient.from('custom_requests').insert([{
-                first_name: n1, middle_name: n2, last_name_p: p, last_name_m: m, email: email, phone: tel, specifications: specs
+                first_name: n1, middle_name: n2, last_name_p: p, last_name_m: m,
+                email: email, phone: tel, specifications: specs, ...pieza
             }]);
             if (error) alert("Error: " + error.message);
-            else { alert("✅ Solicitud enviada. En breve nos comunicaremos contigo."); document.querySelectorAll('#view-quote input, #view-quote textarea').forEach(i => i.value = ''); }
+            else {
+                alert("✅ Solicitud enviada. En breve nos comunicaremos contigo.");
+                document.querySelectorAll('#view-quote input, #view-quote textarea').forEach(i => i.value = '');
+                document.querySelectorAll('#view-quote select').forEach(s => s.value = '');
+                document.getElementById('quote-estimate').style.display = 'none';
+            }
         }
 
         // ─── AUTENTICACIÓN ──────────────────────────────────────────────────

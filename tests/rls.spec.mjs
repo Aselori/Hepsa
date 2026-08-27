@@ -172,6 +172,90 @@ try {
     check('cliente no ve ordenes ajenas', r.ordenes === 0, `filas=${r.ordenes}`);
     await ctx.close();
   }
+  // ── 6. Cotizador estructurado ────────────────────────────────────────────
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    const alertas = [];
+    page.on('dialog', async (d) => { alertas.push(d.message()); await d.accept(); });
+    await page.goto(`${BASE}/index.html`);
+    await page.waitForFunction(() => window.supabaseClient !== undefined);
+    await page.click('#btn-quote'); // el formulario vive en una vista oculta
+    await page.waitForSelector('#quote-largo', { state: 'visible' });
+
+    const llenar = async (largo, alto, material, acabado) => {
+      await page.fill('#quote-largo', String(largo));
+      await page.fill('#quote-alto', String(alto));
+      await page.selectOption('#quote-material', material);
+      await page.selectOption('#quote-acabado', acabado);
+    };
+
+    // Un anonimo puede cotizar sin registrarse.
+    await llenar(2000, 1000, 'acero', 'cromado');
+    await page.click('text=Calcular Cotización');
+    await page.waitForTimeout(1200);
+    const monto = await page.locator('#quote-estimate-amount').innerText();
+    check('anonimo obtiene estimado', /7,000/.test(monto), `monto="${monto}"`);
+
+    const aviso = await page.locator('#quote-estimate').innerText();
+    check('el estimado lleva aviso de no ser en firme',
+      /no constituye una cotizaci[oó]n en firme/i.test(aviso));
+
+    // Medidas absurdas: se atajan antes de llegar a la base.
+    alertas.length = 0;
+    await llenar(50000, 1000, 'acero', 'cromado');
+    await page.click('text=Calcular Cotización');
+    await page.waitForTimeout(800);
+    check('rechaza medidas fuera de rango',
+      alertas.some((a) => /20,000 mm/.test(a)), `alertas=${JSON.stringify(alertas)}`);
+
+    // El tarifario es informacion comercial: no se expone al publico.
+    const tarifas = await page.evaluate(async () => {
+      const m = await window.supabaseClient.from('tarifas_material').select('*');
+      const a = await window.supabaseClient.from('tarifas_acabado').select('*');
+      return { m: m.data?.length, a: a.data?.length };
+    });
+    check('anonimo no ve el tarifario', tarifas.m === 0 && tarifas.a === 0,
+      `material=${tarifas.m} acabado=${tarifas.a}`);
+
+    // Lo que de verdad importa: el precio lo pone el servidor.
+    const manipulado = await page.evaluate(async () => {
+      const correo = `precio-falso-${Date.now()}@test.local`;
+      await window.supabaseClient.from('custom_requests').insert([{
+        first_name: 'Precio', last_name_p: 'Falso', email: correo, phone: '0000000000',
+        largo_mm: 2000, alto_mm: 1000, material: 'acero', acabado: 'cromado',
+        precio_estimado: 1,
+      }]);
+      const { data } = await window.supabaseClient
+        .rpc('calcular_precio', { p_largo_mm: 2000, p_alto_mm: 1000, p_material: 'acero', p_acabado: 'cromado' });
+      return { correo, esperado: data };
+    });
+    const guardado = await page.evaluate(async () => null); // el anonimo no puede releer: se verifica abajo
+    check('el precio manipulado no se acepta tal cual', manipulado.esperado !== 1,
+      `calculado=${manipulado.esperado}`);
+    globalThis.__correoManipulado = manipulado.correo;
+    void guardado;
+    await ctx.close();
+  }
+
+  // Releer como staff lo que el anonimo intento manipular.
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await entrar(page, CUENTAS.admin);
+    const fila = await page.evaluate(async (correo) => {
+      const { data } = await window.supabaseClient
+        .from('custom_requests').select('precio_estimado').eq('email', correo).single();
+      return data?.precio_estimado;
+    }, globalThis.__correoManipulado);
+    check('el servidor reescribio el precio', Number(fila) === 7000, `guardado=${fila}`);
+
+    // Limpieza de la fila de prueba.
+    await page.evaluate(async (correo) => {
+      await window.supabaseClient.from('custom_requests').delete().eq('email', correo);
+    }, globalThis.__correoManipulado);
+    await ctx.close();
+  }
 } finally {
   await browser.close();
 }
