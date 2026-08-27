@@ -668,8 +668,12 @@
 
         async function eliminarProducto(id, nombre) {
             if (!confirm(`⚠️ ¿Eliminar permanentemente el producto "${nombre}"?\n\nEsta acción no se puede deshacer.`)) return;
-            const { error } = await window.supabaseClient.from('products').delete().eq('id', id);
+            // Borrar es solo de admin. A un vendedor, RLS no le devuelve error:
+            // simplemente no borra nada. Sin mirar count, la interfaz mentiría.
+            const { error, count } = await window.supabaseClient
+                .from('products').delete({ count: 'exact' }).eq('id', id);
             if (error) showToast('Error al eliminar: ' + error.message, 'error');
+            else if (count === 0) showToast('No se eliminó: se requiere rol de administrador', 'error');
             else { showToast(`Producto "${nombre}" eliminado`); cargarInventarioBD(); }
         }
 
