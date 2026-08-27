@@ -238,6 +238,65 @@ try {
     await ctx.close();
   }
 
+  // ── 7. Carrito (Mejora 1) ────────────────────────────────────────────────
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/index.html`);
+    await page.waitForSelector('[data-add-id]');
+
+    const leerCart = () => page.evaluate(() => cart.map(({ id, qty }) => ({ id, qty })));
+
+    // Dos productos distintos comparten el nombre "Puerta de madera de abeto"
+    // (ids 7 y 8, a $14,000 y $20,000). Con el carrito viejo eran la misma
+    // linea; ahora deben quedar separados.
+    const ids = await page.evaluate(() =>
+      Object.values(catalogo).filter((p) => p.name === 'Puerta de madera de abeto').map((p) => p.id).sort());
+    check('el catalogo tiene dos productos homonimos', ids.length === 2, `ids=${ids}`);
+
+    await page.click(`[data-add-id="${ids[0]}"]`);
+    await page.click(`[data-add-id="${ids[1]}"]`);
+    const separados = await leerCart();
+    check('productos con el mismo nombre no se mezclan',
+      separados.length === 2, JSON.stringify(separados));
+
+    // Agregar dos veces el mismo producto agrupa en cantidad.
+    await page.click(`[data-add-id="${ids[0]}"]`);
+    const agrupado = await leerCart();
+    check('el mismo producto agrupa por cantidad',
+      agrupado.length === 2 && agrupado.find((l) => l.id === ids[0]).qty === 2,
+      JSON.stringify(agrupado));
+
+    // El total sale del precio del catalogo, no de un valor pegado al HTML.
+    await page.click('#cart-btn');
+    const esperado = await page.evaluate((ls) =>
+      ls.reduce((t, l) => t + catalogo[l.id].price * l.qty, 0), agrupado);
+    const mostrado = await page.locator('#cart-total-price').innerText();
+    check('el total del carrito cuadra',
+      Number(mostrado.replace(/,/g, '')) === esperado, `mostrado=${mostrado} esperado=${esperado}`);
+
+    // Se puede quitar, cosa que antes era imposible sin recargar.
+    await page.click(`[data-remove-id="${ids[1]}"]`);
+    check('se puede quitar una linea', (await leerCart()).length === 1);
+
+    // Bajar de 1 elimina la linea.
+    await page.click(`[data-qty-id="${ids[0]}"][data-delta="-1"]`);
+    await page.click(`[data-qty-id="${ids[0]}"][data-delta="-1"]`);
+    check('bajar la cantidad a cero quita la linea', (await leerCart()).length === 0);
+
+    // Sobrevive a recargar la pagina.
+    await page.click(`[data-add-id="${ids[0]}"]`);
+    await page.reload();
+    await page.waitForSelector('[data-add-id]');
+    await page.waitForFunction(() => cart.length > 0, null, { timeout: 5000 }).catch(() => {});
+    const trasRecarga = await leerCart();
+    check('el carrito sobrevive a recargar', trasRecarga.length === 1 && trasRecarga[0].qty === 1,
+      JSON.stringify(trasRecarga));
+
+    await page.evaluate(() => { localStorage.removeItem('hepsa_cart'); });
+    await ctx.close();
+  }
+
   // Releer como staff lo que el anonimo intento manipular.
   {
     const ctx = await browser.newContext();
