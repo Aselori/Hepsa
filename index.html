@@ -275,18 +275,98 @@
 
         // ─── CARRITO ────────────────────────────────────────────────────────
         let cart = [];
-        function addToCart(name, price) {
-            cart.push({ name, price });
-            document.getElementById('cart-count').textContent = cart.length;
+        let catalogo = {}; // id -> producto, poblado por cargarCatalogoPublico()
+        // El carrito guarda { id, qty }. Nada más. Nombre y precio se leen del
+        // catálogo al pintar, así que el precio siempre es el de la base y no
+        // uno que quedó pegado en el HTML.
+        //
+        // Antes guardaba { name, price }, y el catálogo tiene dos productos
+        // llamados "Puerta de madera de abeto" con precios distintos ($14,000 y
+        // $20,000): eran indistinguibles dentro del carrito.
+        const CART_KEY = 'hepsa_cart';
+
+        function guardarCart() {
+            try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch (e) { /* modo privado */ }
+        }
+
+        function cargarCart() {
+            try {
+                const guardado = JSON.parse(localStorage.getItem(CART_KEY) || '[]');
+                cart = Array.isArray(guardado)
+                    ? guardado.filter((l) => l && Number.isInteger(l.qty) && l.qty > 0)
+                    : [];
+            } catch (e) { cart = []; }
+        }
+
+        function addToCart(id) {
+            const linea = cart.find((l) => l.id === id);
+            if (linea) linea.qty += 1;
+            else cart.push({ id, qty: 1 });
+            guardarCart();
+            renderCart();
+        }
+
+        function cambiarCantidad(id, delta) {
+            const linea = cart.find((l) => l.id === id);
+            if (!linea) return;
+            linea.qty += delta;
+            if (linea.qty <= 0) cart = cart.filter((l) => l.id !== id);
+            guardarCart();
+            renderCart();
+        }
+
+        function quitarDelCart(id) {
+            cart = cart.filter((l) => l.id !== id);
+            guardarCart();
             renderCart();
         }
         function renderCart() {
             const c = document.getElementById('cart-items-container');
-            if (cart.length === 0) { c.innerHTML = '<p style="color: var(--text-muted); text-align:center;">El carrito está vacío</p>'; document.getElementById('cart-total-price').textContent = '0.00'; return; }
+            const piezas = cart.reduce((n, l) => n + l.qty, 0);
+            document.getElementById('cart-count').textContent = piezas;
+
+            // Si un producto se desactivó o se borró mientras estaba en el
+            // carrito, ya no está en el catálogo: se descarta en vez de pintar
+            // "undefined".
+            const lineas = cart.map((l) => ({ ...l, p: catalogo[l.id] })).filter((l) => l.p);
+            if (lineas.length !== cart.length) { cart = lineas.map(({ id, qty }) => ({ id, qty })); guardarCart(); }
+
+            if (lineas.length === 0) {
+                c.innerHTML = '<p style="color: var(--text-muted); text-align:center;">El carrito está vacío</p>';
+                document.getElementById('cart-total-price').textContent = '0.00';
+                return;
+            }
+
             let total = 0;
-            c.innerHTML = cart.map((item, i) => { total += item.price; return `<div class="cart-item"><span class="cart-item-name">${item.name}</span><span class="cart-item-price">$${item.price.toLocaleString()}</span></div>`; }).join('');
+            c.innerHTML = lineas.map(({ id, qty, p }) => {
+                const importe = p.price * qty;
+                total += importe;
+                return `<div class="cart-item">
+                    <span class="cart-item-name">${esc(p.name)}<br>
+                        <small style="opacity:.7;">$${p.price.toLocaleString()} c/u</small>
+                    </span>
+                    <span style="display:flex; align-items:center; gap:8px;">
+                        <button data-qty-id="${id}" data-delta="-1" style="width:28px; padding:2px;">−</button>
+                        <span style="min-width:1.5em; text-align:center;">${qty}</span>
+                        <button data-qty-id="${id}" data-delta="1" style="width:28px; padding:2px;">+</button>
+                        <span class="cart-item-price" style="min-width:6em; text-align:right;">$${importe.toLocaleString()}</span>
+                        <button data-remove-id="${id}" title="Quitar" style="width:28px; padding:2px;">✖</button>
+                    </span>
+                </div>`;
+            }).join('');
             document.getElementById('cart-total-price').textContent = total.toLocaleString('en-US', {minimumFractionDigits:2});
         }
+
+        // Delegación en vez de onclick con el nombre interpolado: así un
+        // apóstrofo en el nombre del producto no rompe nada.
+        document.addEventListener('click', (ev) => {
+            const add = ev.target.closest('[data-add-id]');
+            if (add) return addToCart(Number(add.dataset.addId));
+            const qty = ev.target.closest('[data-qty-id]');
+            if (qty) return cambiarCantidad(Number(qty.dataset.qtyId), Number(qty.dataset.delta));
+            const quitar = ev.target.closest('[data-remove-id]');
+            if (quitar) return quitarDelCart(Number(quitar.dataset.removeId));
+        });
         function toggleCart() { document.getElementById('cart-modal').classList.toggle('open'); }
 
         // ─── NAVEGACIÓN ─────────────────────────────────────────────────────
@@ -300,23 +380,49 @@
         showView('catalog');
 
         // ─── CATÁLOGO PÚBLICO ───────────────────────────────────────────────
+        // Escapa texto que viene de la base antes de meterlo al HTML. Sin esto,
+        // un producto llamado "Puerta O'Brien" rompe la tarjeta.
+        function esc(v) {
+            return String(v ?? '').replace(/[&<>"']/g, (c) =>
+                ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
         async function cargarCatalogoPublico() {
-            const { data } = await window.supabaseClient.from('products').select('*').eq('is_active', true);
-            if(data && data.length > 0) {
-                document.getElementById('public-catalog-grid').innerHTML = data.map(p => `
+            const grid = document.getElementById('public-catalog-grid');
+            const vacio = (msg) => { grid.innerHTML = `<p style="color: var(--text-muted); grid-column: 1/-1; text-align:center; padding: 40px;">${msg}</p>`; };
+
+            // Sólo las columnas que la tarjeta usa: description, stock y
+            // created_at se traían sin ocuparse. El filtro is_active es
+            // necesario aunque RLS también lo aplique, porque el staff sí ve
+            // los inactivos y aquí no deben salir.
+            const { data, error } = await window.supabaseClient
+                .from('products').select('id, name, price, image_url')
+                .eq('is_active', true).order('id');
+
+            // Antes el error se descartaba y la página decía "no hay productos"
+            // aunque el problema fuera de conexión.
+            if (error) return vacio('No se pudo cargar el catálogo. Intenta de nuevo.');
+            if (!data || data.length === 0) return vacio('No hay productos disponibles en este momento.');
+
+            // Índice por id: el carrito guarda ids, no nombres ni precios.
+            catalogo = Object.fromEntries(data.map((p) => [p.id, p]));
+
+            grid.innerHTML = data.map((p) => `
                     <div class="product-card">
-                        <div class="card-img" style="${p.image_url ? `background-image: url('${p.image_url}'); background-size: cover; background-position: center;` : 'background: linear-gradient(135deg,#1a1a1a,#2a2a2a); display:flex; align-items:center; justify-content:center;'}">
+                        <div class="card-img" style="${p.image_url ? `background-image: url('${esc(p.image_url)}'); background-size: cover; background-position: center;` : 'background: linear-gradient(135deg,#1a1a1a,#2a2a2a); display:flex; align-items:center; justify-content:center;'}">
                             ${!p.image_url ? '<span style="color:#666; font-size:2rem;">🔩</span>' : ''}
                         </div>
                         <div class="card-body">
-                            <h3 class="product-title">${p.name}</h3>
+                            <h3 class="product-title">${esc(p.name)}</h3>
                             <span class="price">$${p.price.toLocaleString()} MXN</span>
-                            <button class="action-btn" onclick="addToCart('${p.name}', ${p.price})">Añadir al Carrito</button>
+                            <button class="action-btn" data-add-id="${p.id}">Añadir al Carrito</button>
                         </div>
                     </div>`).join('');
-            } else {
-                document.getElementById('public-catalog-grid').innerHTML = '<p style="color: var(--text-muted); grid-column: 1/-1; text-align:center; padding: 40px;">No hay productos disponibles en este momento.</p>';
-            }
+
+            // El carrito se restaura aquí y no al arrancar: necesita el
+            // catálogo cargado para poder pintar nombres y precios.
+            cargarCart();
+            renderCart();
         }
 
         // ─── COTIZACIÓN ─────────────────────────────────────────────────────
