@@ -21,11 +21,14 @@ window.HEPSA_CONFIG = {
 
     // ¿Se puede pedir más de lo que hay en existencia?
     //
-    // false = el carrito topa la cantidad en products.stock.
-    // true  = se acepta como pedido sobre encargo, sin tope.
+    // NO se configura aquí. Vive en la base, en parametros_cotizacion:
     //
-    // Queda en false por ahora. En herrería a medida el sobre pedido tiene
-    // sentido, pero es una decisión del negocio: si HEPSA prefiere aceptar
-    // encargos por encima del inventario, se cambia esta línea y nada más.
-    permitirSobrePedido: false
+    //   UPDATE public.parametros_cotizacion
+    //      SET valor = 1            -- 1 = se acepta sobre pedido, 0 = topa en stock
+    //    WHERE clave = 'permitir_sobre_pedido';
+    //
+    // Está allá y no aquí porque el checkout también tiene que respetarla, y
+    // una regla escrita en dos lados acaba con las dos mitades en desacuerdo:
+    // el navegador dejaría pedir lo que el servidor luego rechaza. El portal
+    // la consulta al arrancar con permite_sobre_pedido().
 };

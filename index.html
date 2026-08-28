@@ -117,7 +117,11 @@
         </div>
         <div id="cart-items-container"><p style="color: var(--text-muted); text-align:center;">El carrito está vacío</p></div>
         <div class="cart-total">Total: $<span id="cart-total-price">0.00</span></div>
-        <button class="action-btn" onclick="alert('Redirigiendo a pasarela de pago o contacto de ventas...')">Proceder al Pago</button>
+        <button class="action-btn" id="btn-checkout" onclick="confirmarPedido()">Confirmar Pedido</button>
+        <p style="font-size:.8rem; color:var(--text-muted); margin:12px 0 0; line-height:1.4;">
+            Al confirmar registramos tu pedido y te contactamos para acordar el
+            pago y la instalación. Todavía no se cobra nada en línea.
+        </p>
     </div>
 
     <main>
@@ -286,7 +290,9 @@
             // El orden importa: restaurarSesionUI fusiona el carrito y descarta
             // productos que no estén en el catálogo. Si corriera antes de que
             // el catálogo cargue, vaciaría el carrito.
-            cargarCatalogoPublico().then(restaurarSesionUI);
+            cargarReglaSobrePedido()
+                .then(cargarCatalogoPublico)
+                .then(restaurarSesionUI);
         }
 
         // ─── CARRITO ────────────────────────────────────────────────────────
@@ -303,8 +309,18 @@
 
         // Tope por existencias. Devuelve la cantidad maxima permitida para un
         // producto, o Infinity si el negocio acepta pedidos sobre encargo.
+        // La regla vive en la base; aquí sólo se cachea la respuesta para no
+        // preguntar en cada clic. El checkout la vuelve a verificar, así que
+        // si esto quedara desactualizado el servidor manda.
+        let sobrePedido = false;
+
+        async function cargarReglaSobrePedido() {
+            const { data } = await window.supabaseClient.rpc('permite_sobre_pedido');
+            sobrePedido = data === true;
+        }
+
         function topeDe(id) {
-            if (window.HEPSA_CONFIG.permitirSobrePedido) return Infinity;
+            if (sobrePedido) return Infinity;
             const p = catalogo[id];
             return p && Number.isInteger(p.stock) ? p.stock : Infinity;
         }
@@ -434,6 +450,77 @@
             if (linea.qty <= 0) cart = cart.filter((l) => l.id !== id);
             guardarCart();
             renderCart();
+        }
+
+        // ─── Checkout ───────────────────────────────────────────────────────
+
+        async function confirmarPedido() {
+            if (!usuarioActual) {
+                mostrarAviso('<span>🔒</span><span>Inicia sesión para confirmar tu pedido. Tu carrito se guarda.</span>', 'info');
+                document.getElementById('cart-modal').classList.remove('open');
+                return showView('login');
+            }
+            if (cart.length === 0) {
+                return mostrarAviso('<span>🛒</span><span>Tu carrito está vacío.</span>', 'info');
+            }
+
+            const btn = document.getElementById('btn-checkout');
+            btn.disabled = true;
+            btn.textContent = 'Confirmando…';
+            try {
+                // Antes de pedir, dejar que termine cualquier sincronización
+                // pendiente: la función lee carrito_items, no el arreglo local.
+                clearTimeout(temporizadorSync);
+                await enviarCarrito();
+
+                const { data: folio, error } = await window.supabaseClient
+                    .rpc('crear_pedido_desde_carrito', { p_notas: null });
+                if (error) throw error;
+
+                cart = [];
+                guardarCart();
+                renderCart();
+                document.getElementById('cart-modal').classList.remove('open');
+                mostrarAviso(
+                    `<span>✅</span><span>Pedido <strong>#${folio}</strong> registrado.<br>` +
+                    `Te contactamos para acordar el pago y la instalación.</span>`, 'success', 7000);
+                cargarPedidosCliente();
+                showView('profile');
+            } catch (e) {
+                mostrarAviso(`<span>⚠️</span><span>${esc(e.message || 'No se pudo confirmar el pedido')}</span>`, 'error', 7000);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Confirmar Pedido';
+            }
+        }
+
+        // "Proyectos Activos" se quedaba en "Cargando..." porque nadie
+        // consultaba orders. RLS ya permitía al cliente ver las suyas.
+        async function cargarPedidosCliente() {
+            const tbody = document.getElementById('client-history-body');
+            if (!tbody) return;
+            if (!usuarioActual) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Inicia sesión para ver tus proyectos.</td></tr>';
+                return;
+            }
+            const { data, error } = await window.supabaseClient
+                .from('orders').select('id, created_at, total, project_status, payment_status')
+                .order('created_at', { ascending: false });
+            if (error) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No se pudieron cargar tus proyectos.</td></tr>';
+                return;
+            }
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Todavía no tienes proyectos.</td></tr>';
+                return;
+            }
+            const legible = { cotizando: 'Cotizando', en_produccion: 'En producción', instalado: 'Instalado' };
+            tbody.innerHTML = data.map((o) => `<tr>
+                <td>#${o.id}</td>
+                <td>${new Date(o.created_at).toLocaleDateString('es-MX')}</td>
+                <td>${Number(o.total).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</td>
+                <td>${esc(legible[o.project_status] || o.project_status)}</td>
+            </tr>`).join('');
         }
 
         function quitarDelCart(id) {
@@ -691,6 +778,7 @@
                 document.getElementById('prof-tel').value = m.phone || '';
                 // El carrito guardado en la cuenta se junta con el local.
                 await fusionarCarritoAlIniciarSesion(session.user.id);
+                cargarPedidosCliente();
             }
         }
 

@@ -409,6 +409,122 @@ try {
     await ctxC.close();
   }
 
+  // ── 10. Checkout ─────────────────────────────────────────────────────────
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await entrar(page, CUENTAS.cliente);
+    await page.goto(`${BASE}/index.html`);
+    await page.waitForSelector('[data-add-id]');
+    await page.waitForFunction(() => usuarioActual !== null, null, { timeout: 8000 }).catch(() => {});
+
+    // Un anonimo no debe poder crear pedidos.
+    const ctxAnon = await browser.newContext();
+    const pageAnon = await ctxAnon.newPage();
+    await pageAnon.goto(`${BASE}/index.html`);
+    await pageAnon.waitForFunction(() => window.supabaseClient !== undefined);
+    const anon = await pageAnon.evaluate(async () => {
+      const { error } = await window.supabaseClient.rpc('crear_pedido_desde_carrito', { p_notas: null });
+      return error?.message ?? 'SIN ERROR';
+    });
+    check('el anonimo no puede crear pedidos', anon !== 'SIN ERROR', `respuesta=${anon}`);
+    await ctxAnon.close();
+
+    // La razon de que el checkout sea una funcion y no un INSERT: un cliente
+    // no debe poder crear su propia orden con el total que se le antoje.
+    const directo = await page.evaluate(async () => {
+      const { error, data } = await window.supabaseClient.from('orders')
+        .insert([{ client_id: usuarioActual, subtotal: 1, tax: 0, total: 1 }]).select();
+      return { error: error?.message ?? null, filas: data?.length ?? 0 };
+    });
+    check('el cliente no puede insertar ordenes a mano',
+      directo.filas === 0, `filas=${directo.filas} error=${JSON.stringify(directo.error)}`);
+
+    // Carrito: 2 del producto 5 ($15,000) + 1 del 3 ($9,000) = $39,000 + IVA.
+    await page.click('[data-add-id="5"]');
+    await page.click('[data-add-id="5"]');
+    await page.click('[data-add-id="3"]');
+    await page.waitForTimeout(1200);
+
+    await page.click('#cart-btn');
+    await page.click('#btn-checkout');
+    await page.waitForTimeout(2500);
+
+    const aviso = await page.locator('#toast-container').innerText();
+    check('el checkout confirma con folio', /Pedido #\d+ registrado/.test(aviso.replace(/\n/g, ' ')),
+      `toast="${aviso.replace(/\n/g, ' ').slice(0, 90)}"`);
+
+    const pedido = await page.evaluate(async () => {
+      const { data } = await window.supabaseClient
+        .from('orders').select('id, subtotal, tax, total, project_status, payment_status, client_email')
+        .order('id', { ascending: false }).limit(1).single();
+      const { data: items } = await window.supabaseClient
+        .from('order_items').select('product_id, quantity, unit_price, custom_label')
+        .eq('order_id', data.id).order('product_id');
+      return { pedido: data, items };
+    });
+
+    check('el pedido guarda subtotal, IVA y total correctos',
+      Number(pedido.pedido.subtotal) === 39000 &&
+      Number(pedido.pedido.tax) === 6240 &&
+      Number(pedido.pedido.total) === 45240,
+      `subtotal=${pedido.pedido.subtotal} iva=${pedido.pedido.tax} total=${pedido.pedido.total}`);
+
+    check('el pedido guarda sus renglones',
+      pedido.items?.length === 2 && pedido.items.find((i) => i.product_id === 5)?.quantity === 2,
+      JSON.stringify(pedido.items));
+
+    check('nace sin pago y en cotizacion',
+      pedido.pedido.payment_status === 'faltante' && pedido.pedido.project_status === 'cotizando',
+      `${pedido.pedido.payment_status}/${pedido.pedido.project_status}`);
+
+    const carritoTrasPedido = await page.evaluate(async () => {
+      const { data } = await window.supabaseClient.from('carrito_items').select('product_id');
+      return { base: data?.length, local: cart.length };
+    });
+    check('el carrito se vacia al confirmar',
+      carritoTrasPedido.base === 0 && carritoTrasPedido.local === 0, JSON.stringify(carritoTrasPedido));
+
+    // El pedido aparece en "Proyectos Activos", que antes se quedaba cargando.
+    await page.waitForTimeout(800);
+    const historial = await page.locator('#client-history-body').innerText();
+    check('el pedido aparece en Proyectos Activos',
+      new RegExp(`#${pedido.pedido.id}`).test(historial) && /Cotizando/i.test(historial),
+      `tabla="${historial.replace(/\n/g, ' ').slice(0, 80)}"`);
+
+    // Confirmar con el carrito vacio no debe crear otro pedido.
+    await page.click('#cart-btn');
+    await page.click('#btn-checkout');
+    await page.waitForTimeout(1200);
+    const cuantos = await page.evaluate(async () => {
+      const { count } = await window.supabaseClient
+        .from('orders').select('id', { count: 'exact', head: true });
+      return count;
+    });
+    check('no se crean pedidos vacios', cuantos === 1, `pedidos=${cuantos}`);
+
+    // Limpieza: borrar el pedido de prueba requiere admin.
+    globalThis.__pedidoPrueba = pedido.pedido.id;
+    await ctx.close();
+  }
+
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await entrar(page, CUENTAS.admin);
+    // El staff sí debe ver el pedido del cliente: es su trabajo.
+    const visto = await page.evaluate(async (id) => {
+      const { data } = await window.supabaseClient.from('orders').select('id').eq('id', id);
+      return data?.length;
+    }, globalThis.__pedidoPrueba);
+    check('el staff ve el pedido del cliente', visto === 1, `filas=${visto}`);
+
+    await page.evaluate(async (id) => {
+      await window.supabaseClient.from('orders').delete().eq('id', id);
+    }, globalThis.__pedidoPrueba);
+    await ctx.close();
+  }
+
   // Releer como staff lo que el anonimo intento manipular.
   {
     const ctx = await browser.newContext();
