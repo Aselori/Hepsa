@@ -318,8 +318,9 @@ try {
   {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
-    const alertas = [];
-    page.on('dialog', async (d) => { alertas.push(d.message()); await d.accept(); });
+    // Si algo abre un alert() del navegador, la prueba lo delata.
+    const dialogos = [];
+    page.on('dialog', async (d) => { dialogos.push(d.message()); await d.accept(); });
     await page.goto(`${BASE}/index.html`);
     await page.waitForSelector('[data-add-id]');
 
@@ -328,11 +329,26 @@ try {
     check('el catalogo trae el stock', stock6 === 1, `stock=${stock6}`);
 
     await page.click('[data-add-id="6"]');
+    // Al llegar al tope el boton se apaga y cambia de texto.
+    const textoBoton = await page.locator('[data-add-id="6"]').innerText();
+    const apagado = await page.locator('[data-add-id="6"]').evaluate((b) => b.classList.contains('agotado'));
+    check('el boton se apaga al llegar al tope',
+      apagado && /Sin m[aá]s existencias/i.test(textoBoton), `texto="${textoBoton}" apagado=${apagado}`);
+
     await page.click('[data-add-id="6"]');
     const qty6 = await page.evaluate(() => cart.find((l) => l.id === 6)?.qty);
     check('no se puede pasar del stock', qty6 === 1, `qty=${qty6}`);
-    check('avisa por que no dejo agregar',
-      alertas.some((a) => /S[oó]lo queda 1 pieza/.test(a)), JSON.stringify(alertas));
+
+    const aviso = await page.locator('#toast-container .toast').innerText();
+    check('avisa con un toast, no con alert()',
+      /1 pieza/.test(aviso) && dialogos.length === 0,
+      `toast="${aviso.replace(/\n/g, ' ')}" dialogos=${dialogos.length}`);
+
+    // El aviso ofrece ir al cotizador para lo que exceda el inventario.
+    await page.click('[data-ir-cotizador]');
+    await page.waitForTimeout(400);
+    const enCotizador = await page.locator('#view-quote').evaluate((s) => s.classList.contains('active'));
+    check('el aviso lleva al cotizador', enCotizador);
 
     await page.evaluate(() => { localStorage.removeItem('hepsa_cart'); });
     await ctx.close();

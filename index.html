@@ -40,6 +40,18 @@
         .view-section { display: none; animation: fadeIn 0.6s ease-out; }
         .view-section.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        /* Avisos. Mismo estilo que el panel de admin, para que el sistema se
+           vea como uno solo y no como dos aplicaciones distintas. */
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: min(90vw, 380px); }
+        .toast { background: #333; color: #fff; padding: 14px 20px; border-radius: 8px; display: flex; align-items: flex-start; gap: 10px; transform: translateX(120%); animation: slideIn 0.3s forwards; box-shadow: 0 8px 24px rgba(0,0,0,0.35); font-size: 0.95rem; line-height: 1.4; }
+        .toast.info { background: #2c3e50; border-left: 5px solid var(--primary); }
+        .toast.success { background: #27ae60; border-left: 5px solid #145b32; }
+        .toast.error { background: #e74c3c; border-left: 5px solid #902419; }
+        .toast.fade-out { animation: fadeOut 0.4s forwards; }
+        @keyframes slideIn { to { transform: translateX(0); } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateX(120%); } }
+        /* Botón de un producto que ya alcanzó su tope de existencias. */
+        button.action-btn.agotado, button.tope { opacity: 0.55; cursor: not-allowed; filter: grayscale(0.6); }
         h2 { border-left: 6px solid var(--primary); padding-left: 15px; font-size: 2rem; margin-bottom: 2rem; }
         .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 35px; }
         .product-card { background-color: var(--card-bg); backdrop-filter: blur(10px); border: 1px solid var(--card-border); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px var(--shadow-color); transition: transform 0.3s ease; }
@@ -95,6 +107,8 @@
             <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar Tema">🌙</button>
         </nav>
     </header>
+
+    <div id="toast-container"></div>
 
     <div id="cart-modal">
         <div class="cart-header">
@@ -376,11 +390,30 @@
             } catch (e) { cart = []; }
         }
 
+        // Aviso no bloqueante. alert() detiene la página, se ve fuera de lugar
+        // y no combina con nada del sitio.
+        function mostrarAviso(mensaje, tipo = 'info', ms = 5000) {
+            const cont = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.className = `toast ${tipo}`;
+            t.setAttribute('role', 'status');
+            t.innerHTML = mensaje; // el llamador escapa lo que venga de la base
+            cont.appendChild(t);
+            setTimeout(() => {
+                t.classList.add('fade-out');
+                setTimeout(() => t.remove(), 400);
+            }, ms);
+            return t;
+        }
+
         function avisarTope(id) {
             const p = catalogo[id];
             const n = p.stock;
-            alert(`${n === 1 ? 'Sólo queda 1 pieza' : `Sólo quedan ${n} piezas`} de "${p.name}".\n\n` +
-                  `Si necesitas más, mándanos una Solicitud a Medida y lo fabricamos.`);
+            mostrarAviso(
+                `<span>📦</span><span>${n === 1 ? 'Queda <strong>1 pieza</strong>' : `Quedan <strong>${n} piezas</strong>`} de “${esc(p.name)}”, ` +
+                `y ya las tienes todas en el carrito.<br>` +
+                `<a href="#" data-ir-cotizador="1" style="color:#fff; text-decoration:underline;">Solicita más a medida</a> y lo fabricamos.</span>`,
+                'info');
         }
 
         function addToCart(id) {
@@ -408,6 +441,27 @@
             guardarCart();
             renderCart();
         }
+        // El estado del tope se refleja en la tarjeta del catálogo, no sólo
+        // cuando el usuario intenta pasarse. Que el botón se vea apagado antes
+        // de tocarlo evita el clic que no iba a funcionar.
+        function actualizarBotonesCatalogo() {
+            document.querySelectorAll('[data-add-id]').forEach((btn) => {
+                const id = Number(btn.dataset.addId);
+                const enCarrito = cart.find((l) => l.id === id)?.qty || 0;
+                const tope = topeDe(id);
+                const lleno = enCarrito >= tope;
+                btn.classList.toggle('agotado', lleno);
+                btn.textContent = lleno ? 'Sin más existencias' : 'Añadir al Carrito';
+
+                const nota = document.querySelector(`[data-stock-nota="${id}"]`);
+                if (!nota) return;
+                if (lleno) nota.textContent = `Tienes las ${tope} disponibles en tu carrito`;
+                else if (Number.isFinite(tope) && tope - enCarrito <= 3) {
+                    nota.textContent = `Quedan ${tope - enCarrito} disponibles`;
+                } else nota.textContent = '';
+            });
+        }
+
         function renderCart() {
             const c = document.getElementById('cart-items-container');
             const piezas = cart.reduce((n, l) => n + l.qty, 0);
@@ -418,6 +472,8 @@
             // "undefined".
             const lineas = cart.map((l) => ({ ...l, p: catalogo[l.id] })).filter((l) => l.p);
             if (lineas.length !== cart.length) { cart = lineas.map(({ id, qty }) => ({ id, qty })); guardarCart(); }
+
+            actualizarBotonesCatalogo();
 
             if (lineas.length === 0) {
                 c.innerHTML = '<p style="color: var(--text-muted); text-align:center;">El carrito está vacío</p>';
@@ -436,7 +492,9 @@
                     <span style="display:flex; align-items:center; gap:8px;">
                         <button data-qty-id="${id}" data-delta="-1" style="width:28px; padding:2px;">−</button>
                         <span style="min-width:1.5em; text-align:center;">${qty}</span>
-                        <button data-qty-id="${id}" data-delta="1" style="width:28px; padding:2px;">+</button>
+                        <button data-qty-id="${id}" data-delta="1" style="width:28px; padding:2px;"
+                            class="${qty >= topeDe(id) ? 'tope' : ''}"
+                            title="${qty >= topeDe(id) ? 'No hay más existencias' : 'Agregar uno más'}">+</button>
                         <span class="cart-item-price" style="min-width:6em; text-align:right;">$${importe.toLocaleString()}</span>
                         <button data-remove-id="${id}" title="Quitar" style="width:28px; padding:2px;">✖</button>
                     </span>
@@ -454,6 +512,11 @@
             if (qty) return cambiarCantidad(Number(qty.dataset.qtyId), Number(qty.dataset.delta));
             const quitar = ev.target.closest('[data-remove-id]');
             if (quitar) return quitarDelCart(Number(quitar.dataset.removeId));
+            if (ev.target.closest('[data-ir-cotizador]')) {
+                ev.preventDefault();
+                document.getElementById('cart-modal').classList.remove('open');
+                showView('quote');
+            }
         });
         function toggleCart() { document.getElementById('cart-modal').classList.toggle('open'); }
 
@@ -504,6 +567,7 @@
                             <h3 class="product-title">${esc(p.name)}</h3>
                             <span class="price">$${p.price.toLocaleString()} MXN</span>
                             <button class="action-btn" data-add-id="${p.id}">Añadir al Carrito</button>
+                            <p data-stock-nota="${p.id}" style="margin:8px 0 0; font-size:.8rem; color:var(--text-muted); min-height:1em;"></p>
                         </div>
                     </div>`).join('');
 
