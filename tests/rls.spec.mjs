@@ -267,10 +267,27 @@ try {
       agrupado.length === 2 && agrupado.find((l) => l.id === ids[0]).qty === 2,
       JSON.stringify(agrupado));
 
-    // El total sale del precio del catalogo, no de un valor pegado al HTML.
+    // Acumular y decrementar con los botones + y -, que es lo que el equipo
+    // reporto que no funcionaba: en el original no existian.
     await page.click('#cart-btn');
+    await page.click(`[data-qty-id="${ids[0]}"][data-delta="1"]`);
+    await page.click(`[data-qty-id="${ids[0]}"][data-delta="1"]`);
+    let conMas = await leerCart();
+    check('el boton + acumula', conMas.find((l) => l.id === ids[0]).qty === 4,
+      `qty=${conMas.find((l) => l.id === ids[0]).qty}`);
+
+    await page.click(`[data-qty-id="${ids[0]}"][data-delta="-1"]`);
+    conMas = await leerCart();
+    check('el boton - decrementa', conMas.find((l) => l.id === ids[0]).qty === 3,
+      `qty=${conMas.find((l) => l.id === ids[0]).qty}`);
+
+    // Volver a 2 para que el resto de las comprobaciones siga cuadrando.
+    await page.click(`[data-qty-id="${ids[0]}"][data-delta="-1"]`);
+    const agrupado2 = await leerCart();
+
+    // El total sale del precio del catalogo, no de un valor pegado al HTML.
     const esperado = await page.evaluate((ls) =>
-      ls.reduce((t, l) => t + catalogo[l.id].price * l.qty, 0), agrupado);
+      ls.reduce((t, l) => t + catalogo[l.id].price * l.qty, 0), agrupado2);
     const mostrado = await page.locator('#cart-total-price').innerText();
     check('el total del carrito cuadra',
       Number(mostrado.replace(/,/g, '')) === esperado, `mostrado=${mostrado} esperado=${esperado}`);
