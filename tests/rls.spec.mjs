@@ -314,6 +314,85 @@ try {
     await ctx.close();
   }
 
+  // ── 8. Tope por existencias ──────────────────────────────────────────────
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    const alertas = [];
+    page.on('dialog', async (d) => { alertas.push(d.message()); await d.accept(); });
+    await page.goto(`${BASE}/index.html`);
+    await page.waitForSelector('[data-add-id]');
+
+    // El producto 6 tiene stock 1: agregarlo dos veces debe toparse.
+    const stock6 = await page.evaluate(() => catalogo[6]?.stock);
+    check('el catalogo trae el stock', stock6 === 1, `stock=${stock6}`);
+
+    await page.click('[data-add-id="6"]');
+    await page.click('[data-add-id="6"]');
+    const qty6 = await page.evaluate(() => cart.find((l) => l.id === 6)?.qty);
+    check('no se puede pasar del stock', qty6 === 1, `qty=${qty6}`);
+    check('avisa por que no dejo agregar',
+      alertas.some((a) => /S[oó]lo queda 1 pieza/.test(a)), JSON.stringify(alertas));
+
+    await page.evaluate(() => { localStorage.removeItem('hepsa_cart'); });
+    await ctx.close();
+  }
+
+  // ── 9. Carrito ligado a la cuenta ────────────────────────────────────────
+  {
+    // Sesion A: arma un carrito estando dentro.
+    const ctxA = await browser.newContext();
+    const pageA = await ctxA.newPage();
+    await entrar(pageA, CUENTAS.cliente);
+    await pageA.goto(`${BASE}/index.html`);
+    await pageA.waitForSelector('[data-add-id]');
+    await pageA.waitForFunction(() => usuarioActual !== null, null, { timeout: 8000 }).catch(() => {});
+    await pageA.click('[data-add-id="5"]');
+    await pageA.click('[data-add-id="5"]');
+    await pageA.click('[data-add-id="3"]');
+    await pageA.waitForTimeout(1500); // deja terminar el upsert
+
+    const guardadoEnBase = await pageA.evaluate(async () => {
+      const { data } = await window.supabaseClient
+        .from('carrito_items').select('product_id, qty').order('product_id');
+      return data;
+    });
+    check('el carrito se guarda en la cuenta',
+      guardadoEnBase?.length === 2 && guardadoEnBase.find((r) => r.product_id === 5)?.qty === 2,
+      JSON.stringify(guardadoEnBase));
+    await ctxA.close();
+
+    // Sesion B: otro navegador, sin localStorage. Debe recuperarlo.
+    const ctxB = await browser.newContext();
+    const pageB = await ctxB.newPage();
+    await entrar(pageB, CUENTAS.cliente);
+    await pageB.goto(`${BASE}/index.html`);
+    await pageB.waitForSelector('[data-add-id]');
+    await pageB.waitForFunction(() => cart.length > 0, null, { timeout: 8000 }).catch(() => {});
+    const recuperado = await pageB.evaluate(() => cart.map(({ id, qty }) => ({ id, qty })));
+    check('el carrito viaja entre dispositivos',
+      recuperado.length === 2 && recuperado.find((l) => l.id === 5)?.qty === 2,
+      JSON.stringify(recuperado));
+
+    // Limpieza.
+    await pageB.evaluate(async () => {
+      await window.supabaseClient.from('carrito_items').delete().eq('user_id', usuarioActual);
+      localStorage.removeItem('hepsa_cart');
+    });
+    await ctxB.close();
+
+    // El carrito de un cliente es privado incluso para el staff.
+    const ctxC = await browser.newContext();
+    const pageC = await ctxC.newPage();
+    await entrar(pageC, CUENTAS.admin);
+    const ajeno = await pageC.evaluate(async () => {
+      const { data } = await window.supabaseClient.from('carrito_items').select('*');
+      return data?.length;
+    });
+    check('el admin no ve carritos ajenos', ajeno === 0, `filas=${ajeno}`);
+    await ctxC.close();
+  }
+
   // Releer como staff lo que el anonimo intento manipular.
   {
     const ctx = await browser.newContext();

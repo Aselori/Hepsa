@@ -17,5 +17,15 @@ window.HEPSA_CONFIG = {
 
     // Nombre del bucket de Storage. El código usaba 'product-images', pero el
     // bucket real siempre se llamó 'productos'; por eso fallaba subir imágenes.
-    storageBucket: 'productos'
+    storageBucket: 'productos',
+
+    // ¿Se puede pedir más de lo que hay en existencia?
+    //
+    // false = el carrito topa la cantidad en products.stock.
+    // true  = se acepta como pedido sobre encargo, sin tope.
+    //
+    // Queda en false por ahora. En herrería a medida el sobre pedido tiene
+    // sentido, pero es una decisión del negocio: si HEPSA prefiere aceptar
+    // encargos por encima del inventario, se cambia esta línea y nada más.
+    permitirSobrePedido: false
 };

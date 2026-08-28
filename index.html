@@ -269,8 +269,10 @@
         const { supabaseUrl, supabaseKey } = window.HEPSA_CONFIG;
         if (window.supabase) {
             window.supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-            cargarCatalogoPublico();
-            restaurarSesionUI();
+            // El orden importa: restaurarSesionUI fusiona el carrito y descarta
+            // productos que no estén en el catálogo. Si corriera antes de que
+            // el catálogo cargue, vaciaría el carrito.
+            cargarCatalogoPublico().then(restaurarSesionUI);
         }
 
         // ─── CARRITO ────────────────────────────────────────────────────────
@@ -285,8 +287,84 @@
         // $20,000): eran indistinguibles dentro del carrito.
         const CART_KEY = 'hepsa_cart';
 
+        // Tope por existencias. Devuelve la cantidad maxima permitida para un
+        // producto, o Infinity si el negocio acepta pedidos sobre encargo.
+        function topeDe(id) {
+            if (window.HEPSA_CONFIG.permitirSobrePedido) return Infinity;
+            const p = catalogo[id];
+            return p && Number.isInteger(p.stock) ? p.stock : Infinity;
+        }
+
         function guardarCart() {
             try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch (e) { /* modo privado */ }
+            sincronizarCarritoRemoto();
+        }
+
+        // ─── Carrito ligado a la cuenta ─────────────────────────────────────
+        // El anonimo se queda en localStorage. Quien inicio sesion escribe
+        // ademas en carrito_items, para que su pedido lo siga entre
+        // dispositivos. El user_id lo pone la base por default.
+
+        let usuarioActual = null;
+
+        // Cada clic dispara una escritura, y las escrituras tardan. Sin esto,
+        // tres clics seguidos lanzan tres sincronizaciones que se pisan entre
+        // si y la que llega tarde deja la base con datos viejos.
+        //
+        // Dos defensas: se espera a que el usuario deje de hacer clics, y las
+        // sincronizaciones se encadenan para que nunca corran dos a la vez.
+        let temporizadorSync = null;
+        let cadenaSync = Promise.resolve();
+
+        function sincronizarCarritoRemoto() {
+            if (!usuarioActual) return;
+            clearTimeout(temporizadorSync);
+            temporizadorSync = setTimeout(() => {
+                cadenaSync = cadenaSync.then(enviarCarrito).catch(() => {});
+            }, 300);
+        }
+
+        async function enviarCarrito() {
+            if (!usuarioActual) return;
+            const items = cart.map((l) => ({ user_id: usuarioActual, product_id: l.id, qty: l.qty }));
+
+            // Primero escribir, después limpiar. Al revés habría un instante en
+            // que el carrito guardado queda vacío, y si la escritura falla ahí
+            // el usuario pierde su pedido.
+            if (items.length) {
+                await window.supabaseClient.from('carrito_items')
+                    .upsert(items, { onConflict: 'user_id,product_id' });
+            }
+            let borrar = window.supabaseClient.from('carrito_items')
+                .delete().eq('user_id', usuarioActual);
+            const ids = items.map((i) => i.product_id);
+            if (ids.length) borrar = borrar.not('product_id', 'in', `(${ids.join(',')})`);
+            await borrar;
+        }
+
+        // Al iniciar sesion se juntan el carrito local y el guardado. Regla:
+        // se queda la cantidad mayor de cada producto, no la suma, para que
+        // sincronizar dos veces no duplique el pedido.
+        async function fusionarCarritoAlIniciarSesion(userId) {
+            usuarioActual = userId;
+            const { data, error } = await window.supabaseClient
+                .from('carrito_items').select('product_id, qty');
+            if (error) return;
+
+            const fusion = new Map(cart.map((l) => [l.id, l.qty]));
+            for (const r of data || []) {
+                fusion.set(r.product_id, Math.max(fusion.get(r.product_id) || 0, r.qty));
+            }
+            cart = [...fusion.entries()]
+                .filter(([id]) => catalogo[id])
+                .map(([id, qty]) => ({ id, qty: Math.min(qty, topeDe(id)) }));
+
+            guardarCart();
+            renderCart();
+        }
+
+        function olvidarCarritoRemoto() {
+            usuarioActual = null;
         }
 
         function cargarCart() {
@@ -298,8 +376,17 @@
             } catch (e) { cart = []; }
         }
 
+        function avisarTope(id) {
+            const p = catalogo[id];
+            const n = p.stock;
+            alert(`${n === 1 ? 'Sólo queda 1 pieza' : `Sólo quedan ${n} piezas`} de "${p.name}".\n\n` +
+                  `Si necesitas más, mándanos una Solicitud a Medida y lo fabricamos.`);
+        }
+
         function addToCart(id) {
             const linea = cart.find((l) => l.id === id);
+            const actual = linea ? linea.qty : 0;
+            if (actual + 1 > topeDe(id)) return avisarTope(id);
             if (linea) linea.qty += 1;
             else cart.push({ id, qty: 1 });
             guardarCart();
@@ -309,6 +396,7 @@
         function cambiarCantidad(id, delta) {
             const linea = cart.find((l) => l.id === id);
             if (!linea) return;
+            if (linea.qty + delta > topeDe(id)) return avisarTope(id);
             linea.qty += delta;
             if (linea.qty <= 0) cart = cart.filter((l) => l.id !== id);
             guardarCart();
@@ -396,7 +484,7 @@
             // necesario aunque RLS también lo aplique, porque el staff sí ve
             // los inactivos y aquí no deben salir.
             const { data, error } = await window.supabaseClient
-                .from('products').select('id, name, price, image_url')
+                .from('products').select('id, name, price, image_url, stock')
                 .eq('is_active', true).order('id');
 
             // Antes el error se descartaba y la página decía "no hay productos"
@@ -537,6 +625,8 @@
                 document.getElementById('prof-name').value = `${m.first_name||''} ${m.last_name_p||''}`.trim();
                 document.getElementById('prof-email').value = session.user.email;
                 document.getElementById('prof-tel').value = m.phone || '';
+                // El carrito guardado en la cuenta se junta con el local.
+                await fusionarCarritoAlIniciarSesion(session.user.id);
             }
         }
 
@@ -545,6 +635,13 @@
             if (!confirm('¿Deseas cerrar sesión?')) return;
             const { error } = await window.supabaseClient.auth.signOut();
             if (error) { alert('Error al cerrar sesión: ' + error.message); return; }
+            // El carrito queda guardado en la cuenta, así que vaciarlo aquí no
+            // pierde nada y evita que el siguiente en usar esta computadora vea
+            // el pedido del anterior.
+            olvidarCarritoRemoto();
+            cart = [];
+            guardarCart();
+            renderCart();
             // Limpiar UI
             const btnLogin = document.getElementById('btn-login');
             btnLogin.innerHTML = "👤 Iniciar Sesión";
