@@ -103,6 +103,17 @@ node --env-file=tests/.env.local tests/inscribir-2fa.mjs VENDEDOR
 ```
 
 Imprime la línea `VENDEDOR_TOTP=…` que hay que pegar en `tests/.env.local`.
+
+Para entrar al sitio a mano sin tener el autenticador en el teléfono,
+`codigo.mjs` imprime el código vigente y cuántos segundos le quedan:
+
+```bash
+node --env-file=tests/.env.local tests/codigo.mjs VENDEDOR
+```
+
+Para una demostración conviene igual meter la clave en Google Authenticator,
+Authy o 1Password (agregar cuenta con *clave de configuración*, no escaneando),
+porque es como lo va a usar el personal.
 **Guárdala en ese momento:** el secreto se entrega sólo durante el alta y
 después no hay forma de recuperarlo.
 
