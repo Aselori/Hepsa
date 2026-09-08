@@ -61,6 +61,15 @@ const aalDe = (page) => page.evaluate(async () => {
     .replace(/-/g, '+').replace(/_/g, '/'))).aal;
 });
 
+// Lee el 'aal' que la base va a ver, sacandolo del token de la sesion viva.
+async function nivelDeGarantia(page) {
+  return page.evaluate(async () => {
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    if (!session) return null;
+    return JSON.parse(atob(session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).aal;
+  });
+}
+
 const browser = await chromium.launch();
 let ascendido = false;
 
@@ -90,6 +99,23 @@ try {
     // La captura va ANTES de verificar: después de verificar hay un reload y
     // lo que se retrataría es el catálogo, no la pantalla que interesa.
     await page.screenshot({ path: 'tests/screenshots/mfa-reto.png' });
+
+    // Recargar a medio camino NO debe servir para esquivar el paso. Antes se
+    // caia en un estado a medias: sesion viva, "Mi Perfil" en la barra, los
+    // datos del empleado a la vista, y un aviso que se iba solo a los pocos
+    // segundos. Parecia que habia entrado sin haber entrado.
+    await page.reload();
+    await page.waitForFunction(() => window.supabaseClient !== undefined, null, { timeout: 15000 });
+    await page.waitForSelector('#view-mfa.active', { timeout: 15000 }).catch(() => {});
+    const trasRecargar = await page.evaluate(() => ({
+      enMfa: document.getElementById('view-mfa')?.classList.contains('active') ?? false,
+      vistaVisible: [...document.querySelectorAll('.view-section.active')].map((v) => v.id).join(','),
+    }));
+    check('recargar a medio camino devuelve al segundo factor, no al portal',
+      trasRecargar.enMfa, `vista activa = ${trasRecargar.vistaVisible}`);
+
+    check('y sigue sin poder ver nada del panel tras recargar',
+      (await nivelDeGarantia(page)) === 'aal1');
 
     // Y el bueno sí.
     await page.fill('#mfa-codigo', await codigoTOTPFresco(env.VENDEDOR_TOTP));

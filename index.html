@@ -909,19 +909,28 @@
             location.reload();
         }
 
-        // Un empleado que cerró la pestaña a medio camino vuelve con la
-        // contraseña aceptada y sin segundo factor. La base ya no le concede
-        // nada; sin este aviso vería el panel vacío sin saber por qué.
-        async function avisarSiFaltaSegundoFactor(session) {
+        // Un empleado que recarga la pagina a medio camino del segundo factor
+        // volvia a un estado a medias: la sesion existe, el boton dice "Mi
+        // Perfil", sus datos se ven, y sin embargo la base no le concede nada.
+        // Parecia que habia entrado sin haber entrado, y el unico indicio era
+        // un aviso que se iba solo a los pocos segundos.
+        //
+        // Ahora se le devuelve a la pantalla que le falta. Ve sus datos porque
+        // profiles_select_propio se lo permite a aal1, y eso esta bien: lo que
+        // no puede es quedarse ahi creyendo que ya termino.
+        async function retomarSegundoFactorPendiente(session) {
             const { data: aal } = await window.supabaseClient.auth.mfa
                 .getAuthenticatorAssuranceLevel();
             if (!aal || aal.currentLevel === 'aal2') return;
             if (!esPersonal(await rolDelUsuario(session.user.id))) return;
 
-            const aviso = mostrarAviso(
-                'Tu cuenta de personal no ha completado la verificación en dos pasos. ' +
-                '<u style="cursor:pointer">Completarla ahora</u>', 'info', 15000);
-            aviso.querySelector('u').onclick = () => continuarDespuesDeContrasena(session);
+            mostrarAviso('Te falta un paso para entrar al panel: escribe el código de tu autenticador.', 'info', 8000);
+
+            // Se llama a la pantalla concreta y no a continuarDespuesDeContrasena
+            // a proposito: esa funcion tiene una rama que acaba en
+            // location.reload(), y desde aqui eso seria un bucle de recargas.
+            if (aal.nextLevel === 'aal2') return mostrarRetoSegundoFactor();
+            return mostrarAltaSegundoFactor();
         }
 
         async function registrarUsuarioBD() {
@@ -959,7 +968,7 @@
                 // El carrito guardado en la cuenta se junta con el local.
                 await fusionarCarritoAlIniciarSesion(session.user.id);
                 cargarPedidosCliente();
-                avisarSiFaltaSegundoFactor(session);
+                await retomarSegundoFactorPendiente(session);
             }
         }
 
