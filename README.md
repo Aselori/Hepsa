@@ -1,4 +1,4 @@
-# HEPSA — Sistema de Gestión
+# HEPSA: Sistema de Gestión
 
 Sistema web para **HEPSA (Herrería Fina, Ingeniería y Prefabricados)**, orientado a centralizar la operación de catálogo, solicitudes de proyectos a medida, ventas e inventario.
 
@@ -141,9 +141,9 @@ HEPSA/
 - [ ] Centralizar la configuración de Supabase.
 - [ ] Mejorar la validación de roles y permisos.
 - [ ] Revisar y optimizar consultas a Supabase.
-- [ ] Fortalecer las políticas RLS.
+- [x] Fortalecer las políticas RLS.
 - [ ] Integrar una pasarela de pagos.
-- [ ] Implementar 2FA para cuentas de empleados.
+- [x] Implementar 2FA para cuentas de empleados.
 - [ ] Añadir pruebas automatizadas.
 - [ ] Preparar despliegue de producción.
 
