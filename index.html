@@ -209,6 +209,32 @@
             </div>
         </section>
 
+        <!-- VISTA SEGUNDO FACTOR (MEJORA 3) -->
+        <section id="view-mfa" class="view-section">
+            <div class="form-container" style="max-width: 460px; margin: 40px auto;">
+                <h2 id="mfa-titulo" style="border:none; padding:0; margin-bottom: 10px; color: var(--primary); text-align:center;">Verificación en dos pasos</h2>
+                <p id="mfa-intro" style="color: var(--text-muted); margin-bottom: 25px; text-align:center; line-height:1.55;"></p>
+
+                <div id="mfa-alta" style="display:none;">
+                    <div style="text-align:center; background:#fff; padding:16px; border-radius:10px; margin-bottom:18px;">
+                        <img id="mfa-qr" alt="Código QR para la app autenticadora" style="width:200px; height:200px; display:block; margin:0 auto;">
+                    </div>
+                    <p style="color: var(--text-muted); font-size:0.9rem; margin-bottom:6px;">¿No puedes escanear? Escribe esta clave en la app:</p>
+                    <code id="mfa-secreto" style="display:block; word-break:break-all; background:rgba(127,127,127,0.15); padding:10px; border-radius:6px; font-size:0.95rem; margin-bottom:20px;"></code>
+                </div>
+
+                <div class="form-group" style="text-align:left;">
+                    <label>Código de 6 dígitos</label>
+                    <input type="text" id="mfa-codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"
+                           style="letter-spacing:0.4em; text-align:center; font-size:1.3rem;"
+                           onkeydown="if (event.key === 'Enter') verificarSegundoFactor();">
+                </div>
+                <button class="action-btn" id="mfa-btn" style="margin-top:10px;" onclick="verificarSegundoFactor()">Verificar</button>
+                <button style="margin-top:12px; width:100%; background:transparent; border:1px solid var(--card-border); color:var(--text-muted); padding:11px; border-radius:8px; cursor:pointer; font-weight:bold;"
+                        onclick="cancelarSegundoFactor()">Cancelar y cerrar sesión</button>
+            </div>
+        </section>
+
         <!-- VISTA REGISTRO -->
         <section id="view-register" class="view-section">
             <div class="form-container" style="max-width: 600px; margin: 40px auto;">
@@ -736,12 +762,166 @@
 
         // ─── AUTENTICACIÓN ──────────────────────────────────────────────────
         async function iniciarSesionBD() {
-            const { error } = await window.supabaseClient.auth.signInWithPassword({
+            const { data, error } = await window.supabaseClient.auth.signInWithPassword({
                 email: document.getElementById('log-email').value,
                 password: document.getElementById('log-pass').value
             });
-            if (error) alert("❌ Credenciales incorrectas. Verifica tu correo y contraseña.");
-            else location.reload();
+            if (error) return mostrarAviso('Credenciales incorrectas. Verifica tu correo y contraseña.', 'error');
+            // Para el personal la contraseña es apenas el primer paso.
+            await continuarDespuesDeContrasena(data.session);
+        }
+
+        // ─── SEGUNDO FACTOR, MEJORA 3 ───────────────────────────────────────
+        //
+        // La regla de verdad NO está aquí: vive en la base, donde is_staff()
+        // exige que el token traiga aal2. Esto es la interfaz que permite
+        // cumplirla. Quien edite este JavaScript se saltará las pantallas y
+        // llegará igual a una sesión que la base trata como si nada.
+        //
+        // Dos situaciones distintas comparten la misma vista:
+        //
+        //   Alta:  el empleado todavía no tiene autenticador. Se le enseña
+        //            el QR y se verifica en el mismo paso, porque un factor
+        //            inscrito y nunca confirmado deja la cuenta a medias: ni
+        //            entra al panel ni sabe por qué.
+        //   Reto:  ya lo tiene y sólo falta el código de esta sesión.
+        //
+        // A los clientes no se les pide nada. No ven datos de nadie más que
+        // de sí mismos, así que sería fricción sin nada que proteger.
+        let mfaFactorId = null;
+
+        const esPersonal = (rol) => rol === 'vendedor' || rol === 'admin';
+
+        async function rolDelUsuario(userId) {
+            // profiles_select_propio sigue funcionando a aal1: es justo así
+            // como un empleado a medio camino descubre que le toca inscribirse.
+            const { data } = await window.supabaseClient
+                .from('profiles').select('role').eq('id', userId).single();
+            return data?.role ?? 'cliente';
+        }
+
+        // Qué sigue una vez que la contraseña fue aceptada.
+        async function continuarDespuesDeContrasena(session) {
+            const { data: aal, error } = await window.supabaseClient.auth.mfa
+                .getAuthenticatorAssuranceLevel();
+            if (error) {
+                mostrarAviso('No se pudo comprobar el segundo factor: ' + esc(error.message), 'error', 8000);
+                return;
+            }
+            // Tiene autenticador y esta sesión todavía no lo presentó.
+            if (aal.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
+                return mostrarRetoSegundoFactor();
+            }
+            // No tiene ninguno inscrito. Al personal se le exige antes de seguir.
+            if (aal.nextLevel !== 'aal2' && esPersonal(await rolDelUsuario(session.user.id))) {
+                return mostrarAltaSegundoFactor();
+            }
+            location.reload();
+        }
+
+        async function mostrarRetoSegundoFactor() {
+            const { data, error } = await window.supabaseClient.auth.mfa.listFactors();
+            if (error || !data.totp?.length) {
+                mostrarAviso('No encontramos tu autenticador. Pide a un administrador que lo reinicie.', 'error', 9000);
+                return;
+            }
+            mfaFactorId = data.totp[0].id;
+            document.getElementById('mfa-alta').style.display = 'none';
+            document.getElementById('mfa-titulo').innerText = 'Verificación en dos pasos';
+            document.getElementById('mfa-intro').innerText =
+                'Abre tu app autenticadora y escribe el código de 6 dígitos que muestra para HEPSA.';
+            document.getElementById('mfa-btn').innerText = 'Verificar e ingresar';
+            abrirVistaSegundoFactor();
+        }
+
+        async function mostrarAltaSegundoFactor() {
+            // Un intento anterior pudo dejar un factor inscrito sin confirmar,
+            // y enroll() rechaza un nombre repetido. Se limpia lo que quedó a
+            // medias antes de volver a empezar.
+            const { data: previos } = await window.supabaseClient.auth.mfa.listFactors();
+            for (const f of (previos?.all ?? [])) {
+                if (f.status !== 'verified') {
+                    await window.supabaseClient.auth.mfa.unenroll({ factorId: f.id });
+                }
+            }
+
+            const { data, error } = await window.supabaseClient.auth.mfa.enroll({
+                factorType: 'totp', friendlyName: 'HEPSA'
+            });
+            if (error) {
+                mostrarAviso('No se pudo iniciar el alta: ' + esc(error.message), 'error', 9000);
+                return;
+            }
+
+            mfaFactorId = data.id;
+            document.getElementById('mfa-qr').src = data.totp.qr_code;
+            document.getElementById('mfa-secreto').innerText = data.totp.secret;
+            document.getElementById('mfa-alta').style.display = 'block';
+            document.getElementById('mfa-titulo').innerText = 'Activa tu segundo factor';
+            document.getElementById('mfa-intro').innerText =
+                'Tu cuenta tiene acceso al panel, así que necesita un segundo factor. ' +
+                'Escanea el código con Google Authenticator, Authy o 1Password y escribe el número que aparezca.';
+            document.getElementById('mfa-btn').innerText = 'Activar y entrar';
+            abrirVistaSegundoFactor();
+        }
+
+        function abrirVistaSegundoFactor() {
+            showView('mfa');
+            const campo = document.getElementById('mfa-codigo');
+            campo.value = '';
+            // preventScroll: enfocar a secas arrastra la página hasta el campo
+            // y deja el título y las instrucciones fuera de pantalla. En el
+            // alta eso es grave: lo que queda arriba es el QR que hay que
+            // escanear, y sin verlo la casilla no significa nada.
+            campo.focus({ preventScroll: true });
+            window.scrollTo(0, 0);
+        }
+
+        async function verificarSegundoFactor() {
+            const codigo = document.getElementById('mfa-codigo').value.replace(/\D/g, '');
+            if (codigo.length !== 6) return mostrarAviso('El código son 6 dígitos.', 'error');
+
+            const btn = document.getElementById('mfa-btn');
+            const etiqueta = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Verificando…';
+            const { error } = await window.supabaseClient.auth.mfa.challengeAndVerify({
+                factorId: mfaFactorId, code: codigo
+            });
+            btn.disabled = false;
+            btn.innerText = etiqueta;
+
+            if (error) {
+                document.getElementById('mfa-codigo').value = '';
+                // El código cambia cada 30 segundos, así que lo más probable
+                // no es que se haya escrito mal sino que ya venció.
+                mostrarAviso('Código incorrecto o vencido. Espera al siguiente y vuelve a intentarlo.', 'error', 7000);
+                return;
+            }
+            location.reload();
+        }
+
+        // Salir a medias dejaría una sesión con la contraseña aceptada y sin
+        // segundo factor. Sirve para mirar el catálogo, pero no para el panel,
+        // y una sesión que no puede hacer nada sólo confunde: se cierra entera.
+        async function cancelarSegundoFactor() {
+            await window.supabaseClient.auth.signOut();
+            location.reload();
+        }
+
+        // Un empleado que cerró la pestaña a medio camino vuelve con la
+        // contraseña aceptada y sin segundo factor. La base ya no le concede
+        // nada; sin este aviso vería el panel vacío sin saber por qué.
+        async function avisarSiFaltaSegundoFactor(session) {
+            const { data: aal } = await window.supabaseClient.auth.mfa
+                .getAuthenticatorAssuranceLevel();
+            if (!aal || aal.currentLevel === 'aal2') return;
+            if (!esPersonal(await rolDelUsuario(session.user.id))) return;
+
+            const aviso = mostrarAviso(
+                'Tu cuenta de personal no ha completado la verificación en dos pasos. ' +
+                '<u style="cursor:pointer">Completarla ahora</u>', 'info', 15000);
+            aviso.querySelector('u').onclick = () => continuarDespuesDeContrasena(session);
         }
 
         async function registrarUsuarioBD() {
@@ -779,6 +959,7 @@
                 // El carrito guardado en la cuenta se junta con el local.
                 await fusionarCarritoAlIniciarSesion(session.user.id);
                 cargarPedidosCliente();
+                avisarSiFaltaSegundoFactor(session);
             }
         }
 

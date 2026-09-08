@@ -338,6 +338,21 @@
             if (error) { alert("No se pudo verificar tu rol. Intenta de nuevo."); window.location.href = 'index.html'; return; }
             const userRole = perfil?.role || 'cliente';
             if (userRole !== 'vendedor' && userRole !== 'admin') { alert("🔒 ACCESO DENEGADO."); window.location.href = 'index.html'; return; }
+
+            // MEJORA 3: el rol ya no basta. Las políticas RLS exigen que el
+            // token traiga aal2, así que una sesión de vendedor sin segundo
+            // factor dibujaría este panel entero y vacío: los productos no
+            // cargarían, el historial saldría en blanco y nada explicaría por
+            // qué. Es más honesto devolverlo al portal, que sí sabe inscribir
+            // el autenticador. La expulsión es cortesía, no la defensa: la
+            // defensa es que la base no le contesta.
+            const { data: aal } = await window.supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+            if (aal?.currentLevel !== 'aal2') {
+                alert("🔒 Este panel exige verificación en dos pasos. Complétala desde el portal para entrar.");
+                window.location.href = 'index.html';
+                return;
+            }
+
             document.body.style.display = 'flex';
             document.getElementById('user-role-display').innerText = `Rol activo: ${userRole}`;
             if (userRole === 'vendedor') {
