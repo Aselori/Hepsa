@@ -59,7 +59,7 @@ viejo. Se vuelven a subir desde el panel de admin cuando alguien las necesite.
 ## 4. Conseguir acceso de admin
 
 El rol **no** se pide al registrarse: lo asigna el servidor. Todos nacen como
-`cliente`, que es lo correcto — así un cliente no puede darse permisos solo.
+`cliente`, que es lo correcto: así un cliente no puede darse permisos solo.
 
 1. Regístrate normal desde `index.html`.
 2. Confirma tu correo.

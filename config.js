@@ -1,5 +1,5 @@
 // ============================================================================
-// Configuración de Supabase — único lugar donde viven URL y llave.
+// Configuración de Supabase: único lugar donde viven URL y llave.
 //
 // Para apuntar a otro proyecto (el de desarrollo, el del cliente), se cambia
 // aquí y nada más. Antes estaba duplicada en index.html y admin.html, así que
