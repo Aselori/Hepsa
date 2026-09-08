@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { codigoTOTPFresco } from './totp.mjs';
 
 const BASE = 'http://localhost:8000';
 
@@ -6,9 +7,10 @@ const BASE = 'http://localhost:8000';
 // dejarlas en tests/.env.local (ignorado por git) y correr:
 //   node --env-file=tests/.env.local tests/rls.spec.mjs
 const env = process.env;
-function cuenta(rol, prefijo) {
+function cuenta(rol, prefijo, exigeTotp = false) {
   const email = env[`${prefijo}_EMAIL`];
   const pass  = env[`${prefijo}_PASS`];
+  const totp  = env[`${prefijo}_TOTP`];
   if (!email || !pass) {
     console.error(
       `Falta ${prefijo}_EMAIL o ${prefijo}_PASS para el rol "${rol}".\n` +
@@ -16,11 +18,21 @@ function cuenta(rol, prefijo) {
       `  node --env-file=tests/.env.local tests/rls.spec.mjs`);
     process.exit(2);
   }
-  return { email, pass };
+  // Desde la Mejora 3 el personal no llega a ningun lado sin segundo factor,
+  // asi que sin el secreto la suite reportaria fallas que no son fallas.
+  if (exigeTotp && !totp) {
+    console.error(
+      `Falta ${prefijo}_TOTP para el rol "${rol}".\n` +
+      `El personal necesita segundo factor. Inscribelo una vez con:\n` +
+      `  node --env-file=tests/.env.local tests/inscribir-2fa.mjs ${prefijo}\n` +
+      `y pega la linea que imprime en tests/.env.local`);
+    process.exit(2);
+  }
+  return { email, pass, totp };
 }
 const CUENTAS = {
-  admin:    cuenta('admin', 'ADMIN'),
-  vendedor: cuenta('vendedor', 'VENDEDOR'),
+  admin:    cuenta('admin', 'ADMIN', true),
+  vendedor: cuenta('vendedor', 'VENDEDOR', true),
   cliente:  cuenta('cliente', 'CLIENTE'),
 };
 
@@ -31,7 +43,11 @@ function check(nombre, ok, detalle = '') {
 }
 
 // Inicia sesión usando el cliente de Supabase que la propia página ya cargó.
-async function entrar(page, { email, pass }) {
+//
+// `soloContrasena` deja la sesión a medias a propósito: es el estado de quien
+// robó una contraseña del personal, y varias pruebas comprueban justamente que
+// desde ahí no se llega a nada.
+async function entrar(page, { email, pass, totp }, { soloContrasena = false } = {}) {
   await page.goto(`${BASE}/index.html`);
   await page.waitForFunction(() => window.supabaseClient !== undefined);
   const err = await page.evaluate(async ([e, p]) => {
@@ -39,6 +55,43 @@ async function entrar(page, { email, pass }) {
     return error?.message ?? null;
   }, [email, pass]);
   if (err) throw new Error(`login ${email}: ${err}`);
+  if (totp && !soloContrasena) await presentarSegundoFactor(page, email, totp);
+}
+
+// El código se calcula en Node y se le pasa a la página, porque el navegador
+// no tiene el secreto: la app real lo lee de un autenticador en el teléfono.
+async function presentarSegundoFactor(page, email, secreto) {
+  const codigo = await codigoTOTPFresco(secreto);
+  const err = await page.evaluate(async (c) => {
+    const { data, error } = await window.supabaseClient.auth.mfa.listFactors();
+    if (error) return error.message;
+    const factor = data.totp?.[0];
+    if (!factor) return 'la cuenta no tiene autenticador inscrito';
+    const r = await window.supabaseClient.auth.mfa.challengeAndVerify({ factorId: factor.id, code: c });
+    return r.error?.message ?? null;
+  }, codigo);
+  if (err) throw new Error(`segundo factor ${email}: ${err}`);
+}
+
+// Sondea una condicion contra la base hasta que se cumpla, en vez de apostar a
+// que una espera fija alcanza. Devuelve igual si se agota el plazo, para que la
+// comprobacion que sigue informe el estado real en lugar de reventar aqui.
+async function esperarEnLaBase(page, condicion, plazoMs = 15000, cadaMs = 250) {
+  const limite = Date.now() + plazoMs;
+  while (Date.now() < limite) {
+    if (await page.evaluate(condicion).catch(() => false)) return true;
+    await page.waitForTimeout(cadaMs);
+  }
+  return false;
+}
+
+// Lee el 'aal' que la base va a ver, sacándolo del token de la sesión viva.
+async function nivelDeGarantia(page) {
+  return page.evaluate(async () => {
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    if (!session) return null;
+    return JSON.parse(atob(session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).aal;
+  });
 }
 
 // Abre admin.html y reporta si fue expulsado (alert + redirect a index.html).
@@ -366,7 +419,23 @@ try {
     await pageA.click('[data-add-id="5"]');
     await pageA.click('[data-add-id="5"]');
     await pageA.click('[data-add-id="3"]');
-    await pageA.waitForTimeout(1500); // deja terminar el upsert
+    // NO usar una espera fija aqui. Guardar el carrito son 300 ms de espera
+    // antideslizante mas DOS viajes de red (upsert y despues delete), y basta
+    // con que la red tarde un poco para que una espera de 1500 ms no alcance.
+    // Peor: el ctxA.close() de mas abajo ABORTA la escritura que siga en
+    // vuelo, asi que no es que llegue tarde, es que no llega nunca. Como las
+    // dos pruebas de este bloque leen ese mismo estado, fallaban las dos
+    // juntas sin que nada dijera por que.
+    //
+    // El sondeo va desde Node y no con page.waitForFunction: con `polling`
+    // por intervalo, una funcion async devuelve una Promesa, y una Promesa es
+    // siempre truthy, asi que waitForFunction da por cumplida la condicion en
+    // el primer intento y no espera nada. page.evaluate si espera la promesa.
+    await esperarEnLaBase(pageA, async () => {
+      const { data } = await window.supabaseClient
+        .from('carrito_items').select('product_id, qty');
+      return data?.length === 2 && data.find((r) => r.product_id === 5)?.qty === 2;
+    });
 
     const guardadoEnBase = await pageA.evaluate(async () => {
       const { data } = await window.supabaseClient
@@ -543,6 +612,217 @@ try {
     }, globalThis.__correoManipulado);
     await ctx.close();
   }
+
+  // ── 9. Segundo factor obligatorio para el personal (Mejora 3) ────────────
+  //
+  // Lo que se prueba no es la pantalla: es que la BASE deje de contestarle a
+  // un empleado que sólo presentó contraseña. Si esto se comprobara nada más
+  // en admin.html, bastaría con editar el JavaScript para saltárselo.
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await entrar(page, CUENTAS.vendedor, { soloContrasena: true });
+
+    check('la contraseña sola deja la sesión en aal1',
+      (await nivelDeGarantia(page)) === 'aal1');
+
+    // El directorio de clientes es justo lo que la presentación señala como
+    // riesgo: "un vendedor con contraseña robada ve el directorio completo".
+    const fuga = await page.evaluate(async () => {
+      const { data, error } = await window.supabaseClient
+        .from('profiles').select('id, email');
+      return { filas: data?.length ?? 0, error: error?.message ?? null };
+    });
+    check('vendedor sin 2FA no ve el directorio de clientes',
+      fuga.filas <= 1, `filas=${fuga.filas} error=${JSON.stringify(fuga.error)}`);
+
+    const solicitudes = await page.evaluate(async () => {
+      const { data } = await window.supabaseClient.from('custom_requests').select('id');
+      return data?.length ?? 0;
+    });
+    check('vendedor sin 2FA no ve las solicitudes', solicitudes === 0, `filas=${solicitudes}`);
+
+    // Ojo con lo que se afirma aquí: el vendedor tiene un pedido propio, y
+    // orders_select_propias se lo deja ver POR CLIENTE, no por empleado. Lo
+    // que el segundo factor le quita es el historial ajeno, así que exigir
+    // cero filas confundiría "sin poderes de staff" con "sin datos propios".
+    const ventas = await page.evaluate(async () => {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      const { data } = await window.supabaseClient.from('orders').select('id, client_id');
+      return {
+        total: data?.length ?? 0,
+        ajenas: (data ?? []).filter((o) => o.client_id !== session.user.id).length,
+      };
+    });
+    check('vendedor sin 2FA no ve ventas ajenas', ventas.ajenas === 0,
+      `ajenas=${ventas.ajenas} de ${ventas.total} visibles`);
+
+    // Escribir tampoco: leer nada pero poder alterar el catálogo sería peor.
+    const escritura = await page.evaluate(async () => {
+      const { error } = await window.supabaseClient
+        .from('products').insert([{ name: 'INTRUSO 2FA', price: 1 }]);
+      return error?.message ?? null;
+    });
+    check('vendedor sin 2FA no puede escribir en el catálogo',
+      escritura !== null, `error=${JSON.stringify(escritura)}`);
+
+    // Y el panel lo devuelve al portal en vez de dibujarse vacío.
+    const { alerta, url } = await abrirAdmin(page);
+    check('vendedor sin 2FA es expulsado de admin.html',
+      /dos pasos/i.test(alerta ?? '') && url.includes('index.html'),
+      `alerta=${JSON.stringify(alerta)} url=${url.replace(BASE, '')}`);
+
+    await ctx.close();
+  }
+
+  // Y con el código, la misma cuenta recupera todo. Sin esto, las pruebas de
+  // arriba pasarían igual con un vendedor roto por cualquier otra razón.
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await entrar(page, CUENTAS.vendedor);
+
+    check('el segundo factor sube la sesión a aal2',
+      (await nivelDeGarantia(page)) === 'aal2');
+
+    const solicitudes = await page.evaluate(async () => {
+      const { data } = await window.supabaseClient.from('custom_requests').select('id');
+      return data?.length ?? 0;
+    });
+    check('vendedor con 2FA sí ve las solicitudes', solicitudes >= 3, `filas=${solicitudes}`);
+    await ctx.close();
+  }
+
+  // Al cliente NO se le exige: no ve datos de nadie más, así que el segundo
+  // factor sería fricción sin nada que proteger.
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await entrar(page, CUENTAS.cliente);
+    check('al cliente no se le exige segundo factor',
+      (await nivelDeGarantia(page)) === 'aal1');
+    const propio = await page.evaluate(async () => {
+      const { data } = await window.supabaseClient.from('profiles').select('id');
+      return data?.length ?? 0;
+    });
+    check('el cliente sigue viendo su propio perfil sin 2FA', propio === 1, `filas=${propio}`);
+    await ctx.close();
+  }
+
+  // Un admin con segundo factor puede medir quién falta por inscribirse. Una
+  // obligación que nadie puede auditar no se cumple sola.
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await entrar(page, CUENTAS.admin);
+    const r = await page.evaluate(async () => {
+      const { data, error } = await window.supabaseClient.rpc('empleados_sin_segundo_factor');
+      return { filas: data?.length ?? null, error: error?.message ?? null };
+    });
+    check('el admin puede auditar quién no tiene 2FA',
+      r.error === null && r.filas !== null, `filas=${r.filas} error=${JSON.stringify(r.error)}`);
+    await ctx.close();
+  }
+
+  // Y un cliente no. La función lee auth.mfa_factors, que RLS no protege:
+  // el guardia vive dentro de la función y esto comprueba que sirve.
+  {
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await entrar(page, CUENTAS.cliente);
+    const err = await page.evaluate(async () => {
+      const { error } = await window.supabaseClient.rpc('empleados_sin_segundo_factor');
+      return error?.message ?? null;
+    });
+    check('un cliente no puede auditar el 2FA ajeno', err !== null, `error=${JSON.stringify(err)}`);
+    await ctx.close();
+  }
+
+
+  // ── 10. El escaparate sobrevive a un producto desactivado ────────────────
+  //
+  // Regresión con historia: durante meses TODOS los productos estuvieron
+  // activos, así que la política `is_active = true OR is_staff()` nunca llegó
+  // a evaluar is_staff() para un visitante anónimo. En cuanto existió una fila
+  // inactiva, el catálogo entero devolvía 401 "permission denied for function
+  // current_user_role" a cualquiera sin sesión: la tienda quedaba vacía.
+  //
+  // No basta con reordenar la expresión: is_staff() es LANGUAGE sql, Postgres
+  // la inlinea y comprueba el permiso al planificar, no por fila. Lo arregla
+  // SECURITY DEFINER. Esta prueba existe para que no vuelva a quedar dormido:
+  // desactivar un producto es un botón del panel, no un caso raro.
+  {
+    const ctxAdmin = await browser.newContext();
+    const pAdmin = await ctxAdmin.newPage();
+    await entrar(pAdmin, CUENTAS.admin);
+
+    const creado = await pAdmin.evaluate(async () => {
+      const { data, error } = await window.supabaseClient.from('products')
+        .insert([{ name: 'ZZZ producto desactivado (prueba)', price: 1, stock: 0, is_active: false }])
+        .select('id').single();
+      return { id: data?.id ?? null, error: error?.message ?? null };
+    });
+    check('el admin puede crear un producto desactivado',
+      creado.id !== null, `error=${JSON.stringify(creado.error)}`);
+
+    try {
+      // Un visitante sin sesión, que es quien sufría el fallo.
+      const ctxAnon = await browser.newContext();
+      const pAnon = await ctxAnon.newPage();
+      await pAnon.goto(`${BASE}/index.html`);
+      await pAnon.waitForFunction(() => window.supabaseClient !== undefined);
+      await pAnon.waitForTimeout(2000);
+
+      const via = await pAnon.evaluate(async (idOculto) => {
+        const todo = await window.supabaseClient.from('products').select('id, is_active');
+        const puntual = await window.supabaseClient.from('products').select('id').eq('id', idOculto);
+        return {
+          error: todo.error?.message ?? null,
+          visibles: todo.data?.length ?? 0,
+          activos: (todo.data ?? []).every((p) => p.is_active),
+          errorPuntual: puntual.error?.message ?? null,
+          veElOculto: (puntual.data ?? []).length,
+        };
+      }, creado.id);
+
+      check('anonimo lee el catalogo con una fila inactiva presente',
+        via.error === null, `error=${JSON.stringify(via.error)}`);
+      check('anonimo solo ve productos activos',
+        via.visibles > 0 && via.activos, `visibles=${via.visibles} todosActivos=${via.activos}`);
+      check('pedir la fila inactiva no revienta para anonimo',
+        via.errorPuntual === null, `error=${JSON.stringify(via.errorPuntual)}`);
+      check('anonimo no ve la fila inactiva', via.veElOculto === 0, `filas=${via.veElOculto}`);
+
+      // Y el síntoma tal como lo vería una persona: tarjetas en pantalla.
+      const tarjetas = await pAnon.locator('#public-catalog-grid .product-card, #public-catalog-grid > div').count();
+      const texto = await pAnon.locator('#public-catalog-grid').innerText();
+      check('el catalogo se pinta para el visitante',
+        tarjetas > 0 && !/no hay productos/i.test(texto),
+        `tarjetas=${tarjetas} texto="${texto.slice(0, 40).replace(/\n/g, ' ')}"`);
+      check('la tarjeta del producto desactivado no se pinta',
+        !texto.includes('ZZZ producto desactivado'));
+
+      await ctxAnon.close();
+
+      // El staff con 2FA sí debe verlo, para poder reactivarlo.
+      const staffLoVe = await pAdmin.evaluate(async (id) => {
+        const { data } = await window.supabaseClient.from('products').select('id').eq('id', id);
+        return data?.length ?? 0;
+      }, creado.id);
+      check('el staff con 2FA si ve el producto desactivado', staffLoVe === 1, `filas=${staffLoVe}`);
+    } finally {
+      // Borrar pase lo que pase: un producto de prueba suelto ensucia el
+      // catalogo real y descuadra las cuentas de las demas pruebas.
+      const restante = await pAdmin.evaluate(async (id) => {
+        await window.supabaseClient.from('products').delete().eq('id', id);
+        const { data } = await window.supabaseClient.from('products').select('id').eq('id', id);
+        return data?.length ?? -1;
+      }, creado.id);
+      check('el producto de prueba queda borrado', restante === 0, `restantes=${restante}`);
+      await ctxAdmin.close();
+    }
+  }
+
 } finally {
   await browser.close();
 }
