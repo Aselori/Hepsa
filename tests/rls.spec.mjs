@@ -470,11 +470,21 @@ try {
     const ctxC = await browser.newContext();
     const pageC = await ctxC.newPage();
     await entrar(pageC, CUENTAS.admin);
+    // Se cuentan las AJENAS, no el total. El admin puede tener carrito propio
+    // (es tambien una persona que compra, y de hecho lo tuvo en cuanto alguien
+    // uso esa cuenta en el sitio de verdad), y verlo es correcto. Exigir cero
+    // filas confundia "no ve lo de otros" con "no tiene nada", que es la misma
+    // trampa que ya habia en la prueba del historial de ventas.
     const ajeno = await pageC.evaluate(async () => {
-      const { data } = await window.supabaseClient.from('carrito_items').select('*');
-      return data?.length;
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      const { data } = await window.supabaseClient.from('carrito_items').select('user_id');
+      return {
+        total: data?.length ?? 0,
+        ajenas: (data ?? []).filter((c) => c.user_id !== session.user.id).length,
+      };
     });
-    check('el admin no ve carritos ajenos', ajeno === 0, `filas=${ajeno}`);
+    check('el admin no ve carritos ajenos', ajeno.ajenas === 0,
+      `ajenas=${ajeno.ajenas} de ${ajeno.total} visibles`);
     await ctxC.close();
   }
 

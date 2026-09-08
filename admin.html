@@ -348,7 +348,7 @@
             // defensa es que la base no le contesta.
             const { data: aal } = await window.supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
             if (aal?.currentLevel !== 'aal2') {
-                alert("🔒 Este panel exige verificación en dos pasos. Complétala desde el portal para entrar.");
+                alert("Este panel exige verificación en dos pasos. Complétala desde el portal para entrar.");
                 window.location.href = 'index.html';
                 return;
             }
