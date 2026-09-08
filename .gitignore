@@ -23,3 +23,11 @@ db_cluster-*
 
 # Capturas que generan las pruebas de Playwright
 tests/screenshots/
+
+# Herramientas locales del agente. Las skills se reinstalan desde
+# skills-lock.json, asi que el contenido vendorizado no se versiona.
+.agents/
+.claude/skills/
+
+# Respaldos y material de trabajo que no forma parte del sitio.
+attachments/

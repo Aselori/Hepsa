@@ -16,3 +16,11 @@ docs/
 node_modules/
 *.md
 !README.md
+
+# Respaldos de base y material de trabajo. Contienen datos reales de
+# clientes y hashes de contrasenas: jamas deben publicarse.
+attachments/
+
+# Herramientas locales del agente.
+.agents/
+.claude/
