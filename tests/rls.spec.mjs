@@ -833,6 +833,161 @@ try {
     }
   }
 
+
+  // ── 11. La cuenta manda sobre el dispositivo ─────────────────────────────
+  //
+  // El carrito se fusionaba siempre quedandose con la cantidad mayor, y una
+  // union asi no puede borrar. Consecuencia reportada: pedir desde un
+  // dispositivo no vaciaba el carrito del otro. Y era peor de lo que parecia,
+  // porque el dispositivo rezagado volvia a escribir su carrito viejo en la
+  // base y el pedido ya confirmado reaparecia como carrito en todas partes.
+  {
+    const ctxA = await browser.newContext();
+    const pageA = await ctxA.newPage();
+    await entrar(pageA, CUENTAS.cliente);
+    await pageA.goto(`${BASE}/index.html`);
+    await pageA.waitForSelector('[data-add-id]');
+    await pageA.waitForFunction(() => usuarioActual !== null, null, { timeout: 10000 }).catch(() => {});
+    await pageA.evaluate(async () => {
+      await window.supabaseClient.from('carrito_items').delete().eq('user_id', usuarioActual);
+      cart = []; guardarCart(); renderCart();
+    });
+
+    await pageA.click('[data-add-id="3"]');
+    await pageA.click('[data-add-id="5"]');
+    await esperarEnLaBase(pageA, async () => {
+      const { data } = await window.supabaseClient.from('carrito_items').select('product_id');
+      return data?.length === 2;
+    });
+
+    // El otro dispositivo lo recibe, que es la funcion que si debe conservarse.
+    const ctxB = await browser.newContext();
+    const pageB = await ctxB.newPage();
+    await entrar(pageB, CUENTAS.cliente);
+    await pageB.goto(`${BASE}/index.html`);
+    await pageB.waitForSelector('[data-add-id]');
+    await pageB.waitForFunction(() => cart.length === 2, null, { timeout: 12000 }).catch(() => {});
+    check('el segundo dispositivo recibe el carrito',
+      (await pageB.evaluate(() => cart.length)) === 2,
+      JSON.stringify(await pageB.evaluate(() => cart.map(({ id, qty }) => ({ id, qty })))));
+
+    // A quita una linea. B no debe resucitarla al recargar.
+    await pageA.evaluate(() => { cart = cart.filter((l) => l.id !== 3); guardarCart(); renderCart(); sincronizarCarritoRemoto(); });
+    await esperarEnLaBase(pageA, async () => {
+      const { data } = await window.supabaseClient.from('carrito_items').select('product_id');
+      return data?.length === 1;
+    });
+    await pageB.reload();
+    await pageB.waitForSelector('[data-add-id]');
+    await pageB.waitForFunction(() => usuarioActual !== null, null, { timeout: 12000 }).catch(() => {});
+    await pageB.waitForTimeout(1500);
+    const trasQuitar = await pageB.evaluate(() => cart.map(({ id }) => id));
+    check('quitar una linea en un dispositivo no la resucita en el otro',
+      !trasQuitar.includes(3), `carrito de B = ${JSON.stringify(trasQuitar)}`);
+
+    // Y el caso reportado: A hace el pedido, B recarga.
+    const folio = await pageA.evaluate(async () => {
+      const { data, error } = await window.supabaseClient
+        .rpc('crear_pedido_desde_carrito', { p_notas: 'prueba cruzada' });
+      return error ? null : data;
+    });
+    check('el pedido se crea desde el primer dispositivo', folio !== null, `folio=${folio}`);
+
+    await pageB.reload();
+    await pageB.waitForSelector('[data-add-id]');
+    await pageB.waitForFunction(() => usuarioActual !== null, null, { timeout: 12000 }).catch(() => {});
+    await pageB.waitForTimeout(1800);
+    const localB = await pageB.evaluate(() => cart.map(({ id, qty }) => ({ id, qty })));
+    check('pedir en un dispositivo vacia el carrito del otro',
+      localB.length === 0, `carrito de B = ${JSON.stringify(localB)}`);
+
+    const enBase = await pageB.evaluate(async () => {
+      const { data } = await window.supabaseClient.from('carrito_items').select('product_id');
+      return data?.length ?? -1;
+    });
+    check('y el dispositivo rezagado no lo reescribe en la base',
+      enBase === 0, `filas=${enBase}`);
+
+    await ctxA.close();
+    await ctxB.close();
+
+    // Limpieza: el pedido de prueba lo borra un admin, que es quien puede.
+    if (folio !== null) {
+      const ctxL = await browser.newContext();
+      const pageL = await ctxL.newPage();
+      await entrar(pageL, CUENTAS.admin);
+      const quedan = await pageL.evaluate(async (id) => {
+        await window.supabaseClient.from('order_items').delete().eq('order_id', id);
+        await window.supabaseClient.from('orders').delete().eq('id', id);
+        const { data } = await window.supabaseClient.from('orders').select('id').eq('id', id);
+        return data?.length ?? -1;
+      }, folio);
+      check('el pedido de prueba queda borrado', quedan === 0, `restantes=${quedan}`);
+      await ctxL.close();
+    }
+  }
+
+
+  // ── 12. El carrito armado SIN sesion sigue sobreviviendo al entrar ───────
+  //
+  // Contrapeso del bloque anterior. Al hacer que mande la cuenta, lo facil es
+  // pasarse de frenada y tirar el carrito que alguien armo antes de entrar,
+  // que es justo el caso donde el dispositivo SI tiene razon. Esa fusion vive
+  // ahora detras de una bandera que solo pone el formulario de acceso, asi que
+  // esta prueba entra por el formulario y no por el SDK.
+  {
+    // Partir de una cuenta sin carrito.
+    const ctxL = await browser.newContext();
+    const pageL = await ctxL.newPage();
+    await entrar(pageL, CUENTAS.cliente);
+    await pageL.evaluate(async () => {
+      const { data: { session } } = await window.supabaseClient.auth.getSession();
+      await window.supabaseClient.from('carrito_items').delete().eq('user_id', session.user.id);
+    });
+    await ctxL.close();
+
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/index.html`);
+    await page.waitForSelector('[data-add-id]');
+    await page.click('[data-add-id="5"]');
+    await page.click('[data-add-id="5"]');
+    const sinSesion = await page.evaluate(() => cart.map(({ id, qty }) => ({ id, qty })));
+    check('se puede armar carrito sin haber entrado',
+      sinSesion.length === 1 && sinSesion[0].qty === 2, JSON.stringify(sinSesion));
+
+    await page.click('#btn-login');
+    await page.fill('#log-email', CUENTAS.cliente.email);
+    await page.fill('#log-pass', CUENTAS.cliente.pass);
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'load', timeout: 25000 }),
+      page.click('button[onclick="iniciarSesionBD()"]'),
+    ]);
+    await page.waitForSelector('[data-add-id]');
+    await page.waitForFunction(() => usuarioActual !== null, null, { timeout: 12000 }).catch(() => {});
+
+    const trasEntrar = await page.evaluate(() => cart.map(({ id, qty }) => ({ id, qty })));
+    check('el carrito armado sin sesion sobrevive al entrar',
+      trasEntrar.length === 1 && trasEntrar[0].qty === 2, JSON.stringify(trasEntrar));
+
+    await esperarEnLaBase(page, async () => {
+      const { data } = await window.supabaseClient.from('carrito_items').select('qty');
+      return data?.length === 1 && data[0].qty === 2;
+    });
+    const enCuenta = await page.evaluate(async () => {
+      const { data } = await window.supabaseClient.from('carrito_items').select('product_id, qty');
+      return data;
+    });
+    check('y ademas queda guardado en la cuenta',
+      enCuenta?.length === 1 && enCuenta[0].qty === 2, JSON.stringify(enCuenta));
+
+    await page.evaluate(async () => {
+      await window.supabaseClient.from('carrito_items').delete().eq('user_id', usuarioActual);
+      localStorage.removeItem('hepsa_cart');
+    });
+    await ctx.close();
+  }
+
 } finally {
   await browser.close();
 }

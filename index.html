@@ -332,6 +332,11 @@
         // llamados "Puerta de madera de abeto" con precios distintos ($14,000 y
         // $20,000): eran indistinguibles dentro del carrito.
         const CART_KEY = 'hepsa_cart';
+        // Marca que la proxima carga viene de iniciar sesion. Solo en ese
+        // momento tiene sentido sumar el carrito del dispositivo al de la
+        // cuenta; en cualquier otra carga manda la cuenta. Ver
+        // sincronizarCarritoConLaCuenta().
+        const LLAVE_FUSION = 'hepsa_fusionar_carrito';
 
         // Tope por existencias. Devuelve la cantidad maxima permitida para un
         // producto, o Infinity si el negocio acepta pedidos sobre encargo.
@@ -401,22 +406,54 @@
         // Al iniciar sesion se juntan el carrito local y el guardado. Regla:
         // se queda la cantidad mayor de cada producto, no la suma, para que
         // sincronizar dos veces no duplique el pedido.
-        async function fusionarCarritoAlIniciarSesion(userId) {
+        // La cuenta manda sobre el dispositivo.
+        //
+        // Antes esto fusionaba SIEMPRE, quedandose con la cantidad mayor de
+        // cada producto. Una union asi no puede borrar nada, y eso rompia dos
+        // cosas de la manera mas confusa posible: hacer un pedido desde el
+        // telefono no vaciaba el carrito de la computadora, y quitar una linea
+        // en un dispositivo la resucitaba desde el otro. Peor todavia, el
+        // dispositivo rezagado volvia a escribir su carrito viejo en la base,
+        // asi que un pedido ya confirmado reaparecia como carrito en todas
+        // partes y se podia volver a pedir.
+        //
+        // Fusionar solo tiene sentido en un momento: cuando alguien armo un
+        // carrito SIN sesion y luego entra. Para eso se marca LLAVE_FUSION al
+        // iniciar sesion y se consume aqui. En cualquier otra carga vale lo que
+        // diga la cuenta, incluidas las lineas que ya no estan.
+        async function sincronizarCarritoConLaCuenta(userId) {
             usuarioActual = userId;
             const { data, error } = await window.supabaseClient
                 .from('carrito_items').select('product_id, qty');
             if (error) return;
 
-            const fusion = new Map(cart.map((l) => [l.id, l.qty]));
-            for (const r of data || []) {
-                fusion.set(r.product_id, Math.max(fusion.get(r.product_id) || 0, r.qty));
+            const recienIniciada = localStorage.getItem(LLAVE_FUSION) === '1';
+            localStorage.removeItem(LLAVE_FUSION);
+
+            const deLaCuenta = new Map((data || []).map((r) => [r.product_id, r.qty]));
+
+            let resultado;
+            if (recienIniciada) {
+                resultado = new Map(cart.map((l) => [l.id, l.qty]));
+                for (const [id, qty] of deLaCuenta) {
+                    resultado.set(id, Math.max(resultado.get(id) || 0, qty));
+                }
+            } else {
+                resultado = deLaCuenta;
             }
-            cart = [...fusion.entries()]
+
+            cart = [...resultado.entries()]
                 .filter(([id]) => catalogo[id])
                 .map(([id, qty]) => ({ id, qty: Math.min(qty, topeDe(id)) }));
 
             guardarCart();
             renderCart();
+
+            // Al entrar, lo que traia el dispositivo todavia no esta en la
+            // cuenta, asi que hay que subirlo. Adoptar y no escribir es lo
+            // correcto en las demas cargas: una escritura de mas solo arriesga
+            // pisar lo que otro dispositivo acabe de hacer.
+            if (recienIniciada) sincronizarCarritoRemoto();
         }
 
         function olvidarCarritoRemoto() {
@@ -767,6 +804,9 @@
                 password: document.getElementById('log-pass').value
             });
             if (error) return mostrarAviso('Credenciales incorrectas. Verifica tu correo y contraseña.', 'error');
+            // Esta carga si es una entrada nueva: el carrito que se armo sin
+            // sesion debe sumarse al de la cuenta en vez de perderse.
+            localStorage.setItem(LLAVE_FUSION, '1');
             // Para el personal la contraseña es apenas el primer paso.
             await continuarDespuesDeContrasena(data.session);
         }
@@ -966,7 +1006,7 @@
                 document.getElementById('prof-email').value = session.user.email;
                 document.getElementById('prof-tel').value = m.phone || '';
                 // El carrito guardado en la cuenta se junta con el local.
-                await fusionarCarritoAlIniciarSesion(session.user.id);
+                await sincronizarCarritoConLaCuenta(session.user.id);
                 cargarPedidosCliente();
                 await retomarSegundoFactorPendiente(session);
             }
