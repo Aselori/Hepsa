@@ -3,6 +3,19 @@
 Convenciones que ya sigue el historial. No son burocracia: cada una existe
 porque algo se rompio o se perdio por no tenerla.
 
+## Proteger main en un repositorio nuevo
+
+La proteccion no se hereda al clonar ni al hacer fork: es un ajuste del
+servidor. Para aplicarla en el repositorio del equipo, o en cualquier otro,
+hace falta permiso de **admin** y correr:
+
+```bash
+./.github/proteger-main.sh saraicarrizales-beep/Hepsa
+```
+
+Deja `main` exigiendo pull request, con historial lineal, sin force push y sin
+borrado, y aplica tambien a quien administra.
+
 ## Ramas
 
 **Nunca se trabaja sobre `main`.** La rama esta protegida y rechaza cualquier
