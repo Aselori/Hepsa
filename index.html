@@ -102,9 +102,9 @@
             <button onclick="showView('catalog')" id="btn-catalog">Catálogo</button>
             <button onclick="showView('quote')" id="btn-quote">Solicitud a Medida</button>
             <a href="admin.html" id="btn-admin">Portal de Empleados</a>
-            <button id="cart-btn" onclick="toggleCart()">🛒 <span id="cart-count">0</span></button>
-            <button onclick="showView('login')" id="btn-login">👤 Iniciar Sesión</button>
-            <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar Tema">🌙</button>
+            <button id="cart-btn" onclick="toggleCart()">Carrito <span id="cart-count">0</span></button>
+            <button onclick="showView('login')" id="btn-login">Iniciar Sesión</button>
+            <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
         </nav>
     </header>
 
@@ -113,7 +113,7 @@
     <div id="cart-modal">
         <div class="cart-header">
             <h2 style="margin:0; border:none; padding:0; color: var(--text-main);">Tu Pedido</h2>
-            <button class="close-cart" onclick="toggleCart()">✖</button>
+            <button class="close-cart" onclick="toggleCart()">×</button>
         </div>
         <div id="cart-items-container"><p style="color: var(--text-muted); text-align:center;">El carrito está vacío</p></div>
         <div class="cart-total">Total: $<span id="cart-total-price">0.00</span></div>
@@ -275,7 +275,7 @@
                     <button onclick="cerrarSesionBD()" style="margin-top: 25px; width: 100%; background: transparent; border: 2px solid #e74c3c; color: #e74c3c; padding: 12px; border-radius: 8px; cursor:pointer; font-weight:bold; font-size: 1rem; transition: all 0.3s;" 
                         onmouseover="this.style.background='#e74c3c'; this.style.color='#fff';" 
                         onmouseout="this.style.background='transparent'; this.style.color='#e74c3c';">
-                        🚪 Cerrar Sesión
+                        Cerrar Sesión
                     </button>
                 </div>
                 <div class="form-container">
@@ -295,18 +295,22 @@
     <script src="config.js"></script>
     <script>
         // ─── TEMA PERSISTENTE ───────────────────────────────────────────────
+        // Iconos del interruptor de tema. Van como SVG y no como emoji para que
+        // se vean igual en cualquier sistema y hereden el color del texto.
+        const ICONO_LUNA = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+        const ICONO_SOL  = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
         (function() {
             const tema = localStorage.getItem('hepsa_theme') || 'light';
             if (tema === 'light') document.body.classList.add('light-mode');
             const btn = document.getElementById('theme-toggle');
-            btn.textContent = tema === 'light' ? '🌙' : '☀️';
+            btn.innerHTML = tema === 'light' ? ICONO_LUNA : ICONO_SOL;
         })();
 
         function toggleTheme() {
             document.body.classList.toggle('light-mode');
             const esLight = document.body.classList.contains('light-mode');
             localStorage.setItem('hepsa_theme', esLight ? 'light' : 'dark');
-            document.getElementById('theme-toggle').textContent = esLight ? '🌙' : '☀️';
+            document.getElementById('theme-toggle').innerHTML = esLight ? ICONO_LUNA : ICONO_SOL;
         }
 
         // ─── SUPABASE ───────────────────────────────────────────────────────
@@ -489,7 +493,7 @@
             const p = catalogo[id];
             const n = p.stock;
             mostrarAviso(
-                `<span>📦</span><span>${n === 1 ? 'Queda <strong>1 pieza</strong>' : `Quedan <strong>${n} piezas</strong>`} de “${esc(p.name)}”, ` +
+                `<span>${n === 1 ? 'Queda <strong>1 pieza</strong>' : `Quedan <strong>${n} piezas</strong>`} de “${esc(p.name)}”, ` +
                 `y ya las tienes todas en el carrito.<br>` +
                 `<a href="#" data-ir-cotizador="1" style="color:#fff; text-decoration:underline;">Solicita más a medida</a> y lo fabricamos.</span>`,
                 'info');
@@ -519,12 +523,12 @@
 
         async function confirmarPedido() {
             if (!usuarioActual) {
-                mostrarAviso('<span>🔒</span><span>Inicia sesión para confirmar tu pedido. Tu carrito se guarda.</span>', 'info');
+                mostrarAviso('<span>Inicia sesión para confirmar tu pedido. Tu carrito se guarda.</span>', 'info');
                 document.getElementById('cart-modal').classList.remove('open');
                 return showView('login');
             }
             if (cart.length === 0) {
-                return mostrarAviso('<span>🛒</span><span>Tu carrito está vacío.</span>', 'info');
+                return mostrarAviso('<span>Tu carrito está vacío.</span>', 'info');
             }
 
             const btn = document.getElementById('btn-checkout');
@@ -545,12 +549,12 @@
                 renderCart();
                 document.getElementById('cart-modal').classList.remove('open');
                 mostrarAviso(
-                    `<span>✅</span><span>Pedido <strong>#${folio}</strong> registrado.<br>` +
+                    `<span>Pedido <strong>#${folio}</strong> registrado.<br>` +
                     `Te contactamos para acordar el pago y la instalación.</span>`, 'success', 7000);
                 cargarPedidosCliente();
                 showView('profile');
             } catch (e) {
-                mostrarAviso(`<span>⚠️</span><span>${esc(e.message || 'No se pudo confirmar el pedido')}</span>`, 'error', 7000);
+                mostrarAviso(`<span>${esc(e.message || 'No se pudo confirmar el pedido')}</span>`, 'error', 7000);
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Confirmar Pedido';
@@ -646,7 +650,7 @@
                             class="${qty >= topeDe(id) ? 'tope' : ''}"
                             title="${qty >= topeDe(id) ? 'No hay más existencias' : 'Agregar uno más'}">+</button>
                         <span class="cart-item-price" style="min-width:6em; text-align:right;">$${importe.toLocaleString()}</span>
-                        <button data-remove-id="${id}" title="Quitar" style="width:28px; padding:2px;">✖</button>
+                        <button data-remove-id="${id}" title="Quitar" style="width:28px; padding:2px;">×</button>
                     </span>
                 </div>`;
             }).join('');
@@ -711,7 +715,7 @@
             grid.innerHTML = data.map((p) => `
                     <div class="product-card">
                         <div class="card-img" style="${p.image_url ? `background-image: url('${esc(p.image_url)}'); background-size: cover; background-position: center;` : 'background: linear-gradient(135deg,#1a1a1a,#2a2a2a); display:flex; align-items:center; justify-content:center;'}">
-                            ${!p.image_url ? '<span style="color:#666; font-size:2rem;">🔩</span>' : ''}
+                            ${!p.image_url ? '<span style="color:#777; font-size:0.9rem; letter-spacing:0.08em;">SIN FOTO</span>' : ''}
                         </div>
                         <div class="card-body">
                             <h3 class="product-title">${esc(p.name)}</h3>
@@ -790,7 +794,7 @@
             }]);
             if (error) alert("Error: " + error.message);
             else {
-                alert("✅ Solicitud enviada. En breve nos comunicaremos contigo.");
+                alert("Solicitud enviada. En breve nos comunicaremos contigo.");
                 document.querySelectorAll('#view-quote input, #view-quote textarea').forEach(i => i.value = '');
                 document.querySelectorAll('#view-quote select').forEach(s => s.value = '');
                 document.getElementById('quote-estimate').style.display = 'none';
@@ -988,14 +992,14 @@
                 options: { data: { first_name: n1, middle_name: document.getElementById('reg-n2').value, last_name_p: p, last_name_m: m, phone: document.getElementById('reg-tel').value } }
             });
             if (error) alert("Error: " + error.message);
-            else { alert("✅ Cuenta creada. Revisa tu correo para verificarla."); showView('login'); }
+            else { alert("Cuenta creada. Revisa tu correo para verificarla."); showView('login'); }
         }
 
         async function restaurarSesionUI() {
             const { data: { session } } = await window.supabaseClient.auth.getSession();
             if (session) {
                 const btnLogin = document.getElementById('btn-login');
-                btnLogin.innerHTML = "👤 Mi Perfil";
+                btnLogin.innerHTML = "Mi Perfil";
                 btnLogin.onclick = () => showView('profile');
                 // profiles es la fuente de verdad; user_metadata solo refleja
                 // lo que se escribió una vez al registrarse.
@@ -1026,7 +1030,7 @@
             renderCart();
             // Limpiar UI
             const btnLogin = document.getElementById('btn-login');
-            btnLogin.innerHTML = "👤 Iniciar Sesión";
+            btnLogin.innerHTML = "Iniciar Sesión";
             btnLogin.onclick = () => showView('login');
             document.getElementById('prof-name').value = '';
             document.getElementById('prof-email').value = '';
