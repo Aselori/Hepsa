@@ -1,0 +1,98 @@
+name: Pruebas
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  comprobaciones:
+    name: Sintaxis y suites
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Estas dos comprobaciones no necesitan credenciales, asi que corren
+      # siempre y sirven para exigirlas como control obligatorio del PR.
+      - name: Sintaxis de los modulos de prueba
+        run: |
+          for f in tests/*.mjs; do
+            node --check "$f" || exit 1
+          done
+
+      - name: Sintaxis del JavaScript incrustado en el HTML
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, subprocess, sys, tempfile
+          fallos = 0
+          for pagina in ('index.html', 'admin.html'):
+              texto = pathlib.Path(pagina).read_text(encoding='utf-8')
+              for i, bloque in enumerate(re.findall(r'<script>(.*?)</script>', texto, re.S)):
+                  with tempfile.NamedTemporaryFile('w', suffix='.mjs', delete=False,
+                                                   encoding='utf-8') as tmp:
+                      tmp.write(bloque)
+                      ruta = tmp.name
+                  r = subprocess.run(['node', '--check', ruta],
+                                     capture_output=True, text=True)
+                  if r.returncode:
+                      print(f'{pagina}, bloque {i}:\n{r.stderr}')
+                      fallos += 1
+          print('sin errores de sintaxis' if not fallos else f'{fallos} bloques con errores')
+          sys.exit(1 if fallos else 0)
+          PY
+
+      # Las suites hablan con Supabase de verdad, asi que necesitan las cuentas
+      # de prueba. Sin los secretos configurados se saltan en vez de fallar:
+      # una falla por falta de credenciales no dice nada sobre el codigo.
+      - name: ¿Hay credenciales configuradas?
+        id: credenciales
+        env:
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+        run: |
+          if [ -n "$ADMIN_EMAIL" ]; then
+            echo "hay=si" >> "$GITHUB_OUTPUT"
+          else
+            echo "hay=no" >> "$GITHUB_OUTPUT"
+            echo "Sin secretos configurados: las suites se saltan."
+            echo "Para activarlas, agrega en Settings > Secrets > Actions:"
+            echo "  ADMIN_EMAIL ADMIN_PASS ADMIN_TOTP"
+            echo "  VENDEDOR_EMAIL VENDEDOR_PASS VENDEDOR_TOTP"
+            echo "  CLIENTE_EMAIL CLIENTE_PASS"
+          fi
+
+      - name: Instalar Playwright
+        if: steps.credenciales.outputs.hay == 'si'
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Servir el sitio
+        if: steps.credenciales.outputs.hay == 'si'
+        run: |
+          python3 -m http.server 8000 &
+          for i in $(seq 1 20); do
+            curl -sf -o /dev/null http://localhost:8000/index.html && break
+            sleep 1
+          done
+
+      - name: Suites
+        if: steps.credenciales.outputs.hay == 'si'
+        env:
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
+          ADMIN_TOTP: ${{ secrets.ADMIN_TOTP }}
+          VENDEDOR_EMAIL: ${{ secrets.VENDEDOR_EMAIL }}
+          VENDEDOR_PASS: ${{ secrets.VENDEDOR_PASS }}
+          VENDEDOR_TOTP: ${{ secrets.VENDEDOR_TOTP }}
+          CLIENTE_EMAIL: ${{ secrets.CLIENTE_EMAIL }}
+          CLIENTE_PASS: ${{ secrets.CLIENTE_PASS }}
+        run: |
+          node tests/rls.spec.mjs
+          node tests/mfa-ui.spec.mjs
+          node tests/panel.spec.mjs
