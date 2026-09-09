@@ -8,7 +8,7 @@ Toma unos 10 minutos. No necesitas instalar Node, ni Docker, ni una VM.
 El proyecto son dos archivos HTML estáticos. No hay build, no hay `npm install`.
 
 ```bash
-git clone https://github.com/saraicarrizales-beep/Hepsa.git
+git clone https://github.com/Aselori/Hepsa.git
 cd Hepsa
 python -m http.server 8000
 ```

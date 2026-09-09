@@ -2,21 +2,22 @@
 #
 # Protege la rama main del repositorio del equipo.
 #
-# Quien lo corre: hace falta permiso de ADMIN sobre el repositorio. En
-# saraicarrizales-beep/Hepsa eso hoy lo tiene una sola persona; el resto del
-# equipo tiene write, que no alcanza para cambiar la proteccion.
+# Quien lo corre: hace falta permiso de ADMIN sobre el repositorio. Tener write
+# no alcanza para cambiar la proteccion de una rama.
 #
 #   gh auth login          # una vez, con la cuenta que administra
-#   ./.github/proteger-main.sh saraicarrizales-beep/Hepsa
+#   ./.github/proteger-main.sh usuario/repositorio
 #
-# Sin argumento, protege este mismo repositorio.
+# Sin argumento, protege Aselori/Hepsa, que es el repositorio de trabajo.
 set -euo pipefail
 
 REPO="${1:-Aselori/Hepsa}"
 
 # Cuantas aprobaciones se exigen. Con varias personas en el repositorio, una es
-# lo razonable. En un fork de una sola persona hay que dejarlo en 0: GitHub no
-# deja aprobar el propio pull request, asi que exigir una bloquearia todo.
+# lo razonable. Con una sola hay que dejarlo en 0: GitHub no deja aprobar el
+# propio pull request, asi que exigir una bloquearia todo el trabajo.
+#
+#   APROBACIONES=1 ./.github/proteger-main.sh Aselori/Hepsa
 APROBACIONES="${APROBACIONES:-1}"
 
 echo "Protegiendo main en $REPO (aprobaciones requeridas: $APROBACIONES)"

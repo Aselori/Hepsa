@@ -3,14 +3,27 @@
 Convenciones que ya sigue el historial. No son burocracia: cada una existe
 porque algo se rompio o se perdio por no tenerla.
 
+## Donde vive el proyecto
+
+El repositorio de trabajo es **`Aselori/Hepsa`**. Es de donde se clona y a donde
+van los pull requests.
+
+Nacio como fork de `saraicarrizales-beep/Hepsa`, que ya no se usa y quedo
+parado varios commits atras. Si tu copia local todavia tiene un remoto
+`upstream` apuntando alla, quitalo para no confundirte:
+
+```bash
+git remote remove upstream
+```
+
 ## Proteger main en un repositorio nuevo
 
 La proteccion no se hereda al clonar ni al hacer fork: es un ajuste del
-servidor. Para aplicarla en el repositorio del equipo, o en cualquier otro,
-hace falta permiso de **admin** y correr:
+servidor, y hace falta permiso de **admin** para aplicarla. Si algun dia se
+levanta otro repositorio:
 
 ```bash
-./.github/proteger-main.sh saraicarrizales-beep/Hepsa
+./.github/proteger-main.sh usuario/repositorio
 ```
 
 Deja `main` exigiendo pull request, con historial lineal, sin force push y sin
