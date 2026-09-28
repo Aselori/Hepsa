@@ -1,7 +1,7 @@
-import { chromium } from 'playwright';
+import { BASE, URL_SB, LLAVE, navegadorLocal } from './entorno-local.mjs';
 import { codigoTOTPFresco } from './totp.mjs';
 
-const BASE = 'http://localhost:8000';
+
 
 // Las credenciales NO viven en el repo. Se pasan por entorno; lo comodo es
 // dejarlas en tests/.env.local (ignorado por git) y correr:
@@ -105,7 +105,7 @@ async function abrirAdmin(page) {
   return { alerta, url: page.url() };
 }
 
-const browser = await chromium.launch();
+const browser = await navegadorLocal();
 
 try {
   // ── 1. cliente NO debe entrar al panel ───────────────────────────────────
