@@ -19,7 +19,7 @@ const server = createServer(async (req, res) => {
 });
 await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
 try {
-    for (const archivo of ['admin-rendering.spec.mjs', 'mfa-aislado.spec.mjs']) {
+    for (const archivo of ['admin-rendering.spec.mjs', 'mfa-aislado.spec.mjs', 'responsivo.spec.mjs']) {
         const child = spawn(process.execPath, [new URL(archivo, import.meta.url).pathname], {
             stdio: 'inherit', env: { ...process.env, BASE_URL: `http://127.0.0.1:${server.address().port}` },
         });
