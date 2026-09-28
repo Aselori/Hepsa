@@ -16,16 +16,11 @@
 //   node --env-file=tests/.env.local tests/mfa-ui.spec.mjs
 // ============================================================================
 
-import { chromium } from 'playwright';
-import { readFileSync } from 'node:fs';
+import { BASE, URL_SB, LLAVE, navegadorLocal } from './entorno-local.mjs';
 import { codigoTOTPFresco } from './totp.mjs';
 
-const BASE = 'http://localhost:8000';
-const env = process.env;
 
-const cfg = readFileSync(new URL('../config.js', import.meta.url), 'utf8');
-const URL_SB = cfg.match(/supabaseUrl:\s*'([^']+)'/)[1];
-const LLAVE  = cfg.match(/supabaseKey:\s*'([^']+)'/)[1];
+const env = process.env;
 
 const resultados = [];
 function check(nombre, ok, detalle = '') {
@@ -70,7 +65,7 @@ async function nivelDeGarantia(page) {
   });
 }
 
-const browser = await chromium.launch();
+const browser = await navegadorLocal();
 let ascendido = false;
 
 try {
@@ -91,7 +86,7 @@ try {
     await page.fill('#mfa-codigo', '000000');
     await page.click('#mfa-btn');
     await page.waitForTimeout(3000);
-    const aviso = await page.locator('#toast-container').innerText().catch(() => '');
+    const aviso = await page.locator('#mfa-error').innerText().catch(() => '');
     check('un código incorrecto es rechazado con aviso',
       /incorrecto|vencido/i.test(aviso) && (await aalDe(page)) === 'aal1',
       `aviso=${JSON.stringify(aviso.slice(0, 60))}`);
@@ -166,9 +161,9 @@ try {
     ascendido = true;
     check('un admin con 2FA sí puede cambiar un rol', filas[0].role === 'vendedor');
 
-    // Momento util: acaba de existir un empleado sin autenticador, que es lo
-    // unico que la auditoria deberia senalar. Sin esta comprobacion la funcion
-    // solo se ha visto devolver [] y no sabriamos si detecta algo.
+    // Momento util: acaba de existir un empleado sin autenticador, y la
+    // auditoria tiene que senalarlo. Sin esta comprobacion la funcion solo se
+    // ha visto devolver [] y no sabriamos si detecta algo.
     const aud = await fetch(`${URL_SB}/rest/v1/rpc/empleados_sin_segundo_factor`, {
       method: 'POST',
       headers: { apikey: LLAVE, Authorization: `Bearer ${sesionAdmin.access_token}`,
@@ -176,10 +171,19 @@ try {
       body: '{}',
     });
     const pendientes = await aud.json();
+    // Se comprueba que la cuenta APAREZCA, no que sea la unica fila. En el
+    // stack local conviven las cuentas del demo, creadas a proposito sin
+    // factor para poder ensenar el alta, y exigir exactamente una fila hacia
+    // fallar la prueba por un uso legitimo del entorno. Es la misma trampa que
+    // ya se corrigio en las pruebas del historial de ventas y del carrito.
+    const listada = Array.isArray(pendientes)
+      && pendientes.some((e) => e.email === env.CLIENTE_EMAIL);
+    const conFactor = Array.isArray(pendientes)
+      && pendientes.some((e) => e.email === env.ADMIN_EMAIL || e.email === env.VENDEDOR_EMAIL);
     check('la auditoria detecta al empleado sin segundo factor',
-      Array.isArray(pendientes) && pendientes.length === 1 &&
-        pendientes[0].email === env.CLIENTE_EMAIL,
-      `filas=${Array.isArray(pendientes) ? pendientes.length : JSON.stringify(pendientes)}`);
+      listada && !conFactor,
+      `listada=${listada} incluye_a_quien_si_tiene=${conFactor} filas=${
+        Array.isArray(pendientes) ? pendientes.length : JSON.stringify(pendientes)}`);
 
     const page = await (await browser.newContext()).newPage();
     await entrarPorElFormulario(page, env.CLIENTE_EMAIL, env.CLIENTE_PASS);
@@ -196,7 +200,8 @@ try {
     check('se ofrece la clave escrita para quien no puede escanear',
       /^[A-Z2-7]{16,}$/.test(secreto), `${secreto.length} caracteres`);
 
-    await page.screenshot({ path: 'tests/screenshots/mfa-alta.png' });
+    // El QR y su secreto no deben aparecer en capturas, ni siquiera en CI.
+    await page.screenshot({ path: 'tests/screenshots/mfa-alta.png', mask: [page.locator('#mfa-alta')] });
 
     // El código sale del secreto que la propia pantalla acaba de mostrar:
     // si el QR y la clave no correspondieran al factor, esto fallaría.

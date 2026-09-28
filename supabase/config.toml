@@ -1,9 +1,56 @@
-# Vincula esta carpeta con el proyecto de Supabase del equipo.
-#
-# Lo usa el CLI de Supabase y la integración de GitHub para saber a qué
-# proyecto pertenecen las migraciones de supabase/migrations/.
-#
-# El project_id es el subdominio de la URL del proyecto:
-# https://qmyrosmuqfabaedzydsa.supabase.co  ->  qmyrosmuqfabaedzydsa
+# Entorno local de pruebas. project_id identifica contenedores locales;
+# no vincula esta carpeta con el proyecto remoto del equipo.
+project_id = "hepsa-mfa-local"
 
-project_id = "qmyrosmuqfabaedzydsa"
+[api]
+enabled = true
+port = 55321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 55322
+shadow_port = 55320
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = false
+
+[studio]
+enabled = false
+
+[local_smtp]
+enabled = false
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[storage.vector]
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:8000"
+additional_redirect_urls = ["http://localhost:8000"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[edge_runtime]
+enabled = false
+
+[analytics]
+enabled = false
