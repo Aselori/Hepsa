@@ -131,6 +131,8 @@ HEPSA/
 
 ## 📚 Documentación
 
+- [Entrega y recuperacion del segundo factor](docs/entrega-2fa.md)
+- [Revision integral y plan de recuperacion, septiembre 2026](docs/revision-integral.md)
 - [Arquitectura del sistema](docs/architecture.md)
 - [Requerimientos y módulos](docs/requirements.md)
 - [Guía rápida para el equipo](docs/team-guide.md)
