@@ -85,3 +85,55 @@
 - Four Playwright PNGs in output/playwright/carrito and ZIP capturas-carrito-persistente.zip. Separate desktop (1920x1080) and laptop (1366x900) browser contexts, no shared storage; same disposable local customer.
 - Verified two items persisted in database and restored on second browser; quantity increased there, then first browser reload recovered identical items/quantities/total. No claim of instant realtime sync. Account/cart deleted after capture; no orders placed.
 - Mobile 430px attempt exposed overlapping navigation buttons that prevent login click. Not fixed in screenshot-only task; laptop used instead, no mobile success claimed. Product code unchanged.
+
+## Sesion 2026-09-27: checkpoint en git y encabezado movil
+
+- Estado corregido al arrancar: hepsa-demo.service estaba INACTIVO (el handoff
+  lo daba por corriendo). El stack local de Supabase si seguia arriba y sano
+  (5 contenedores, 2 dias). Docker accesible con newgrp, sin reinicio.
+- El trabajo de la sesion anterior estaba entero SIN CONFIRMAR. Ahora esta en
+  git, en siete commits sobre fix/segundo-factor-entregable. Nada empujado.
+  La restriccion previa de "no commit" queda superada; push y merge siguen
+  esperando autorizacion explicita.
+- output/ (9.3 MB de capturas y ZIP) queda ignorado: la evidencia del curso va
+  en la carpeta del curso, no en el repositorio de codigo.
+- package.json entro al repositorio con cuatro devDependencies fijadas
+  (playwright, supabase, @supabase/supabase-js, esbuild). Ninguna en
+  dependencies: nada llega al navegador. Se reporto para que el usuario pueda
+  vetarlo; no se cambio ninguna version.
+
+### Corregido en esta sesion
+
+- Assercion fragil en mfa-ui.spec.mjs: la auditoria de empleados sin segundo
+  factor exigia exactamente una fila y fallaba con las cuentas del demo, que
+  existen a proposito sin factor. Ahora comprueba que la cuenta aparezca y que
+  no aparezca quien si tiene factor. Diagnosticado contra la base local, no
+  supuesto.
+- Encabezado inservible en pantallas angostas. El sintoma anotado antes
+  ("botones que se encimaban") era incorrecto: medido, cero solapes. Era
+  desbordamiento horizontal, ancho intrinseco fijo de 875px, con el boton de
+  Iniciar Sesion fuera de la ventana. Afectaba tambien a 768px.
+  Arreglado con consultas de medios a 900px y 480px.
+- tests/responsivo.spec.mjs cubre 390, 430 y 768px con elementFromPoint, mas
+  dos comprobaciones en escritorio contra la sobrecorreccion. Verificado que
+  falla sin el arreglo (3/11, salida 1).
+
+### Verificacion de esta sesion
+
+- PASS npm test: renderizado seguro, 8 escenarios MFA aislados, 11/11
+  responsivo.
+- PASS npm run test:local contra el stack local: 77/77 RLS, 15/15 MFA UI,
+  16/16 panel.
+- Escritorio comprobado a 1920, 1366 y 1024: sin desbordamiento, encabezado de
+  130px igual que antes.
+- NO verificado: proyecto compartido, sitio publicado, Auth/RLS hospedado,
+  ejecucion remota del workflow. Sigue sin haber base para declarar produccion
+  lista.
+
+### Siguientes pasos exactos
+
+1. Revisar los siete commits y decidir si se empuja la rama y se abre PR.
+2. Solo entonces: paridad de migraciones/Auth con el proyecto compartido,
+   propiedad de cuentas, y despliegue controlado con prueba de humo real.
+3. Pendiente aparte: UI de gestion de dispositivos y recuperacion auditada.
+4. Para reanudar el demo local: newgrp docker -c 'npm run demo:local'.
