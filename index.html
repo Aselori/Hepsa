@@ -91,6 +91,29 @@
         #cart-items-container .cart-item { align-items: center; }
         .cart-item-name { flex: 1; }
         .cart-item-price { font-weight: bold; color: var(--primary); }
+
+        /* El encabezado era una sola fila que no se partia: su ancho intrinseco
+           rondaba los 875px pasara lo que pasara, asi que en cualquier pantalla
+           mas angosta la pagina se desbordaba en horizontal y el boton de
+           Iniciar Sesion quedaba literalmente fuera de la ventana, imposible de
+           pulsar. No era un solape entre botones, que es lo que parecia a
+           simple vista, sino desbordamiento.
+
+           Importa mas de lo que sugiere el tamano del arreglo: el codigo del
+           segundo factor se lee en el telefono, asi que entrar desde el movil
+           es el caso normal del personal, no el raro. */
+        @media (max-width: 900px) {
+            header { padding: 0.9rem 1rem; flex-wrap: wrap; justify-content: center; gap: 12px; }
+            nav { flex-wrap: wrap; justify-content: center; gap: 10px; }
+            .logo-img { height: 62px; }
+            nav button, nav a { padding: 9px 16px; font-size: 0.95rem; }
+        }
+        @media (max-width: 480px) {
+            header { padding: 0.75rem 0.6rem; gap: 10px; }
+            .logo-img { height: 52px; }
+            nav { gap: 8px; }
+            nav button, nav a { padding: 8px 13px; font-size: 0.9rem; }
+        }
     </style>
 </head>
 <body>
