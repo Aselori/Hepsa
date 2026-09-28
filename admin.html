@@ -331,15 +331,17 @@
         const { supabaseUrl, supabaseKey, storageBucket } = window.HEPSA_CONFIG;
 
         async function verificarAccesoYArrancar() {
+            try {
             if (window.supabase) { window.supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey); }
-            else { console.error("Error cargando Supabase."); return; }
-            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            else { throw new Error("No se pudo cargar el servicio de acceso. Comprueba tu conexión y reintenta."); }
+            const { data: { session }, error: sessionError } = await window.supabaseClient.auth.getSession();
+            if (sessionError) throw new Error("No se pudo comprobar tu sesión. Reintenta.");
             if (!session) { window.location.href = 'index.html'; return; }
             // El rol vive en profiles, no en user_metadata: los metadatos son
             // escribibles por el propio usuario con auth.updateUser().
             const { data: perfil, error } = await window.supabaseClient
                 .from('profiles').select('role').eq('id', session.user.id).single();
-            if (error) { alert("No se pudo verificar tu rol. Intenta de nuevo."); window.location.href = 'index.html'; return; }
+            if (error || !perfil) throw new Error("No se pudo verificar tu rol. Reintenta.");
             const userRole = perfil?.role || 'cliente';
             if (userRole !== 'vendedor' && userRole !== 'admin') { alert("ACCESO DENEGADO."); window.location.href = 'index.html'; return; }
 
@@ -350,8 +352,9 @@
             // qué. Es más honesto devolverlo al portal, que sí sabe inscribir
             // el autenticador. La expulsión es cortesía, no la defensa: la
             // defensa es que la base no le contesta.
-            const { data: aal } = await window.supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
-            if (aal?.currentLevel !== 'aal2') {
+            const { data: aal, error: aalError } = await window.supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+            if (aalError || !aal) throw new Error("No se pudo comprobar el segundo factor. Reintenta.");
+            if (aal.currentLevel !== 'aal2') {
                 alert("Este panel exige verificación en dos pasos. Complétala desde el portal para entrar.");
                 window.location.href = 'index.html';
                 return;
@@ -365,6 +368,40 @@
             }
             cargarInventarioBD();
             initTicket();
+            window.supabaseClient.auth.onAuthStateChange((event) => {
+                if (event === 'SIGNED_OUT') {
+                    document.body.style.display = 'none';
+                    window.location.replace('index.html');
+                }
+            });
+            } catch (error) {
+                mostrarErrorDeAcceso(error instanceof TypeError ? 'No hay conexión con el servicio. Reintenta.' : error.message);
+            }
+        }
+
+        function mostrarErrorDeAcceso(mensaje) {
+            // No mostrar datos del panel mientras el servicio no confirme acceso.
+            for (const child of document.body.children) {
+                if (child.tagName !== 'SCRIPT') child.style.display = 'none';
+            }
+            const aviso = document.createElement('section');
+            aviso.id = 'access-error';
+            aviso.style.cssText = 'max-width:460px;margin:48px auto;padding:24px;';
+            const titulo = document.createElement('h1');
+            titulo.textContent = 'No se pudo comprobar tu acceso';
+            const texto = document.createElement('p');
+            texto.setAttribute('role', 'alert');
+            texto.textContent = mensaje;
+            const reintentar = document.createElement('button');
+            reintentar.textContent = 'Reintentar';
+            reintentar.addEventListener('click', () => location.reload());
+            const volver = document.createElement('a');
+            volver.href = 'index.html';
+            volver.textContent = 'Volver al portal';
+            volver.style.marginLeft = '16px';
+            aviso.append(titulo, texto, reintentar, volver);
+            document.body.append(aviso);
+            document.body.style.display = 'block';
         }
         verificarAccesoYArrancar();
 
@@ -372,7 +409,7 @@
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
-            toast.innerHTML = type === 'success' ? `${message}` : `${message}`;
+            toast.textContent = String(message);
             container.appendChild(toast);
             setTimeout(() => { toast.classList.add('fade-out'); setTimeout(() => toast.remove(), 400); }, 3500);
         }
@@ -428,15 +465,24 @@
 
         function renderPOSTicket() {
             const l = document.getElementById('ticket-list');
-            l.innerHTML = '';
+            l.replaceChildren();
             posSubtotal = 0;
             posCart.forEach((x, idx) => {
                 posSubtotal += x.price;
-                l.innerHTML += `<div class="ticket-row">
-                    <span style="flex:1;">${x.item}</span>
-                    <span>$${formatMoney(x.price)}</span>
-                    <button onclick="removeFromTicket(${idx})" style="background:none;border:none;color:#e74c3c;cursor:pointer;margin-left:8px;font-size:1rem;">×</button>
-                </div>`;
+                const row = document.createElement('div');
+                row.className = 'ticket-row';
+                const item = document.createElement('span');
+                item.style.flex = '1';
+                item.textContent = x.item;
+                const price = document.createElement('span');
+                price.textContent = `$${formatMoney(x.price)}`;
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.style.cssText = 'background:none;border:none;color:#e74c3c;cursor:pointer;margin-left:8px;font-size:1rem;';
+                remove.textContent = '×';
+                remove.addEventListener('click', () => removeFromTicket(idx));
+                row.append(item, price, remove);
+                l.appendChild(row);
             });
             const iva = posSubtotal * configIVA;
             const total = posSubtotal + iva;
@@ -462,7 +508,7 @@
             ['cli-nom1','cli-nom2','cli-ap-pat','cli-ap-mat','cli-tel','cli-email', 'ticket-notes'].forEach(id => {
                 if(document.getElementById(id)) document.getElementById(id).value = '';
             });
-            document.getElementById('ticket-list').innerHTML = '';
+            document.getElementById('ticket-list').replaceChildren();
             document.getElementById('tkt-sub').textContent = '0.00';
             document.getElementById('tkt-iva').textContent = '0.00';
             document.getElementById('tkt-total').textContent = '0.00';
@@ -599,21 +645,55 @@
             if (error) { showToast('Error cargando inventario', 'error'); return; }
             if (data) {
                 productosInventario = data;
-                document.getElementById('inventory-table-body').innerHTML = data.map(p => `
-                    <tr>
-                        <td><strong>${p.name}</strong>${p.description ? `<br><small style="color:var(--text-muted);">${p.description.substring(0,40)}...</small>` : ''}</td>
-                        <td>$${parseFloat(p.price).toLocaleString()}</td>
-                        <td class="${p.stock < 3 ? 'stock-low' : 'stock-ok'}">${p.stock}</td>
-                        <td>${p.is_active ? 'Sí' : 'No'}</td>
-                        <td style="display:flex; gap:6px; flex-wrap:wrap;">
-                            <button class="btn-edit" onclick="abrirModalEdicion('${p.id}')">Editar</button>
-                            <button class="btn-toggle" onclick="toggleVisibilidad('${p.id}', ${p.is_active})">${p.is_active ? 'Ocultar' : 'Mostrar'}</button>
-                            <button class="btn-delete" onclick="eliminarProducto('${p.id}', '${p.name.replace(/'/g, "\\'")}')">Eliminar</button>
-                        </td>
-                    </tr>`).join('');
-                document.getElementById('pos-product-select').innerHTML =
-                    '<option value="">Seleccionar producto...</option>' +
-                    data.filter(p => p.is_active).map(p => `<option value="${p.id}">${p.name} — $${p.price}</option>`).join('');
+                const tbody = document.getElementById('inventory-table-body');
+                tbody.replaceChildren();
+                data.forEach(p => {
+                    const row = document.createElement('tr');
+                    const nameCell = document.createElement('td');
+                    const name = document.createElement('strong');
+                    name.textContent = p.name || '';
+                    nameCell.appendChild(name);
+                    if (p.description) {
+                        nameCell.appendChild(document.createElement('br'));
+                        const description = document.createElement('small');
+                        description.style.color = 'var(--text-muted)';
+                        description.textContent = `${String(p.description).substring(0, 40)}...`;
+                        nameCell.appendChild(description);
+                    }
+                    const price = document.createElement('td');
+                    price.textContent = `$${parseFloat(p.price).toLocaleString()}`;
+                    const stock = document.createElement('td');
+                    stock.className = p.stock < 3 ? 'stock-low' : 'stock-ok';
+                    stock.textContent = String(p.stock ?? '');
+                    const active = document.createElement('td');
+                    active.textContent = p.is_active ? 'Sí' : 'No';
+                    const actions = document.createElement('td');
+                    actions.style.cssText = 'display:flex; gap:6px; flex-wrap:wrap;';
+                    const edit = document.createElement('button');
+                    edit.className = 'btn-edit'; edit.type = 'button'; edit.textContent = 'Editar';
+                    edit.addEventListener('click', () => abrirModalEdicion(p.id));
+                    const toggle = document.createElement('button');
+                    toggle.className = 'btn-toggle'; toggle.type = 'button';
+                    toggle.textContent = p.is_active ? 'Ocultar' : 'Mostrar';
+                    toggle.addEventListener('click', () => toggleVisibilidad(p.id, p.is_active));
+                    const remove = document.createElement('button');
+                    remove.className = 'btn-delete'; remove.type = 'button'; remove.textContent = 'Eliminar';
+                    remove.addEventListener('click', () => eliminarProducto(p.id, p.name));
+                    actions.append(edit, toggle, remove);
+                    row.append(nameCell, price, stock, active, actions);
+                    tbody.appendChild(row);
+                });
+                const select = document.getElementById('pos-product-select');
+                select.replaceChildren();
+                const placeholder = document.createElement('option');
+                placeholder.value = ''; placeholder.textContent = 'Seleccionar producto...';
+                select.appendChild(placeholder);
+                data.filter(p => p.is_active).forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    option.textContent = `${p.name} — $${p.price}`;
+                    select.appendChild(option);
+                });
             }
         }
 
@@ -698,28 +778,38 @@
 
         async function cargarHistorialBD() {
             const tbody = document.getElementById('history-table-body');
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">Cargando...</td></tr>';
+            renderTableMessage(tbody, 10, 'Cargando...');
             const { data, error } = await window.supabaseClient.from('orders').select('*').order('created_at', { ascending: false });
-            if (error) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#e74c3c;">Error: ${error.message}</td></tr>`; return; }
-            if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">No hay ventas registradas.</td></tr>'; return; }
+            if (error) { renderTableMessage(tbody, 10, `Error: ${error.message}`, '#e74c3c'); return; }
+            if (!data || data.length === 0) { renderTableMessage(tbody, 10, 'No hay ventas registradas.'); return; }
 
             const statusColors = { completo: 'status-completo', anticipo: 'status-anticipo', faltante: 'status-faltante' };
-            tbody.innerHTML = data.map(o => {
+            tbody.replaceChildren();
+            data.forEach(o => {
                 const statusClass = statusColors[o.payment_status] || 'status-completo';
                 const statusLabel = { completo: 'Completo', anticipo: 'Anticipo', faltante: 'Liquidación' }[o.payment_status] || o.payment_status;
-                return `<tr>
-                    <td><strong>#${o.id.toString().substring(0,8)}</strong></td>
-                    <td>${new Date(o.created_at).toLocaleDateString('es-MX')}</td>
-                    <td>${o.client_first_name || '<span style="color:var(--text-muted)">—</span>'}</td>
-                    <td>${o.client_last_name || '<span style="color:var(--text-muted)">—</span>'}</td>
-                    <td>${o.client_phone || '<span style="color:var(--text-muted)">—</span>'}</td>
-                    <td>$${parseFloat(o.subtotal || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-                    <td>$${parseFloat(o.tax || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</td>
-                    <td><strong>$${parseFloat(o.total || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</strong></td>
-                    <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
-                    <td style="max-width: 250px; white-space: normal; word-wrap: break-word;">${o.notes || '<span style="color:var(--text-muted)">—</span>'}</td>
-                </tr>`;
-            }).join('');
+                const row = document.createElement('tr');
+                const cell = (value, className = '') => { const el = document.createElement('td'); el.textContent = value || '—'; if (className) el.className = className; return el; };
+                const id = document.createElement('strong'); id.textContent = `#${String(o.id).substring(0, 8)}`;
+                const idCell = document.createElement('td'); idCell.appendChild(id);
+                row.append(idCell, cell(new Date(o.created_at).toLocaleDateString('es-MX')), cell(o.client_first_name), cell(o.client_last_name), cell(o.client_phone));
+                row.append(cell(`$${parseFloat(o.subtotal || 0).toLocaleString('en-US', {minimumFractionDigits:2})}`), cell(`$${parseFloat(o.tax || 0).toLocaleString('en-US', {minimumFractionDigits:2})}`));
+                const total = document.createElement('strong'); total.textContent = `$${parseFloat(o.total || 0).toLocaleString('en-US', {minimumFractionDigits:2})}`;
+                const totalCell = document.createElement('td'); totalCell.appendChild(total);
+                const status = document.createElement('span'); status.className = `status-badge ${statusClass}`; status.textContent = statusLabel;
+                const statusCell = document.createElement('td'); statusCell.appendChild(status);
+                const notes = cell(o.notes); notes.style.cssText = 'max-width: 250px; white-space: normal; word-wrap: break-word;';
+                row.append(totalCell, statusCell, notes); tbody.appendChild(row);
+            });
+        }
+
+        function renderTableMessage(tbody, colspan, message, color = '') {
+            tbody.replaceChildren();
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = colspan; cell.style.textAlign = 'center'; cell.textContent = String(message);
+            if (color) cell.style.color = color;
+            row.appendChild(cell); tbody.appendChild(row);
         }
 
         async function cargarProyectosBD() {
@@ -727,32 +817,30 @@
             const { data } = await window.supabaseClient.from('custom_requests').select('*').order('created_at', { ascending: false });
             const estados = ['Pendiente de Revisión', 'Contactado', 'En Progreso', 'Finalizado'];
             if(data && data.length > 0) {
-                tbody.innerHTML = data.map(req => {
+                tbody.replaceChildren();
+                data.forEach(req => {
                     const name = `${req.first_name||''} ${req.last_name_p||''}`.trim();
-                    const selector = `<select onchange="actualizarEstatusProyecto('${req.id}', this.value)">${estados.map(est => `<option value="${est}" ${req.status === est ? 'selected' : ''}>${est}</option>`).join('')}</select>`;
                     const medidas = `${req.largo_mm} × ${req.alto_mm}${req.profundidad_mm ? ' × ' + req.profundidad_mm : ''} mm`;
                     const area = ((req.largo_mm * req.alto_mm) / 1000000).toFixed(2);
                     const legible = (v) => (v || '').replace(/_/g, ' ');
                     const precio = req.precio_estimado != null
                         ? Number(req.precio_estimado).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
                         : '—';
-                    const notas = req.specifications
-                        ? `<br><small style="opacity:.7;" title="${req.specifications}">${req.specifications.length > 60 ? req.specifications.substring(0,60)+'…' : req.specifications}</small>`
-                        : '';
-                    return `<tr>
-                        <td><strong>${name}</strong></td>
-                        <td>${req.phone}<br><small>${req.email}</small></td>
-                        <td style="max-width:260px; white-space:normal;">
-                            <strong>${medidas}</strong> <small>(${area} m²)</small><br>
-                            <small style="text-transform:capitalize;">${legible(req.material)} · ${legible(req.acabado)}</small>
-                            ${notas}
-                        </td>
-                        <td><strong>${precio}</strong><br><small style="opacity:.7;">estimado</small></td>
-                        <td>${new Date(req.created_at).toLocaleDateString('es-MX')}</td>
-                        <td>${selector}</td>
-                    </tr>`;
-                }).join('');
-            } else { tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;">No hay solicitudes.</td></tr>`; }
+                    const row = document.createElement('tr');
+                    const textCell = (value, tag = 'td') => { const el = document.createElement(tag); el.textContent = value || ''; return el; };
+                    const client = textCell(name, 'td'); client.replaceChildren(Object.assign(document.createElement('strong'), { textContent: name }));
+                    const contact = textCell(''); contact.append(textCell(req.phone, 'span'), document.createElement('br'), textCell(req.email, 'small'));
+                    const piece = textCell(''); piece.style.cssText = 'max-width:260px; white-space:normal;';
+                    const dimensions = textCell(medidas, 'strong'); piece.append(dimensions, document.createTextNode(` (${area} m²)`), document.createElement('br'));
+                    const details = textCell(`${legible(req.material)} · ${legible(req.acabado)}`, 'small'); details.style.textTransform = 'capitalize'; piece.appendChild(details);
+                    if (req.specifications) { piece.appendChild(document.createElement('br')); const notes = textCell(String(req.specifications).length > 60 ? `${String(req.specifications).substring(0,60)}…` : req.specifications, 'small'); notes.style.opacity = '.7'; notes.title = String(req.specifications); piece.appendChild(notes); }
+                    const estimate = textCell(''); const estimateValue = textCell(precio, 'strong'); estimate.append(estimateValue, document.createElement('br')); const estimateLabel = textCell('estimado', 'small'); estimateLabel.style.opacity = '.7'; estimate.appendChild(estimateLabel);
+                    const date = textCell(new Date(req.created_at).toLocaleDateString('es-MX'));
+                    const select = document.createElement('select'); estados.forEach(est => { const option = document.createElement('option'); option.value = est; option.textContent = est; option.selected = req.status === est; select.appendChild(option); }); select.addEventListener('change', () => actualizarEstatusProyecto(req.id, select.value));
+                    const status = document.createElement('td'); status.appendChild(select);
+                    row.append(client, contact, piece, estimate, date, status); tbody.appendChild(row);
+                });
+            } else { renderTableMessage(tbody, 6, 'No hay solicitudes.'); }
         }
 
         async function actualizarEstatusProyecto(id, nuevoEstado) {
@@ -763,9 +851,12 @@
         async function cargarUsuariosBD() {
             const { data } = await window.supabaseClient.from('profiles').select('*');
             if (data) {
-                document.getElementById('users-table-body').innerHTML = data.map(p =>
-                    `<tr><td>${p.first_name||''} ${p.last_name_p||''}</td><td>${p.phone||'—'}</td><td>${new Date(p.created_at).toLocaleDateString('es-MX')}</td><td>${p.role||'cliente'}</td></tr>`
-                ).join('');
+                const tbody = document.getElementById('users-table-body'); tbody.replaceChildren();
+                data.forEach(p => { const row = document.createElement('tr');
+                    [ `${p.first_name||''} ${p.last_name_p||''}`, p.phone || '—', new Date(p.created_at).toLocaleDateString('es-MX'), p.role || 'cliente' ]
+                        .forEach(value => { const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell); });
+                    tbody.appendChild(row);
+                });
             }
         }
 
