@@ -31,3 +31,11 @@ tests/screenshots/
 
 # Respaldos y material de trabajo que no forma parte del sitio.
 attachments/
+
+# Estado generado por el CLI local; no contiene codigo del proyecto.
+supabase/.temp/
+supabase/.branches/
+
+# Capturas y ZIP de evidencia. La evidencia del curso vive en la carpeta
+# del curso, no en el repositorio de codigo.
+output/
