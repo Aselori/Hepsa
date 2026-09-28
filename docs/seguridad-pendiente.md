@@ -143,7 +143,7 @@ Edge Function, y antes que eso una cuenta de comercio en Stripe o MercadoPago.
 
 ---
 
-## Segundo factor: HECHO
+## Segundo factor: implementado, validacion de entrega separada
 
 **Qué quedó:** `vendedor` y `admin` no llegan a ningún dato sin presentar un
 código TOTP. La regla vive en `is_staff()` e `is_admin()`, que ahora exigen
@@ -157,20 +157,11 @@ se salta el dibujo; lo que no se salta es que la base no le conteste.
 
 **Lo que sigue abierto:**
 
-- **Reponer el autenticador de un empleado que pierde el teléfono.** Supabase
-  exige `aal2` tanto para inscribir un factor nuevo como para borrar el viejo,
-  así que la cuenta queda encerrada y no puede salir sola. Hoy la salida es
-  borrar la fila con la llave `service_role`:
-
-  ```sql
-  DELETE FROM auth.mfa_factors
-   WHERE user_id = (SELECT id FROM auth.users WHERE email = '…');
-  ```
-
-  Funciona, pero es una operación manual con la llave más peligrosa del
-  proyecto. Cuando haya más de dos empleados conviene un botón en el panel de
-  usuarios respaldado por una Edge Function, para que reponer un autenticador
-  no obligue a sacar la `service_role` del cajón.
+- **Reposicion de autenticador y cierre de entrega.** Seguir el
+  [runbook actualizado](entrega-2fa.md): verificar identidad, usar las APIs
+  administrativas soportadas y considerar sesiones/JWT existentes. La
+  instruccion anterior de borrar directamente filas de auth.mfa_factors queda
+  retirada. La validacion automatizada es local, no evidencia de despliegue.
 - **A los clientes no se les exige** y es a propósito: no ven datos de nadie
   más que de sí mismos. Si algún día el portal les muestra facturas o
   direcciones de entrega, esa decisión hay que revisarla.

@@ -1,7 +1,7 @@
 # Cómo levantar HEPSA en tu máquina
 
 Guía para alguien que acaba de clonar el repo y no sabe por dónde empezar.
-Toma unos 10 minutos. No necesitas instalar Node, ni Docker, ni una VM.
+El sitio es estatico; para las pruebas de autenticacion tambien se usan Node y Docker.
 
 ## 1. Correr la página
 
@@ -41,20 +41,28 @@ La `supabaseKey` (publishable / anon) sí puede estar en el repo: está diseñad
 para viajar al navegador, y lo que protege los datos son las políticas RLS. La
 que **nunca** va en un archivo es la `service_role`, que se salta RLS entera.
 
-## 3. Crear el proyecto de desarrollo
+## 3. Desarrollo y pruebas locales
 
-Esto lo hace **una sola persona**; el resto solo copia la URL y la llave.
+Para cambiar codigo de autenticacion, usa Node 22 o posterior y Docker operativo.
+El frontend sigue siendo estatico, pero las pruebas necesitan dependencias:
 
-1. Crear un proyecto gratis en <https://supabase.com>.
-2. Abrir el **SQL Editor** y correr, en este orden:
-   - `supabase/migrations/20260826000001_baseline_schema.sql`
-   - `supabase/migrations/20260826000002_fix_role_escalation.sql`
-   - `supabase/seed.sql`
-3. En **Storage**, crear un bucket público llamado `productos`.
-4. Pasarle al equipo la URL y la publishable key (**Settings → API**).
+```bash
+npm ci
+npx playwright install chromium
+docker info
+npx supabase start
+npm test
+npm run test:local
+```
 
-Las imágenes de los productos no se migran: viven en el Storage del proyecto
-viejo. Se vuelven a subir desde el panel de admin cuando alguien las necesite.
+El CLI fijado en package.json aplica todas las migraciones y la semilla compatible
+con el esquema final. supabase/config.toml configura un stack local separado en
+55321/55322 con TOTP habilitado; project_id es un identificador local, no un
+vinculo a produccion. El runner test:local crea sus cuentas, configura el sitio
+temporal y limpia las cuentas al terminar. Ver [pruebas](../tests/README.md).
+
+Para detener solo este stack: `npx supabase stop` desde este repositorio.
+No crear un proyecto remoto ni copiar cuentas reales para correr las pruebas.
 
 ## 4. Conseguir acceso de admin
 
