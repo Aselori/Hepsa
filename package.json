@@ -1,0 +1,19 @@
+{
+  "name": "hepsa",
+  "private": true,
+  "scripts": {
+    "test": "node tests/aisladas.mjs",
+    "test:mfa": "node tests/mfa-aislado.spec.mjs",
+    "test:local": "node tests/local.mjs",
+    "demo:local": "node tests/demo-local.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "2.116.0",
+    "esbuild": "0.28.2",
+    "playwright": "1.63.0",
+    "supabase": "2.117.0"
+  }
+}

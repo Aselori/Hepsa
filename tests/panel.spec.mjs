@@ -12,10 +12,10 @@
 //   node --env-file=tests/.env.local tests/panel.spec.mjs
 // ============================================================================
 
-import { chromium } from 'playwright';
+import { BASE, URL_SB, LLAVE, navegadorLocal } from './entorno-local.mjs';
 import { codigoTOTPFresco } from './totp.mjs';
 
-const BASE = 'http://localhost:8000';
+
 const env = process.env;
 const resultados = [];
 function check(nombre, ok, detalle = '') {
@@ -40,8 +40,9 @@ async function entrarConSegundoFactor(page, prefijo) {
   if (err2) throw new Error(`2FA ${prefijo}: ${err2}`);
 }
 
-const browser = await chromium.launch();
+const browser = await navegadorLocal();
 let pedidoCreado = null;
+let imagenCreada = null;
 let page = null;
 
 try {
@@ -130,11 +131,11 @@ try {
     const nombre = `prueba-2fa-${Date.now()}.png`;
     const { error } = await window.supabaseClient.storage.from(bucket)
       .upload(nombre, new Blob([png], { type: 'image/png' }));
-    if (!error) await window.supabaseClient.storage.from(bucket).remove([nombre]);
-    return error?.message ?? null;
+    return { nombre: error ? null : nombre, error: error?.message ?? null };
   }, 'productos');
+  imagenCreada = subida.nombre;
   check('el staff con 2FA puede subir imagenes a Storage',
-    subida === null, `error=${JSON.stringify(subida)}`);
+    subida.error === null, `error=${JSON.stringify(subida.error)}`);
 
   // ── Y el vendedor sigue SIN poder lo que es de admin ─────────────────────
   const soloVendedor = await page.evaluate(async () => {
@@ -175,7 +176,7 @@ try {
   await ctx2.close();
 
 } finally {
-  if (pedidoCreado) {
+  if (pedidoCreado || imagenCreada) {
     // La limpieza va con una sesion de ADMIN, no con la del vendedor que
     // registro la venta: orders_delete_admin y order_items_delete_admin solo
     // dejan borrar a admin. Hacerlo con el vendedor deja el pedido de prueba
@@ -189,6 +190,13 @@ try {
       const { data } = await window.supabaseClient.from('orders').select('id').eq('id', id);
       return data?.length ?? -1;
     }, pedidoCreado).catch((e) => `fallo: ${e.message}`);
+    if (imagenCreada) {
+      const limpia = await pL.evaluate(async nombre => {
+        const { data, error } = await window.supabaseClient.storage.from('productos').remove([nombre]);
+        return !error && data?.some(objeto => objeto.name === nombre);
+      }, imagenCreada);
+      check('la imagen de prueba se elimina con permisos de admin', limpia === true);
+    }
     await ctxL.close();
     console.log(`\n(limpieza) pedido de prueba #${pedidoCreado} borrado: ${borrado === 0 ? 'si' : 'NO — ' + borrado}`);
     if (borrado !== 0) resultados.push({ nombre: 'limpieza del pedido de prueba', ok: false });

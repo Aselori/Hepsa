@@ -1,7 +1,7 @@
 -- ============================================================================
 -- SEED: datos mínimos para levantar un proyecto de desarrollo.
 --
--- Se corre UNA VEZ, después de las migraciones 0001 y 0002.
+-- Se corre UNA VEZ, después de aplicar todas las migraciones.
 --
 -- Qué SÍ trae: el catálogo de productos real del negocio. Son datos del
 -- cliente pero no son datos personales, y sin ellos el catálogo se ve vacío.
@@ -54,16 +54,15 @@ SELECT setval(
 
 -- ─── Solicitudes de ejemplo ─────────────────────────────────────────────────
 
--- Inventadas. Redactadas en texto libre a propósito: así se ve hoy la captura,
--- y sirven para probar el cotizador estructurado cuando exista.
+-- Solicitudes sinteticas compatibles con el cotizador estructurado actual.
 
-INSERT INTO public.custom_requests (first_name, last_name_p, email, phone, specifications, status) VALUES
+INSERT INTO public.custom_requests (first_name, last_name_p, email, phone, specifications, status, largo_mm, alto_mm, profundidad_mm, material, acabado) VALUES
   ('Ana',   'Ramírez', 'ana.ejemplo@correo.test',   '8110000001',
    'Necesito un protector de ventana de 1.67 m de largo por 1.24 m de alto, grosor aproximado 15 cm.',
-   'Pendiente de Revisión'),
+   'Pendiente de Revisión', 1670, 1240, 150, 'acero', 'pintura_electrostatica'),
   ('Luis',  'Herrera', 'luis.ejemplo@correo.test',  '8110000002',
    'Requiero un portón de 5 x 3 m, acero, acabado en pintura electrostática negra.',
-   'Pendiente de Revisión'),
+   'Pendiente de Revisión', 5000, 3000, NULL, 'acero', 'pintura_electrostatica'),
   ('Marta', 'Solís',   'marta.ejemplo@correo.test', '8110000003',
    'Barandal para escalera curva, aproximadamente 4 m de desarrollo, hierro forjado.',
-   'Finalizado');
+   'Finalizado', 4000, 1000, NULL, 'hierro_forjado', 'pavonado');
