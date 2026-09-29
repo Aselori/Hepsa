@@ -43,29 +43,34 @@
 - Device-management UI and audited recovery automation remain future work. Current recovery procedure requires an authorized operator and supported admin MFA APIs.
 - New files to checkpoint: HANDOFF.md, auth-mfa.js, package.json, package-lock.json, docs/revision-integral.md, docs/entrega-2fa.md, tests/admin-rendering.spec.mjs, tests/aisladas.mjs, tests/mfa-aislado.spec.mjs, tests/entorno-local.mjs, tests/local.mjs.
 
-## Manual demo requested
-- User requested a live localhost demo and local login credentials.
-- HEPSA Supabase stack restarted from preserved local volumes; no production changes.
-- tests/demo-local.mjs creates fresh demo admin/seller/customer accounts without verified factors and serves the app on http://127.0.0.1:8000 with local SDK/config.
-- Demo server now runs as transient user service hepsa-demo.service; leave running for user. Local Supabase stack also intentionally running.
-- Credential file: /tmp/hepsa-demo-access.json, mode 600, never served over HTTP. Do not copy its contents into handoff/checkpoints.
-- PASS live demo smoke: catalog, admin QR enrollment, cancel/signout, customer login without MFA and 404 for private test path. Initial customer smoke raced signout navigation; corrected probe waits for a fresh page and passed. No authenticator enrolled on the user's behalf.
-- No restart required. Remaining wider audit fixes still pending; this is a local 2FA/core-flow demo.
-- Restart demo if needed: newgrp docker -c 'npx supabase start', then newgrp docker -c 'npm run demo:local'. Demo now validates and reuses existing accounts from the private /tmp credential file, preserving enrolled factors. New accounts are created only when the file is absent.
+## Demo local (resumido)
 
-## Integration preflight correction, 2026-09-11
-- User explicitly requested global preference: verify relevant MCP connections and permissions before development, report missing connections early, enable free setup when authorized or provide exact steps. Saved to designated global memory update folder.
-- Supabase MCP has no callable tools in this session. Local CLI/Docker tests do not prove MCP connectivity or hosted-project state. Hosted integration setup remains unverified; no production access claimed.
-- Demo restart verified with HTTP 200 after prior usage-limit approval rejection cleared. Local database intentionally remains running; server lifecycle correction below supersedes exec session 84111. No restart required.
-- Inspected checkpoint helper and prior manifest: selected file copies and staged/unstaged patches exist. Checkpoints supplement conversation resume; they do not preserve processes or back up the database.
+- tests/demo-local.mjs sirve la app en http://127.0.0.1:8000 con SDK y config
+  locales, y reutiliza las cuentas del archivo privado /tmp/hepsa-demo-access.json
+  (modo 600, nunca servido por HTTP, no copiar su contenido aqui). Solo crea
+  cuentas nuevas si el archivo falta, asi preserva los factores inscritos.
+- Corria como servicio transitorio de usuario hepsa-demo.service. Al 2026-09-28
+  estaba INACTIVO; el stack de Supabase si seguia arriba.
+- Levantar: newgrp docker -c 'npx supabase start' y luego
+  newgrp docker -c 'npm run demo:local'.
+- Probado en su momento con Chromium real: alta con QR, cancelar, cerrar sesion
+  y login de cliente sin MFA. No se inscribio ningun autenticador del usuario.
 
-## Local demo lifecycle correction, 2026-09-11
-- User reported localhost unavailable after MFA cancel/signout. Host check confirmed no web listener/process while HEPSA Docker services remained healthy. Exact original process exit cause not captured.
-- Shell-detached nohup attempt also did not survive. Started transient user service hepsa-demo.service with systemd-run; no boot enablement or persistent service file.
-- PASS real Chromium: three admin login/MFA cancel cycles plus customer login/signout, actual Auth session cleared and catalog restored, HTTP 200, no browser exceptions. Existing factors preserved. Probe /tmp/hepsa-cancel-check.cjs contains no credentials; reads private credential file.
-- URL http://127.0.0.1:8000; status: systemctl --user status hepsa-demo; stop: systemctl --user stop hepsa-demo. No restart/relogin required.
-- Launch if stopped: systemd-run --user --unit=hepsa-demo --collect --working-directory=/home/aselori/Work/projects/hepsa --setenv=PATH=/home/aselori/.local/share/mise/installs/node/25.8.0/bin:/usr/bin:/bin /usr/bin/newgrp docker -c 'node tests/demo-local.mjs'
-- No application changes required for this report. MCP and hosted project remain unverified.
+## Capturas de presentaciones (resumido)
+
+- PNG y ZIP de Avance 1 y 2 y del carrito persistente viven en output/, que
+  desde 2026-09-27 esta ignorado por git: la evidencia del curso va en la
+  carpeta del curso.
+- El catalogo de hepsa.vercel.app se quedo cargando en el navegador de captura
+  y no se investigo: no se afirma que el despliegue este sano.
+- El intento a 430 px expuso el fallo del encabezado, corregido el 2026-09-27.
+
+## Preflight de integracion, 2026-09-11 (resumido)
+
+- Preferencia global: verificar conexiones MCP y permisos antes de desarrollar,
+  reportar lo que falte pronto, habilitar lo gratuito cuando haya autorizacion.
+- Entradas anteriores sobre MCP no disponible describen el estado previo a la
+  reparacion de la seccion siguiente. Se condensaron por tamano.
 
 ## MCP authentication repaired, 2026-09-11
 - User called out unresolved Supabase/Vercel/Resend connections. Ran codex mcp login for all three; all completed successfully and credentials persisted through Codex OAuth storage. URLs were already configured; no config rewrite needed.
@@ -75,65 +80,72 @@
 - Earlier MCP-unavailable entries describe pre-repair state. Main session tools refreshed dynamically. Primary directly repeated all three read-only MCP calls successfully here. No Codex restart, desktop logout or reboot needed. Local demo independent service remains running.
 - Hosted project access is now verified, but hosted schema/Auth parity and production readiness are still pending.
 
-## Presentation screenshots, 2026-09-19
-- User requested screenshots only for Avance 1 hosting and Avance 2 MFA. Six 1920x1080 Playwright PNGs saved in output/playwright/presentacion; ZIP in output/playwright/capturas-avances-1-y-2.zip.
-- Avance 1 captures actual hepsa.vercel.app quotation screen. Vercel MCP verified project/domain. Live catalog stayed loading in capture browser; not investigated or fixed, do not claim deployment fully healthy. Dashboard browser timed out. No Kali or other host URL found; requested from user.
-- Avance 2 captures local login, enrollment QR, subsequent TOTP prompt, input validation and authorized admin panel. Disposable local admin accounts deleted after capture; pictured QR is unusable. Existing demo factors untouched.
-- Restarted existing local Supabase stack and transient hepsa-demo.service from moved repo path. Demo remains at 127.0.0.1:8000; no system restart needed. No product code edited.
+## Sesion 2026-09-27: checkpoint en git (resumido)
 
-## Persistent cart screenshots, 2026-09-19
-- Four Playwright PNGs in output/playwright/carrito and ZIP capturas-carrito-persistente.zip. Separate desktop (1920x1080) and laptop (1366x900) browser contexts, no shared storage; same disposable local customer.
-- Verified two items persisted in database and restored on second browser; quantity increased there, then first browser reload recovered identical items/quantities/total. No claim of instant realtime sync. Account/cart deleted after capture; no orders placed.
-- Mobile 430px attempt exposed overlapping navigation buttons that prevent login click. Not fixed in screenshot-only task; laptop used instead, no mobile success claimed. Product code unchanged.
+El detalle vive en los mensajes de los ocho commits y en el PR #8.
 
-## Sesion 2026-09-27: checkpoint en git y encabezado movil
+- El trabajo de sesiones previas estaba entero SIN CONFIRMAR. Quedo en git en
+  la rama fix/segundo-factor-entregable.
+- hepsa-demo.service estaba inactivo aunque este documento lo daba por vivo.
+  El stack de Supabase si seguia arriba.
+- output/ pasa a estar ignorado: la evidencia del curso va en la carpeta del
+  curso, no en el repositorio de codigo.
+- package.json entro con cuatro devDependencies fijadas (playwright, supabase,
+  @supabase/supabase-js, esbuild). Ninguna en dependencies: nada llega al
+  navegador. Reportado al usuario, que no puso objecion.
+- Corregida una assercion fragil en mfa-ui.spec.mjs: la auditoria exigia
+  exactamente una fila y fallaba con las cuentas del demo, que existen a
+  proposito sin factor.
+- Corregido el encabezado en pantallas angostas. El sintoma anotado antes
+  ("botones que se encimaban") era incorrecto: medido, cero solapes; era
+  desbordamiento horizontal con el boton de acceso fuera de la ventana, y
+  afectaba tambien a 768 px. Cubierto por tests/responsivo.spec.mjs, que falla
+  sin el arreglo.
 
-- Estado corregido al arrancar: hepsa-demo.service estaba INACTIVO (el handoff
-  lo daba por corriendo). El stack local de Supabase si seguia arriba y sano
-  (5 contenedores, 2 dias). Docker accesible con newgrp, sin reinicio.
-- El trabajo de la sesion anterior estaba entero SIN CONFIRMAR. Ahora esta en
-  git, en siete commits sobre fix/segundo-factor-entregable. Nada empujado.
-  La restriccion previa de "no commit" queda superada; push y merge siguen
-  esperando autorizacion explicita.
-- output/ (9.3 MB de capturas y ZIP) queda ignorado: la evidencia del curso va
-  en la carpeta del curso, no en el repositorio de codigo.
-- package.json entro al repositorio con cuatro devDependencies fijadas
-  (playwright, supabase, @supabase/supabase-js, esbuild). Ninguna en
-  dependencies: nada llega al navegador. Se reporto para que el usuario pueda
-  vetarlo; no se cambio ninguna version.
+## Sesión 2026-09-28: revisión con Opus 5.5 y fallos de seguridad
 
-### Corregido en esta sesion
+El usuario cambió de modelo y pidió analizar y rehacer lo hecho. Se hizo una
+revisión independiente en vez de regenerar a ciegas; el detalle está en los
+mensajes de commit y en el PR #9.
 
-- Assercion fragil en mfa-ui.spec.mjs: la auditoria de empleados sin segundo
-  factor exigia exactamente una fila y fallaba con las cuentas del demo, que
-  existen a proposito sin factor. Ahora comprueba que la cuenta aparezca y que
-  no aparezca quien si tiene factor. Diagnosticado contra la base local, no
-  supuesto.
-- Encabezado inservible en pantallas angostas. El sintoma anotado antes
-  ("botones que se encimaban") era incorrecto: medido, cero solapes. Era
-  desbordamiento horizontal, ancho intrinseco fijo de 875px, con el boton de
-  Iniciar Sesion fuera de la ventana. Afectaba tambien a 768px.
-  Arreglado con consultas de medios a 900px y 480px.
-- tests/responsivo.spec.mjs cubre 390, 430 y 768px con elementFromPoint, mas
-  dos comprobaciones en escritorio contra la sobrecorreccion. Verificado que
-  falla sin el arreglo (3/11, salida 1).
+- PR #8 abierto, CI en verde (incluida la integración real de Supabase dentro
+  de Actions). El nombre del job "Sintaxis y suites" coincide con el control
+  obligatorio de main.
+- La revisión encontró que el primer análisis de seguridad estaba INCOMPLETO:
+  afirmaba una sola aparición del guardia sensible a NULL y había dos. La que
+  faltaba era peor.
+  - Escalada: con role NULL un usuario se ascendía a admin (disparador
+    prevent_role_self_escalation, escrito "AND NOT is_admin()").
+    Reproducido por la API real: role antes=null, después=admin.
+  - Fuga: sin fila en profiles, empleados_sin_segundo_factor() devolvía la
+    lista del personal sin segundo factor.
+- Arreglo en una migración coherente
+  (20260928211428_blindar_guardias_ante_perfil_ausente.sql): role NOT NULL
+  con relleno a 'cliente', is_admin/is_staff con COALESCE, y los dos guardias
+  con IS NOT TRUE. RLS no cambia de comportamiento.
+- Inyección de CSS en el catálogo público (index.html): image_url iba dentro
+  de style="url('...')" y el escapado HTML no protege ahí. Ahora se valida
+  (https, mismo origen u origen de Supabase) y se asigna por CSSOM.
+- Cada arreglo tiene su prueba y se verificó que falla sin él:
+  rol-nulo 1/4, perfil-ausente 6/7, catalogo-imagen 2/7 (con el código viejo
+  el navegador sí descargaba el píxel de rastreo).
+- Historial de #8 y #9 reescrito para corregir mensajes sin acentos y el
+  análisis equivocado. Árbol de #8 verificado idéntico byte a byte al original.
 
-### Verificacion de esta sesion
+### Verificación
 
-- PASS npm test: renderizado seguro, 8 escenarios MFA aislados, 11/11
-  responsivo.
-- PASS npm run test:local contra el stack local: 77/77 RLS, 15/15 MFA UI,
-  16/16 panel.
-- Escritorio comprobado a 1920, 1366 y 1024: sin desbordamiento, encabezado de
-  130px igual que antes.
-- NO verificado: proyecto compartido, sitio publicado, Auth/RLS hospedado,
-  ejecucion remota del workflow. Sigue sin haber base para declarar produccion
-  lista.
+- PASS: 77/77 RLS, 15/15 MFA UI, 16/16 panel, 7/7 sin perfil, 4/4 role NULL,
+  11/11 responsivo, 7/7 imagen del catálogo, 8 escenarios MFA aislados.
+- Stack local nunca reiniciado con db reset: cuentas del demo intactas.
+- NO verificado: proyecto hospedado, sitio publicado, Auth/RLS remoto. La
+  migración solo se aplicó al stack local.
 
 ### Siguientes pasos exactos
 
-1. Revisar los siete commits y decidir si se empuja la rama y se abre PR.
-2. Solo entonces: paridad de migraciones/Auth con el proyecto compartido,
-   propiedad de cuentas, y despliegue controlado con prueba de humo real.
-3. Pendiente aparte: UI de gestion de dispositivos y recuperacion auditada.
-4. Para reanudar el demo local: newgrp docker -c 'npm run demo:local'.
+1. #8 fusionado el 2026-09-29 (main 743af3a, contenido idéntico a la rama).
+   #9 rebasado sobre main con árbol idéntico al verificado; espera a que el
+   usuario lo fusione.
+2. En el proyecto hospedado, antes de aplicar la migración, contar filas con
+   role NULL y usuarios sin fila en profiles (consulta de solo lectura).
+3. Pendiente con decisión de negocio: F02/F03, F07, F08. Sin decisión: F09
+   (runbook de recuperación) y F12 (restricciones del esquema).
