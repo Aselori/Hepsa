@@ -103,9 +103,24 @@ posterior intentara aplicarla otra vez:
 supabase migration list
 ```
 
-Las migraciones se aplican **despues** de desplegar el frontend que las
-necesita, no antes. Al reves deja el sitio en vivo pidiendo algo que la
-interfaz desplegada todavia no sabe ofrecer.
+El orden entre desplegar y migrar depende del cambio, y la regla anterior
+("siempre el frontend primero") era demasiado absoluta: un frontend que llama a
+una RPC que todavia no existe tambien se rompe.
+
+Lo que si funciona siempre es expandir, desplegar, migrar datos y retirar:
+
+1. **Expandir**: agregar lo nuevo sin quitar lo viejo. Columnas que admitan
+   nulos, funciones nuevas junto a las que siguen vivas. En este paso las dos
+   versiones del frontend funcionan.
+2. **Desplegar** el frontend compatible con ambos esquemas.
+3. **Migrar los datos** ya con todo el trafico en la version nueva.
+4. **Retirar** lo viejo en una migracion posterior, cuando nada lo llama.
+
+De donde sale la regla: en esta misma base se aplicaron las migraciones del
+segundo factor antes de desplegar la interfaz que sabia inscribir el
+autenticador, y el panel quedo inservible para el personal hasta que el
+despliegue alcanzo a la base. El error no fue el orden en abstracto, fue hacer
+un cambio que rompia la compatibilidad en un solo paso.
 
 ## Lo que nunca se sube
 
