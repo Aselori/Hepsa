@@ -37,9 +37,21 @@ Esto no instala Docker ni modifica permisos; no hace falta si `docker info` ya f
 El runner consulta solo el estado local del CLI, crea tres cuentas temporales,
 inscribe TOTP de admin/vendedor y conserva sus credenciales solo en memoria.
 Sirve una configuracion local y un SDK compilado desde la dependencia fijada.
-El config.js del sitio permanece intacto. Ejecuta rls.spec.mjs, mfa-ui.spec.mjs
-y panel.spec.mjs y elimina las cuentas al terminar. El stack conserva la semilla
-hasta detenerlo; no se toca otro proyecto ni otro contenedor.
+El config.js del sitio permanece intacto. Ejecuta, en este orden:
+
+| Suite | Qué sostiene |
+|---|---|
+| `rls.spec.mjs` | Control de acceso por rol y por nivel de garantía |
+| `mfa-ui.spec.mjs` | Las pantallas del segundo factor, manejadas con navegador |
+| `panel.spec.mjs` | Que el panel siga sirviendo, con una venta real |
+| `perfil-ausente.spec.mjs` | Un usuario sin fila en `profiles` no obtiene datos del personal |
+| `rol-nulo.spec.mjs` | La base rechaza `role` NULL y nadie se asciende a admin |
+| `recuperacion.spec.mjs` | El procedimiento de `scripts/recuperar-segundo-factor.mjs` |
+
+El runner se detiene en la primera suite que falla, así que una falla tapa las
+siguientes: al investigar una, córrela sola. Elimina las cuentas al terminar.
+El stack conserva la semilla hasta detenerlo; no se toca otro proyecto ni otro
+contenedor.
 
 Las suites existentes ahora rechazan destinos no locales y bloquean conexiones
 externas del navegador. La captura de alta en tests/screenshots enmascara QR y
