@@ -731,6 +731,29 @@
                 ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
 
+        // La URL de la imagen NO va dentro del atributo style. Escaparla como
+        // HTML no alcanza ahi: el navegador decodifica &#39; de vuelta a ' antes
+        // de que CSS lea el valor, asi que una URL con comilla simple cerraba
+        // url('...') y colaba CSS arbitrario en el catalogo publico (un pixel de
+        // rastreo, o la pagina desarmada). image_url solo lo escribe el
+        // personal, pero bastaba una cuenta de personal comprometida.
+        //
+        // Se valida con new URL() y solo se aceptan https, el mismo origen o el
+        // origen del proyecto de Supabase (en desarrollo es http://127.0.0.1).
+        // El valor se asigna despues por CSSOM, que admite una sola propiedad
+        // y descarta el valor entero si no es valido.
+        function urlImagenSegura(valor) {
+            if (!valor) return null;
+            try {
+                const u = new URL(valor, location.href);
+                const supabase = new URL(window.HEPSA_CONFIG.supabaseUrl).origin;
+                if (u.protocol === 'https:' || u.origin === location.origin || u.origin === supabase) {
+                    return u.href;
+                }
+            } catch { /* URL invalida: se trata como producto sin foto */ }
+            return null;
+        }
+
         async function cargarCatalogoPublico() {
             const grid = document.getElementById('public-catalog-grid');
             const vacio = (msg) => { grid.innerHTML = `<p style="color: var(--text-muted); grid-column: 1/-1; text-align:center; padding: 40px;">${msg}</p>`; };
@@ -753,8 +776,8 @@
 
             grid.innerHTML = data.map((p) => `
                     <div class="product-card">
-                        <div class="card-img" style="${p.image_url ? `background-image: url('${esc(p.image_url)}'); background-size: cover; background-position: center;` : 'background: linear-gradient(135deg,#1a1a1a,#2a2a2a); display:flex; align-items:center; justify-content:center;'}">
-                            ${!p.image_url ? '<span style="color:#777; font-size:0.9rem; letter-spacing:0.08em;">SIN FOTO</span>' : ''}
+                        <div class="card-img" data-img-id="${p.id}" style="${urlImagenSegura(p.image_url) ? '' : 'background: linear-gradient(135deg,#1a1a1a,#2a2a2a); display:flex; align-items:center; justify-content:center;'}">
+                            ${urlImagenSegura(p.image_url) ? '' : '<span style="color:#777; font-size:0.9rem; letter-spacing:0.08em;">SIN FOTO</span>'}
                         </div>
                         <div class="card-body">
                             <h3 class="product-title">${esc(p.name)}</h3>
@@ -763,6 +786,18 @@
                             <p data-stock-nota="${p.id}" style="margin:8px 0 0; font-size:.8rem; color:var(--text-muted); min-height:1em;"></p>
                         </div>
                     </div>`).join('');
+
+            for (const p of data) {
+                const href = urlImagenSegura(p.image_url);
+                if (!href) continue;
+                const caja = grid.querySelector(`[data-img-id="${p.id}"]`);
+                // new URL() codifica comillas dobles y barras invertidas, asi que
+                // href no puede cerrar la cadena; y aunque pudiera, CSSOM solo
+                // acepta esta propiedad.
+                caja.style.backgroundImage = `url("${href}")`;
+                caja.style.backgroundSize = 'cover';
+                caja.style.backgroundPosition = 'center';
+            }
 
             // El carrito se restaura aquí y no al arrancar: necesita el
             // catálogo cargado para poder pintar nombres y precios.
