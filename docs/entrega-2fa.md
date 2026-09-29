@@ -51,15 +51,24 @@ Cancelar abandona el flujo y cierra la sesión local antes de recargar la
 página. El cierre local elimina la sesión que el navegador conserva, pero un
 JWT de acceso que ya fue emitido puede seguir siendo criptográficamente válido
 hasta su expiración. Por eso las APIs, RLS y el panel deben comprobar el JWT y
-su `aal` en cada solicitud. Para invalidar sesiones activas durante una
-recuperación, el propietario debe usar la operación administrativa documentada
-que elimina el factor verificado, pues Supabase indica que esa operación cierra
-las sesiones activas asociadas. Esto no garantiza que un JWT ya emitido deje
-inmediatamente de ser aceptado por RLS: la implementacion actual comprueba rol
-y AAL, no la existencia de auth.sessions. Si hay sospecha de compromiso,
-el propietario debe retirar temporalmente el rol operativo antes de recuperar
-el factor y comprobar el rechazo del token anterior. Restituirlo solo cuando
-hayan expirado los tokens previos o exista una revocacion adicional verificada.
+su `aal` en cada solicitud.
+
+Qué corta cada operación administrativa, comprobado contra el stack local
+(`tests/recuperacion.spec.mjs` lo sostiene):
+
+| Operación | Sesiones abiertas | Token de acceso ya emitido |
+|---|---|---|
+| Borrar el factor (`deleteFactor`) | Se pueden renovar, pero bajan a `aal1` y pierden el acceso de personal | Sigue con `aal2` hasta expirar |
+| Cambiar la contraseña (`updateUserById`) | Revocadas: el refresco se rechaza | Sigue valiendo hasta expirar |
+| Bajar el rol a `cliente` | Sin acceso de personal de inmediato | Sin acceso de personal de inmediato |
+| Suspender y luego levantar la suspensión (`ban_duration`) | **Reviven con `aal2` intacto** | Sigue valiendo |
+
+Dos consecuencias. La documentación del SDK dice que borrar un factor cierra
+las sesiones activas; en la práctica solo las degrada al renovarse. Y
+suspender la cuenta **no sirve para revocar**: al levantar la suspensión, las
+sesiones anteriores vuelven a funcionar como si nada. Lo único que corta al
+momento un token ya emitido es bajar el rol, porque RLS lo lee de la base en
+cada petición.
 
 La interfaz usa `challengeAndVerify` para el reto de TOTP y `unenroll`
 únicamente para limpiar un alta incompleta que ella misma dejó. Un factor
@@ -90,25 +99,79 @@ el titular.
 
 ### El empleado perdió el factor y no puede alcanzar `aal2`
 
-1. Suspender temporalmente el acceso operativo si el riesgo lo requiere y
-   completar la verificación de identidad por un canal independiente.
-2. Obtener autorización del propietario del proyecto. La cuenta de servicio
-   y la clave `service_role` sólo pueden vivir en un entorno de servidor
-   controlado, nunca en `index.html`, el navegador, un ticket o un comando
-   compartido.
-3. El operador autorizado debe listar el factor de ese usuario con
-   `supabase.auth.admin.mfa.listFactors({ userId })` y eliminar exactamente el factor
-   identificado con `supabase.auth.admin.mfa.deleteFactor({ id, userId })`.
-   Estas APIs administrativas están documentadas en
-   [listFactors](https://supabase.com/docs/reference/javascript/auth-admin-listfactors)
-   y [deleteFactor](https://supabase.com/docs/reference/javascript/auth-admin-deletefactor).
-4. No hacer `DELETE` directo sobre `auth.mfa_factors` ni sobre otra tabla
-   interna de Auth. No crear un botón de recuperación en el frontend. Las APIs
-   administrativas son la ruta soportada y permiten auditar la operación.
-5. Como la eliminación de un factor verificado puede cerrar sesiones activas,
-   pedir al empleado que vuelva a iniciar sesión, complete el alta del nuevo
-   factor y confirme un código. Verificar después el acceso al panel y el
-   `aal2` de la sesión nueva.
+Se usa `scripts/recuperar-segundo-factor.mjs`, que ejecuta los pasos en el
+único orden seguro. El orden importa: si se borra el factor sin cambiar antes
+la contraseña, cualquiera que la conozca puede iniciar sesión e inscribir **su
+propio** autenticador antes que el empleado, y quedarse con la cuenta.
+
+1. Verificar la identidad del titular por un canal independiente y obtener la
+   autorización del propietario del proyecto (ver "Decisiones pendientes").
+2. Simular primero, sin modificar nada:
+
+   ```bash
+   HEPSA_SUPABASE_URL=https://<ref>.supabase.co \
+   HEPSA_SUPABASE_SECRET_KEY=<llave de servicio> \
+   node scripts/recuperar-segundo-factor.mjs --email persona@ejemplo.com
+   ```
+
+   La llave de servicio vive solo en el entorno del operador, nunca en el
+   repositorio, el navegador, un ticket o un chat.
+3. Aplicar, dejando constancia de quién autorizó y cómo se verificó:
+
+   ```bash
+   ... node scripts/recuperar-segundo-factor.mjs --email persona@ejemplo.com \
+         --aplicar --autorizo "<nombre>" --canal "<cómo se verificó>"
+   ```
+
+   El script cambia la contraseña (revoca las sesiones y cierra la ventana de
+   inscripción ajena) y después borra los factores con la API administrativa.
+   Imprime en la salida estándar un registro de auditoría en JSON, sin
+   secretos, y aparte, en la salida de errores, una contraseña temporal.
+4. Entregar la contraseña temporal por el canal verificado, una sola vez, y no
+   guardarla. El empleado inicia sesión con ella; el portal lo lleva al alta
+   del autenticador porque ya no tiene ninguno. Conviene que la inscripción sea
+   supervisada, en persona.
+5. Comprobar que el empleado vuelve a `aal2` y opera el panel. Pedirle que
+   cambie la contraseña temporal por una propia.
+
+**Si se sospecha que la cuenta está comprometida**, agregar `--compromiso`.
+Además de lo anterior, baja el rol a `cliente` antes que nada, lo que corta de
+inmediato incluso el token ya emitido. Después de la reinscripción se
+devuelve el rol:
+
+```bash
+... node scripts/recuperar-segundo-factor.mjs --email persona@ejemplo.com \
+      --restaurar-rol vendedor --autorizo "<nombre>" --canal "<cómo se verificó>"
+```
+
+El script se niega a devolver el rol a una cuenta que todavía no tiene un
+factor verificado, para no reabrir la puerta que se acaba de cerrar.
+
+No usar nunca `DELETE` directo sobre `auth.mfa_factors` ni sobre otras tablas
+internas de Auth, ni un botón de recuperación en el frontend. Tampoco
+suspender la cuenta como forma de revocar: al levantar la suspensión las
+sesiones anteriores reviven.
+
+### Ventana residual
+
+Sin `--compromiso`, un token de acceso emitido antes de la recuperación sigue
+siendo válido con `aal2` hasta que expira: `jwt_expiry`, 3600 segundos en la
+configuración local. Hay que comprobar el valor del proyecto hospedado antes
+de dar por buena la estimación. Si esa ventana no es aceptable, usar
+`--compromiso`.
+
+### Decisiones pendientes de HEPSA
+
+El procedimiento técnico está probado. Lo que no se puede decidir desde el
+código, y queda pendiente de definir con el negocio:
+
+- **Verificación de identidad.** Qué canal independiente cuenta como prueba
+  (llamada al teléfono registrado, presencia física, otro) y quién la hace.
+- **Autorización.** Quién puede autorizar una recuperación y quién puede
+  ejecutarla con la llave de servicio. Hoy la única candidata es la persona
+  propietaria del proyecto.
+- **Registro.** Dónde se guarda el JSON de auditoría que imprime el script y
+  durante cuánto tiempo.
 
 La recuperación del último administrador queda bajo control del propietario
 del proyecto. Si el propietario es la cuenta bloqueada, otra persona no debe
