@@ -59,10 +59,74 @@ try {
             if (verificacion.error) throw verificacion.error;
         }
     }
+    // Fixture del caso "usuario sin perfil". handle_new_user() crea la fila de
+    // profiles al registrarse, asi que este estado no se alcanza por el camino
+    // normal; se construye a proposito borrando la fila despues, que es lo que
+    // quedaria si ese trigger fallara o si la cuenta naciera por la API
+    // administrativa. Llega hasta AAL2 porque el agujero solo se abria ahi: a
+    // AAL1, false AND NULL ya valia false.
+    {
+        const email = `huerfano-${randomUUID()}@example.test`;
+        const password = randomBytes(24).toString('base64url');
+        const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { first_name: 'Prueba', last_name_p: 'HUERFANO' } });
+        if (error) throw new Error(`No se pudo crear el fixture sin perfil: ${error.message}`);
+        ids.push(data.user.id);
+
+        const client = createClient(url.origin, key, { auth: { persistSession: false, autoRefreshToken: false } });
+        clientes.push(client);
+        const login = await client.auth.signInWithPassword({ email, password });
+        if (login.error) throw login.error;
+        const factor = await client.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'HEPSA' });
+        if (factor.error) throw factor.error;
+        const verificacion = await client.auth.mfa.challengeAndVerify({ factorId: factor.data.id, code: await codigoTOTPFresco(factor.data.totp.secret) });
+        if (verificacion.error) throw verificacion.error;
+
+        // El perfil se borra AL FINAL: crear la cuenta ya lo genera por trigger.
+        const borrado = await admin.from('profiles').delete().eq('id', data.user.id).select('id');
+        if (borrado.error) throw borrado.error;
+        if (!borrado.data?.length) throw new Error('El fixture sin perfil no quedo sin perfil.');
+
+        env.HUERFANO_EMAIL = email;
+        env.HUERFANO_PASS = password;
+        env.HUERFANO_TOTP = factor.data.totp.secret;
+    }
+
+    // Fixture del caso "role NULL". Antes de la capa 0 del arreglo, un usuario
+    // con role NULL podia ascenderse a admin: is_admin() valia NULL a AAL2 y el
+    // guardia del disparador (AND NOT is_admin()) no entraba en la rama.
+    //
+    // Ahora la base debe NEGARSE a guardar un role NULL. Se intenta de todos
+    // modos y se anota el resultado, en vez de dar por hecho que la restriccion
+    // existe: si alguien la quitara, la cuenta quedaria con role NULL y la suite
+    // intentaria la escalada de verdad.
+    {
+        const email = `rolnulo-${randomUUID()}@example.test`;
+        const password = randomBytes(24).toString('base64url');
+        const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { first_name: 'Prueba', last_name_p: 'ROLNULO' } });
+        if (error) throw new Error(`No se pudo crear el fixture de role NULL: ${error.message}`);
+        ids.push(data.user.id);
+
+        const client = createClient(url.origin, key, { auth: { persistSession: false, autoRefreshToken: false } });
+        clientes.push(client);
+        const login = await client.auth.signInWithPassword({ email, password });
+        if (login.error) throw login.error;
+        const factor = await client.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'HEPSA' });
+        if (factor.error) throw factor.error;
+        const verificacion = await client.auth.mfa.challengeAndVerify({ factorId: factor.data.id, code: await codigoTOTPFresco(factor.data.totp.secret) });
+        if (verificacion.error) throw verificacion.error;
+
+        const nulo = await admin.from('profiles').update({ role: null }).eq('id', data.user.id).select('id');
+        env.ROL_NULO_RECHAZADO = nulo.error ? 'si' : 'no';
+        env.ROL_NULO_DETALLE = nulo.error ? nulo.error.message : 'la base acepto role NULL';
+        env.ROLNULO_EMAIL = email;
+        env.ROLNULO_PASS = password;
+        env.ROLNULO_TOTP = factor.data.totp.secret;
+    }
+
     await mkdir(new URL('./screenshots/', import.meta.url), { recursive: true });
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
     env.BASE_URL = `http://127.0.0.1:${server.address().port}`;
-    for (const file of ['rls.spec.mjs', 'mfa-ui.spec.mjs', 'panel.spec.mjs']) {
+    for (const file of ['rls.spec.mjs', 'mfa-ui.spec.mjs', 'panel.spec.mjs', 'perfil-ausente.spec.mjs', 'rol-nulo.spec.mjs']) {
         console.log(`Ejecutando ${file} contra Supabase local con cuentas desechables.`);
         const child = spawn(process.execPath, [new URL(file, import.meta.url).pathname], { env, stdio: 'inherit' });
         const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('exit', resolve); });
