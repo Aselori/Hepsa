@@ -75,7 +75,7 @@ El código actual interactúa con las siguientes tablas/recursos de Supabase:
 - `orders`
 - `order_items`
 - `profiles`
-- Storage bucket: `product-images`
+- Storage bucket: `productos`
 
 ## 🛠️ Tecnologías
 
