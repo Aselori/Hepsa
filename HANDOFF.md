@@ -147,5 +147,10 @@ mensajes de commit y en el PR #9.
    usuario lo fusione.
 2. En el proyecto hospedado, antes de aplicar la migración, contar filas con
    role NULL y usuarios sin fila en profiles (consulta de solo lectura).
-3. Pendiente con decisión de negocio: F02/F03, F07, F08. Sin decisión: F09
-   (runbook de recuperación) y F12 (restricciones del esquema).
+3. Pendiente con decisión de negocio: F02/F03, F07, F08. F12 (restricciones
+   del esquema) sin decisión, pero exige inventariar antes los datos hospedados.
+4. F09 en rama feature/recuperacion-segundo-factor: script probado 14/14 y
+   documento corregido. Faltan decisiones de negocio: quién verifica identidad
+   y cómo, quién autoriza, dónde se guarda el registro de auditoría.
+- Decisión del usuario (2026-09-29): en HEPSA NO hay rediseño pendiente. El
+  rediseño que existe es de RIASA (~/Work/projects/riasa), no mezclarlos.
