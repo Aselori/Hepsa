@@ -1,8 +1,11 @@
 name: Pruebas
 
 on:
+  # Sin filtro de rama a proposito: con "branches: [main]" un PR apilado sobre
+  # otra rama no disparaba nada y se quedaba sin una sola comprobacion, en
+  # silencio y sin que el PR lo dijera. Un control que no corre es peor que uno
+  # que falla, porque parece que no hay nada que revisar.
   pull_request:
-    branches: [main]
   push:
     branches: [main]
 
