@@ -1,0 +1,215 @@
+/* ============================================================================
+   Tema de HEPSA: un solo diseño con versión clara y oscura.
+
+   Lo comparten el portal y el panel. Cada página carga este archivo antes de
+   su propio <style>, que solo agrega lo que es exclusivo de ella.
+
+   El tema lo decide un script en el <head> de cada página, ANTES de pintar,
+   poniendo data-tema="claro" u "oscuro" en <html>: primero lo que el visitante
+   eligió con el botón, y si nunca eligió, lo que pide su sistema. Antes se
+   aplicaba al final de la página y se veía un parpadeo de un tema al otro.
+
+   Los nombres de variable se conservan (--primary, --card-bg, --text-muted...)
+   porque los usan también los estilos en línea y el JavaScript de las
+   páginas; así toman el tema nuevo sin tener que tocarlos uno por uno.
+   ============================================================================ */
+
+/* Archivo, servida desde el propio sitio: no depende de un tercero ni le envía
+   datos de cada visitante. Fuente variable, un archivo para pesos 400 a 700.
+   Licencia SIL OFL 1.1 en assets/fonts/OFL.txt. */
+@font-face {
+    font-family: "Archivo";
+    src: url("fonts/archivo-latin.woff2") format("woff2");
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ─── Tema claro (opción A, acabado mate) ────────────────────────────────── */
+:root {
+    /* El dorado se separa en dos. --oro es el relleno de botones y acentos. Como
+       COLOR DE TEXTO sobre blanco tendría un contraste de 2.3:1, ilegible, así
+       que --primary, que las páginas usan sobre todo como color de texto y de
+       borde, es un dorado más oscuro que sí se lee. */
+    --oro: #C9A227;
+    --sobre-oro: #1D1F22;
+    --primary: #8A6D12;
+
+    --bg-color: #FBFAF8;
+    --card-bg: #FFFFFF;
+    --header-bg: #FFFFFF;
+    --sidebar-bg: #FFFFFF;
+    --form-bg: #FFFFFF;
+    --input-bg: #FFFFFF;
+    --table-header-bg: #F6F4EF;
+    --table-row-hover: #FAF8F3;
+    --activo-bg: #F4EFDF;
+
+    --text-main: #1D1F22;
+    --text-muted: #686C72;
+    --text-label: #3A3D41;
+    --input-text: #1D1F22;
+
+    --card-border: #E6E4DF;
+    --form-border: #E6E4DF;
+    --input-border: #D3D0C9;
+    --secondary: #D3D0C9;
+
+    --ok: #1F6B3A;       --ok-bg: #DCEFE2;
+    --aviso: #7A5200;    --aviso-bg: #FBEFD5;
+    --peligro: #B3261E;  --peligro-bg: #F9DEDC;
+    --info: #1F4E79;     --info-bg: #DCE8F4;
+
+    /* Vestigios del diseño anterior, neutralizados: otras reglas aún los
+       nombran y así dejan de pintar degradados, patrones y sombras. */
+    --primary-gradient: var(--oro);
+    --bg-gradient: none;
+    --pattern: none;
+
+    --radio: 6px;
+    --fuente: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color-scheme: light;
+}
+
+/* ─── Tema oscuro (opción B, taller oscuro) ──────────────────────────────── */
+:root[data-tema="oscuro"] {
+    --oro: #D4AF37;
+    --sobre-oro: #121417;
+    --primary: #E2C35A;
+
+    --bg-color: #121417;
+    --card-bg: #1A1D21;
+    --header-bg: #0D0F11;
+    --sidebar-bg: #0D0F11;
+    --form-bg: #1A1D21;
+    --input-bg: #15181B;
+    --table-header-bg: #1F2226;
+    --table-row-hover: #1D2024;
+    --activo-bg: #23262B;
+
+    --text-main: #ECEDEE;
+    --text-muted: #9AA0A6;
+    --text-label: #C4C8CC;
+    --input-text: #ECEDEE;
+
+    --card-border: #2A2E33;
+    --form-border: #2A2E33;
+    --input-border: #3A3F45;
+    --secondary: #3A3F45;
+
+    --ok: #7FCF98;       --ok-bg: #1B2E22;
+    --aviso: #E8C76A;    --aviso-bg: #2F2918;
+    --peligro: #F2A39C;  --peligro-bg: #3A1D1B;
+    --info: #9CC4EA;     --info-bg: #1A2633;
+
+    color-scheme: dark;
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+body {
+    font-family: var(--fuente);
+    color: var(--text-main);
+    background: var(--bg-color);
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font-size: 1.6rem; font-weight: 700; margin: 0 0 1.5rem; border: none; padding: 0; }
+
+:focus-visible { outline: 2px solid var(--oro); outline-offset: 2px; }
+
+/* Un logo por tema: el SVG claro sobre fondo claro y el oscuro sobre fondo
+   oscuro. El que no corresponde se oculta, y por eso tampoco se anuncia. */
+:root[data-tema="oscuro"] .solo-tema-claro,
+:root:not([data-tema="oscuro"]) .solo-tema-oscuro { display: none !important; }
+
+/* ─── Botones ────────────────────────────────────────────────────────────── */
+button.action-btn {
+    background: var(--oro);
+    color: var(--sobre-oro);
+    border: none;
+    border-radius: var(--radio);
+    padding: 12px 20px;
+    font: inherit;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    width: 100%;
+    text-transform: none;
+    transition: filter 0.15s ease;
+}
+button.action-btn:hover:not(:disabled) { filter: brightness(1.06); }
+button.action-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ─── Formularios ────────────────────────────────────────────────────────── */
+label { display: block; margin-bottom: 6px; color: var(--text-label); font-weight: 600; font-size: 0.92rem; }
+input, select, textarea {
+    width: 100%;
+    padding: 11px 12px;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--input-text);
+    border-radius: var(--radio);
+    box-sizing: border-box;
+    font: inherit;
+    font-size: 1rem;
+    transition: border-color 0.15s ease;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--oro); box-shadow: 0 0 0 3px color-mix(in srgb, var(--oro) 22%, transparent); }
+input:read-only { background: var(--table-header-bg); color: var(--text-muted); cursor: not-allowed; }
+
+/* ─── Tablas ─────────────────────────────────────────────────────────────── */
+.table-container { width: 100%; overflow-x: auto; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); }
+table { width: 100%; border-collapse: collapse; color: var(--text-main); }
+th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--card-border); }
+th { background: var(--table-header-bg); color: var(--text-muted); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--table-row-hover); }
+
+/* ─── Etiquetas de estado ────────────────────────────────────────────────── */
+.status-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; text-transform: none; border: none; }
+.status-completo, .status-ok { background: var(--ok-bg); color: var(--ok); }
+.status-anticipo, .status-produccion, .status-aviso { background: var(--aviso-bg); color: var(--aviso); }
+.status-faltante, .status-peligro { background: var(--peligro-bg); color: var(--peligro); }
+
+/* ─── Avisos ─────────────────────────────────────────────────────────────── */
+#toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: min(90vw, 380px); }
+.toast {
+    background: var(--card-bg);
+    color: var(--text-main);
+    border: 1px solid var(--card-border);
+    border-left: 4px solid var(--text-muted);
+    padding: 12px 16px;
+    border-radius: var(--radio);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    transform: translateX(120%);
+    animation: hepsa-entrar 0.25s forwards;
+}
+.toast.info { border-left-color: var(--oro); }
+.toast.success { border-left-color: var(--ok); }
+.toast.error { border-left-color: var(--peligro); }
+.toast.fade-out { animation: hepsa-salir 0.3s forwards; }
+@keyframes hepsa-entrar { to { transform: translateX(0); } }
+@keyframes hepsa-salir { to { opacity: 0; transform: translateX(120%); } }
+
+/* ─── Interruptor de tema ────────────────────────────────────────────────── */
+#theme-toggle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 38px; height: 38px; padding: 0;
+    border-radius: var(--radio);
+    border: 1px solid var(--card-border);
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
+}
+#theme-toggle:hover { border-color: var(--text-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

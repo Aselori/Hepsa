@@ -7,6 +7,9 @@ const archivos = new Map([
     ['/index.html', ['index.html', 'text/html']], ['/admin.html', ['admin.html', 'text/html']],
     ['/config.js', ['config.js', 'text/javascript']], ['/auth-mfa.js', ['auth-mfa.js', 'text/javascript']],
     ['/imagen.jpg', ['imagen.jpg', 'image/jpeg']],
+    ['/assets/tema.css', ['assets/tema.css', 'text/css']], ['/assets/favicon.svg', ['assets/favicon.svg', 'image/svg+xml']],
+    ['/assets/logo.svg', ['assets/logo.svg', 'image/svg+xml']], ['/assets/logo-dark.svg', ['assets/logo-dark.svg', 'image/svg+xml']],
+    ['/assets/fonts/archivo-latin.woff2', ['assets/fonts/archivo-latin.woff2', 'font/woff2']],
 ]);
 const server = createServer(async (req, res) => {
     const ruta = new URL(req.url, 'http://localhost').pathname;
