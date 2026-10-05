@@ -306,7 +306,7 @@
         window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', (e) => {
             let elegido = null;
             try { elegido = localStorage.getItem('hepsa_theme'); } catch { /* sin almacenamiento */ }
-            if (elegido) return;
+            if (elegido === 'light' || elegido === 'dark') return;
             document.documentElement.dataset.tema = e.matches ? 'oscuro' : 'claro';
             pintarBotonTema();
         });
