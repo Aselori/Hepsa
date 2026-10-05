@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 306 100" role="img" aria-labelledby="hepsa-logo-t">
+  <title id="hepsa-logo-t">HEPSA</title>
+  <g transform="translate(4 12) scale(.76)">
+  <defs>
+    <mask id="hepsa-logo" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+      <rect width="100" height="100" fill="#fff"/>
+      <rect x="0" y="53.5" width="100" height="15" fill="#000"/>
+    </mask>
+  </defs>
+  <path d="M50 4 96 50 50 96 4 50Z" fill="#1D1F22" mask="url(#hepsa-logo)"/>
+  <rect x="2" y="57" width="96" height="8" fill="#C9A227"/>
+  </g>
+  <g fill="none" stroke="#1D1F22" stroke-width="6" stroke-linejoin="miter" stroke-miterlimit="4">
+    <path d="M115 30V70M139 30V70M115 50H139"/><path d="M157 30V70M154 33H178M157 50H175M154 67H178"/><path d="M193 70V30M190 33H203A10 10 0 0 1 203 53H193"/><path d="M251 37.05C249.7 33.8 246.1 33 241 33C235.4 33 231 35.4 231 40.6C231 45.7 235.4 47.9 241 49.5C247.2 51.1 251 53.8 251 59.2C251 64.1 246.6 67 241 67C235.9 67 232 65.7 231 62.4"/><path d="M269 70 283 38 297 70M274.3 58H291.7"/>
+  </g>
+</svg>
