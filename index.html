@@ -4,122 +4,92 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HEPSA - Herrería Fina & Ingeniería</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="preload" href="assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="assets/tema.css">
+    <script>
+        // El tema se decide aqui, antes de pintar: el que el visitante eligio
+        // con el boton o, si nunca eligio, el de su sistema. Antes se aplicaba
+        // al final de la pagina y se veia un parpadeo de un tema al otro.
+        (function () {
+            var t = null;
+            try { t = localStorage.getItem('hepsa_theme'); } catch (e) {}
+            if (t !== 'light' && t !== 'dark') {
+                t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.dataset.tema = t === 'dark' ? 'oscuro' : 'claro';
+        })();
+    </script>
     <style>
-        :root {
-            --primary-gradient: linear-gradient(135deg, #F9E79F 0%, #D4AF37 50%, #996515 100%);
-            --primary: #D4AF37; --bg-color: #121212; --bg-gradient: radial-gradient(circle at top, #2a2a2a 0%, #121212 100%);
-            --card-bg: rgba(35, 35, 35, 0.85); --secondary: #bdc3c7; --text-main: #ffffff; --text-muted: #95a5a6;
-            --header-bg: linear-gradient(to right, #111111, #1e1e1e); --input-bg: rgba(0,0,0,0.4); --input-text: #ffffff;
-            --input-border: rgba(255, 255, 255, 0.2); --text-label: #bdc3c7; --card-border: rgba(255, 255, 255, 0.08);
-            --shadow-color: rgba(0,0,0,0.5); --form-bg: rgba(20, 20, 20, 0.95); --form-border: rgba(212, 175, 55, 0.3); 
-            --form-shadow: 0 15px 40px rgba(0,0,0,0.7); --table-header-bg: rgba(212, 175, 55, 0.15); --table-row-hover: rgba(150,150,150,0.05);
-            --pattern: url('data:image/svg+xml;utf8,<svg width="60" height="120" viewBox="0 0 60 120" xmlns="http://www.w3.org/2000/svg"><g stroke="%23D4AF37" stroke-opacity="0.04" stroke-width="2" fill="none"><path d="M30 0 v120 M15 0 v120 M45 0 v120 M15 30 h30 M15 90 h30"/></g></svg>');
-        }
-        body.light-mode {
-            --bg-color: #fcfaf8; --bg-gradient: radial-gradient(circle at top, #fffdfa 0%, #f4f1ea 60%, #e8e4d9 100%); 
-            --card-bg: rgba(253, 251, 247, 0.95); --secondary: #5c554b; --text-main: #2b2825; --text-muted: #6e6862;
-            --header-bg: linear-gradient(to right, #ffffff, #fdfbf7); --input-bg: #ffffff; --input-text: #111111; 
-            --input-border: #111111; --text-label: #1a1a1a; --card-border: rgba(212, 175, 55, 0.3); --shadow-color: rgba(0,0,0,0.06);
-            --form-bg: #f2ebd9; --form-border: rgba(212, 175, 55, 0.6); --form-shadow: 0 15px 40px rgba(0,0,0,0.15); 
-            --table-header-bg: #e2d8c3; --table-row-hover: #f9f6f0;
-            --pattern: repeating-linear-gradient(45deg, rgba(212, 175, 55, 0.03) 0px, rgba(212, 175, 55, 0.03) 2px, transparent 2px, transparent 15px);
-        }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: var(--text-main); background-color: var(--bg-color); background-image: var(--pattern), var(--bg-gradient); background-attachment: fixed; margin: 0; padding: 0; transition: background 0.5s ease, color 0.5s ease; }
-        header { background: var(--header-bg); border-bottom: 4px solid var(--primary); padding: 1rem 3rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 20px var(--shadow-color); position: sticky; top: 0; z-index: 100; }
-        .logo-img { height: 90px; border-radius: 6px; box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3); transition: transform 0.4s ease; }
-        .logo-img:hover { transform: scale(1.03); }
-        nav { display: flex; align-items: center; gap: 15px; } 
-        nav button, nav a { background: transparent; border: 2px solid var(--secondary); color: var(--text-main); padding: 10px 22px; font-size: 1rem; font-weight: 600; cursor: pointer; border-radius: 30px; text-decoration: none; transition: all 0.3s ease; }
-        nav button:hover, nav button.active, nav a:hover { background: var(--primary-gradient); color: #111; border-color: transparent; box-shadow: 0 6px 15px rgba(212, 175, 55, 0.4); transform: translateY(-2px); }
-        #cart-btn { background: var(--card-bg); border-color: var(--primary); color: var(--text-main); display: flex; align-items: center; gap: 8px; font-size: 1.1rem; padding: 10px 20px; }
-        #cart-count { background: var(--primary); color: #000; padding: 2px 8px; border-radius: 50%; font-size: 0.9rem; font-weight: bold; }
-        #btn-login { border-color: var(--primary); color: var(--primary); }
-        #btn-login:hover, #btn-login.active { color: #000; }
-        #theme-toggle { border-radius: 50%; padding: 10px 14px; font-size: 1.3rem; border: 2px solid var(--card-border); background: var(--card-bg); margin-left: 10px; cursor: pointer;}
-        main { padding: 3rem 2rem; max-width: 1300px; margin: 0 auto; }
-        .view-section { display: none; animation: fadeIn 0.6s ease-out; }
-        .view-section.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        /* Avisos. Mismo estilo que el panel de admin, para que el sistema se
-           vea como uno solo y no como dos aplicaciones distintas. */
-        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: min(90vw, 380px); }
-        .toast { background: #333; color: #fff; padding: 14px 20px; border-radius: 8px; display: flex; align-items: flex-start; gap: 10px; transform: translateX(120%); animation: slideIn 0.3s forwards; box-shadow: 0 8px 24px rgba(0,0,0,0.35); font-size: 0.95rem; line-height: 1.4; }
-        .toast.info { background: #2c3e50; border-left: 5px solid var(--primary); }
-        .toast.success { background: #27ae60; border-left: 5px solid #145b32; }
-        .toast.error { background: #e74c3c; border-left: 5px solid #902419; }
-        .toast.fade-out { animation: fadeOut 0.4s forwards; }
-        @keyframes slideIn { to { transform: translateX(0); } }
-        @keyframes fadeOut { to { opacity: 0; transform: translateX(120%); } }
-        /* Botón de un producto que ya alcanzó su tope de existencias. */
-        button.action-btn.agotado, button.tope { opacity: 0.55; cursor: not-allowed; filter: grayscale(0.6); }
-        h2 { border-left: 6px solid var(--primary); padding-left: 15px; font-size: 2rem; margin-bottom: 2rem; }
-        .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 35px; }
-        .product-card { background-color: var(--card-bg); backdrop-filter: blur(10px); border: 1px solid var(--card-border); border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px var(--shadow-color); transition: transform 0.3s ease; }
-        .product-card:hover { transform: translateY(-8px); border-color: var(--primary); }
-        .card-img { height: 200px; background: linear-gradient(135deg, rgba(0,0,0,0.1), rgba(0,0,0,0.3)); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-weight: bold; background-size: cover; background-position: center;}
-        .card-body { padding: 25px; } 
-        .product-title { margin: 0 0 10px 0; font-size: 1.4rem; }
-        .price { color: var(--primary); font-size: 1.6rem; font-weight: bold; display: block; margin-bottom: 15px; }
-        button.action-btn { background: var(--primary-gradient); color: #111; border: none; padding: 14px 25px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1.1rem; border-radius: 40px; text-transform: uppercase; transition: all 0.3s; }
-        button.action-btn:hover { filter: brightness(1.15); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(212, 175, 55, 0.4);}
-        .form-container { background: var(--form-bg); padding: 35px; border-radius: 12px; border: 2px solid var(--form-border); box-shadow: var(--form-shadow); transition: background 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease; }
-        .name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-        @media (max-width: 768px) { .name-grid { grid-template-columns: 1fr; } } 
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; color: var(--text-label); font-weight: 700; }
-        input, textarea, select { width: 100%; padding: 14px; background: var(--input-bg); border: 1px solid var(--input-border); color: var(--input-text); border-radius: 8px; box-sizing: border-box; font-size: 1rem; transition: border-color 0.3s, box-shadow 0.3s; }
-        input:focus:not(:read-only), textarea:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 8px rgba(212, 175, 55, 0.6);}
-        input:read-only { background-color: rgba(150,150,150,0.1); cursor: not-allowed; color: var(--text-muted);}
-        #cart-modal { position: fixed; top: 0; right: -450px; width: 400px; height: 100vh; background: var(--bg-color); box-shadow: -5px 0 20px rgba(0,0,0,0.5); transition: right 0.4s ease; z-index: 1000; padding: 30px; box-sizing: border-box; border-left: 2px solid var(--primary); overflow-y: auto; }
+        /* Solo lo propio del portal. La paleta, la fuente, los botones, los
+           formularios, las tablas y los avisos viven en assets/tema.css. */
+        header { background: var(--header-bg); border-bottom: 1px solid var(--card-border); padding: 0.75rem 2rem; display: flex; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100; }
+        .logo-img { height: 44px; width: auto; display: block; }
+        nav { display: flex; align-items: center; gap: 2px; }
+        nav button, nav a { background: transparent; border: none; color: var(--text-muted); padding: 8px 12px; font: inherit; font-size: 0.97rem; font-weight: 500; cursor: pointer; text-decoration: none; box-shadow: inset 0 -2px 0 transparent; transition: color 0.15s ease, box-shadow 0.15s ease; }
+        nav button:hover, nav a:hover { color: var(--text-main); }
+        nav button.active { color: var(--text-main); box-shadow: inset 0 -2px 0 var(--oro); }
+        #cart-btn { display: inline-flex; align-items: center; gap: 6px; }
+        #cart-count { background: var(--activo-bg); color: var(--text-main); padding: 1px 8px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+        #btn-login { background: var(--oro); color: var(--sobre-oro); font-weight: 600; border-radius: var(--radio); margin-left: 6px; }
+        #btn-login:hover { color: var(--sobre-oro); filter: brightness(1.06); }
+        #btn-login.active { box-shadow: none; }
+        #theme-toggle { margin-left: 6px; }
+        main { padding: 2.5rem 2rem 4rem; max-width: 1240px; margin: 0 auto; }
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: hepsa-aparecer 0.2s ease-out; }
+        @keyframes hepsa-aparecer { from { opacity: 0; } to { opacity: 1; } }
+        /* Boton de un producto que ya alcanzo su tope de existencias. */
+        button.action-btn.agotado, button.tope { opacity: 0.5; cursor: not-allowed; filter: none; }
+        .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        .product-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.15s ease; }
+        .product-card:hover { border-color: var(--input-border); }
+        .card-img { aspect-ratio: 4 / 3; background-color: var(--table-header-bg); background-size: cover; background-position: center; }
+        .card-img.sin-foto { display: flex; align-items: flex-end; padding: 12px; color: var(--text-muted); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; }
+        .card-body { padding: 16px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+        .product-title { margin: 0; font-size: 1.05rem; font-weight: 600; }
+        .price { color: var(--text-main); font-size: 1.15rem; font-weight: 700; display: block; margin: 6px 0 10px; font-variant-numeric: tabular-nums; }
+        .card-body .action-btn { margin-top: auto; }
+        .form-container { background: var(--form-bg); padding: 28px; border-radius: var(--radio); border: 1px solid var(--form-border); }
+        .name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+        @media (max-width: 768px) { .name-grid { grid-template-columns: 1fr; } }
+        .form-group { margin-bottom: 18px; }
+        #cart-modal { position: fixed; top: 0; right: -450px; width: 400px; max-width: 100vw; height: 100vh; background: var(--card-bg); border-left: 1px solid var(--card-border); box-shadow: -8px 0 30px rgba(0, 0, 0, 0.12); transition: right 0.3s ease; z-index: 1000; padding: 24px; box-sizing: border-box; overflow-y: auto; }
         #cart-modal.open { right: 0; }
-        .cart-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 15px; margin-bottom: 20px; }
-        .close-cart { background: transparent; color: var(--text-main); border: none; font-size: 1.5rem; cursor: pointer; }
-        .cart-item { display: flex; justify-content: space-between; border-bottom: 1px dashed var(--card-border); padding: 15px 0; }
-        .cart-total { font-size: 1.5rem; font-weight: bold; text-align: right; margin: 20px 0; color: var(--primary); }
-        .table-container { width: 100%; overflow-x: auto; background: var(--input-bg); border: 1px solid var(--input-border); border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        table { width: 100%; border-collapse: collapse; color: var(--input-text); }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid var(--input-border); }
-        th { background: var(--table-header-bg); font-weight: bold; color: var(--text-main);}
-        tr:last-child td { border-bottom: none; }
-        tr:hover { background: var(--table-row-hover); }
-        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; text-transform: uppercase;}
-        .status-produccion { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-        .profile-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; }
+        .cart-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 14px; margin-bottom: 16px; }
+        .close-cart { background: transparent; color: var(--text-muted); border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; }
+        .cart-item { display: flex; justify-content: space-between; border-bottom: 1px solid var(--card-border); padding: 12px 0; }
+        .cart-total { font-size: 1.25rem; font-weight: 700; text-align: right; margin: 18px 0; color: var(--text-main); font-variant-numeric: tabular-nums; }
+        .profile-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; }
         @media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } }
-
-        /* Cart items */
         #cart-items-container .cart-item { align-items: center; }
         .cart-item-name { flex: 1; }
-        .cart-item-price { font-weight: bold; color: var(--primary); }
+        .cart-item-price { font-weight: 600; color: var(--text-main); }
+        .btn-peligro { width: 100%; margin-top: 24px; background: transparent; border: 1px solid var(--peligro); color: var(--peligro); padding: 11px; border-radius: var(--radio); cursor: pointer; font: inherit; font-weight: 600; transition: background 0.15s ease; }
+        .btn-peligro:hover { background: var(--peligro-bg); }
 
-        /* El encabezado era una sola fila que no se partia: su ancho intrinseco
-           rondaba los 875px pasara lo que pasara, asi que en cualquier pantalla
-           mas angosta la pagina se desbordaba en horizontal y el boton de
-           Iniciar Sesion quedaba literalmente fuera de la ventana, imposible de
-           pulsar. No era un solape entre botones, que es lo que parecia a
-           simple vista, sino desbordamiento.
-
-           Importa mas de lo que sugiere el tamano del arreglo: el codigo del
-           segundo factor se lee en el telefono, asi que entrar desde el movil
-           es el caso normal del personal, no el raro. */
+        /* El encabezado era una sola fila que no se partia (unos 875 px de ancho
+           intrinseco), y en pantallas angostas el boton de Iniciar Sesion
+           quedaba fuera de la ventana. Por debajo de 900 px se parte en lineas.
+           Importa porque el codigo del segundo factor se lee en el telefono. */
         @media (max-width: 900px) {
-            header { padding: 0.9rem 1rem; flex-wrap: wrap; justify-content: center; gap: 12px; }
-            nav { flex-wrap: wrap; justify-content: center; gap: 10px; }
-            .logo-img { height: 62px; }
-            nav button, nav a { padding: 9px 16px; font-size: 0.95rem; }
+            header { padding: 0.7rem 1rem; flex-wrap: wrap; justify-content: center; gap: 10px; }
+            nav { flex-wrap: wrap; justify-content: center; }
+            .logo-img { height: 38px; }
+            nav button, nav a { padding: 8px 10px; font-size: 0.95rem; }
         }
         @media (max-width: 480px) {
-            header { padding: 0.75rem 0.6rem; gap: 10px; }
-            .logo-img { height: 52px; }
-            nav { gap: 8px; }
-            nav button, nav a { padding: 8px 13px; font-size: 0.9rem; }
+            header { padding: 0.6rem 0.6rem; }
+            .logo-img { height: 34px; }
+            nav button, nav a { padding: 7px 8px; font-size: 0.9rem; }
         }
     </style>
 </head>
 <body>
     <header>
         <div class="logo-container">
-            <img src="imagen.jpg" alt="HEPSA Herrería Fina" class="logo-img" onerror="this.src='https://via.placeholder.com/150x80?text=HEPSA'">
+            <img src="assets/logo.svg" alt="HEPSA" class="logo-img solo-tema-claro">
+            <img src="assets/logo-dark.svg" alt="HEPSA" class="logo-img solo-tema-oscuro">
         </div>
         <nav>
             <button onclick="showView('catalog')" id="btn-catalog">Catálogo</button>
@@ -245,11 +215,12 @@
                     <select id="mfa-factor" onchange="elegirFactorMfa()"></select>
                 </div>
                 <div id="mfa-alta" style="display:none;">
-                    <div style="text-align:center; background:#fff; padding:16px; border-radius:10px; margin-bottom:18px;">
+                    <!-- Blanco a proposito en los dos temas: un QR sobre fondo oscuro muchas apps no lo leen. -->
+                    <div style="text-align:center; background:#fff; padding:16px; border-radius:var(--radio); margin-bottom:18px;">
                         <img id="mfa-qr" alt="Código QR para la app autenticadora" style="width:200px; height:200px; display:block; margin:0 auto;">
                     </div>
                     <p style="color: var(--text-muted); font-size:0.9rem; margin-bottom:6px;">¿No puedes escanear? Escribe esta clave en la app:</p>
-                    <code id="mfa-secreto" style="display:block; word-break:break-all; background:rgba(127,127,127,0.15); padding:10px; border-radius:6px; font-size:0.95rem; margin-bottom:20px;"></code>
+                    <code id="mfa-secreto" style="display:block; word-break:break-all; background:var(--table-header-bg); padding:10px; border-radius:6px; font-size:0.95rem; margin-bottom:20px;"></code>
                 </div>
 
                 <div class="form-group" style="text-align:left;">
@@ -300,12 +271,7 @@
                     <div class="form-group"><label>Nombre Completo</label><input type="text" id="prof-name" readonly></div>
                     <div class="form-group"><label>Correo Registrado</label><input type="text" id="prof-email" readonly></div>
                     <div class="form-group"><label>Teléfono</label><input type="tel" id="prof-tel"></div>
-                    <!-- BOTÓN CERRAR SESIÓN CORREGIDO -->
-                    <button onclick="cerrarSesionBD()" style="margin-top: 25px; width: 100%; background: transparent; border: 2px solid #e74c3c; color: #e74c3c; padding: 12px; border-radius: 8px; cursor:pointer; font-weight:bold; font-size: 1rem; transition: all 0.3s;" 
-                        onmouseover="this.style.background='#e74c3c'; this.style.color='#fff';" 
-                        onmouseout="this.style.background='transparent'; this.style.color='#e74c3c';">
-                        Cerrar Sesión
-                    </button>
+                    <button type="button" class="btn-peligro" onclick="cerrarSesionBD()">Cerrar Sesión</button>
                 </div>
                 <div class="form-container">
                     <h3 style="margin-top:0; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">Proyectos Activos</h3>
@@ -329,18 +295,27 @@
         // se vean igual en cualquier sistema y hereden el color del texto.
         const ICONO_LUNA = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
         const ICONO_SOL  = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
-        (function() {
-            const tema = localStorage.getItem('hepsa_theme') || 'light';
-            if (tema === 'light') document.body.classList.add('light-mode');
+        // El tema ya lo decidio el script del <head>. Aqui solo se pinta el
+        // boton (luna en claro, sol en oscuro: muestra a que tema se cambia) y,
+        // mientras el visitante no elija, se sigue al sistema tambien en vivo.
+        function pintarBotonTema() {
             const btn = document.getElementById('theme-toggle');
-            btn.innerHTML = tema === 'light' ? ICONO_LUNA : ICONO_SOL;
-        })();
+            if (btn) btn.innerHTML = document.documentElement.dataset.tema === 'oscuro' ? ICONO_SOL : ICONO_LUNA;
+        }
+        pintarBotonTema();
+        window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', (e) => {
+            let elegido = null;
+            try { elegido = localStorage.getItem('hepsa_theme'); } catch { /* sin almacenamiento */ }
+            if (elegido) return;
+            document.documentElement.dataset.tema = e.matches ? 'oscuro' : 'claro';
+            pintarBotonTema();
+        });
 
         function toggleTheme() {
-            document.body.classList.toggle('light-mode');
-            const esLight = document.body.classList.contains('light-mode');
-            localStorage.setItem('hepsa_theme', esLight ? 'light' : 'dark');
-            document.getElementById('theme-toggle').innerHTML = esLight ? ICONO_LUNA : ICONO_SOL;
+            const oscuro = document.documentElement.dataset.tema !== 'oscuro';
+            document.documentElement.dataset.tema = oscuro ? 'oscuro' : 'claro';
+            try { localStorage.setItem('hepsa_theme', oscuro ? 'dark' : 'light'); } catch { /* sin almacenamiento */ }
+            pintarBotonTema();
         }
 
         // ─── SUPABASE ───────────────────────────────────────────────────────
@@ -533,7 +508,7 @@
             mostrarAviso(
                 `<span>${n === 1 ? 'Queda <strong>1 pieza</strong>' : `Quedan <strong>${n} piezas</strong>`} de “${esc(p.name)}”, ` +
                 `y ya las tienes todas en el carrito.<br>` +
-                `<a href="#" data-ir-cotizador="1" style="color:#fff; text-decoration:underline;">Solicita más a medida</a> y lo fabricamos.</span>`,
+                `<a href="#" data-ir-cotizador="1" style="color:inherit; text-decoration:underline;">Solicita más a medida</a> y lo fabricamos.</span>`,
                 'info');
         }
 
@@ -776,8 +751,8 @@
 
             grid.innerHTML = data.map((p) => `
                     <div class="product-card">
-                        <div class="card-img" data-img-id="${p.id}" style="${urlImagenSegura(p.image_url) ? '' : 'background: linear-gradient(135deg,#1a1a1a,#2a2a2a); display:flex; align-items:center; justify-content:center;'}">
-                            ${urlImagenSegura(p.image_url) ? '' : '<span style="color:#777; font-size:0.9rem; letter-spacing:0.08em;">SIN FOTO</span>'}
+                        <div class="card-img${urlImagenSegura(p.image_url) ? '' : ' sin-foto'}" data-img-id="${p.id}">
+                            ${urlImagenSegura(p.image_url) ? '' : 'SIN FOTO'}
                         </div>
                         <div class="card-body">
                             <h3 class="product-title">${esc(p.name)}</h3>
