@@ -65,20 +65,12 @@
   y no se investigo: no se afirma que el despliegue este sano.
 - El intento a 430 px expuso el fallo del encabezado, corregido el 2026-09-27.
 
-## Preflight de integracion, 2026-09-11 (resumido)
+## Conexiones MCP (resumido)
 
-- Preferencia global: verificar conexiones MCP y permisos antes de desarrollar,
-  reportar lo que falte pronto, habilitar lo gratuito cuando haya autorizacion.
-- Entradas anteriores sobre MCP no disponible describen el estado previo a la
-  reparacion de la seccion siguiente. Se condensaron por tamano.
-
-## MCP authentication repaired, 2026-09-11
-- User called out unresolved Supabase/Vercel/Resend connections. Ran codex mcp login for all three; all completed successfully and credentials persisted through Codex OAuth storage. URLs were already configured; no config rewrite needed.
-- Verified in fresh read-only Codex Luna processes: Resend list_domains, Vercel list_teams, Supabase get_project for HEPSA all returned without MCP errors. Primary inspected tool invocation/result evidence. No email sent, deployment made, SQL run or project mutation.
-- Verification sessions: 01a090c4-9169-7f23-afa0-71624655f685 (Resend), 01a090c5-045a-7ed0-be9b-e9982431e1d2 (Vercel), 01a090c5-52d7-7281-a56b-2e6679a24373 (Supabase). CLI reported delegated tokens 22670, 22417, 51196 respectively; not context occupancy or billing.
-- Supabase emitted HTTP 404 on DELETE transport session during process shutdown after successful project lookup; this was not an authentication or project-access failure.
-- Earlier MCP-unavailable entries describe pre-repair state. Main session tools refreshed dynamically. Primary directly repeated all three read-only MCP calls successfully here. No Codex restart, desktop logout or reboot needed. Local demo independent service remains running.
-- Hosted project access is now verified, but hosted schema/Auth parity and production readiness are still pending.
+- 2026-09-11: se reparó el acceso de Codex a Supabase, Vercel y Resend y se
+  verificó con llamadas de solo lectura. No se envió correo ni se cambió nada.
+- 2026-10-05: el MCP de Supabase de Claude Code apunta al proyecto hospedado,
+  pero ese proyecto no responde (ver la entrada URGENTE de abajo).
 
 ## Sesion 2026-09-27: checkpoint en git (resumido)
 
@@ -149,8 +141,17 @@ mensajes de commit y en el PR #9.
    role NULL y usuarios sin fila en profiles (consulta de solo lectura).
 3. Pendiente con decisión de negocio: F02/F03, F07, F08. F12 (restricciones
    del esquema) sin decisión, pero exige inventariar antes los datos hospedados.
-4. F09 en rama feature/recuperacion-segundo-factor: script probado 14/14 y
-   documento corregido. Faltan decisiones de negocio: quién verifica identidad
-   y cómo, quién autoriza, dónde se guarda el registro de auditoría.
-- Decisión del usuario (2026-09-29): en HEPSA NO hay rediseño pendiente. El
-  rediseño que existe es de RIASA (~/Work/projects/riasa), no mezclarlos.
+4. F09 fusionado (PR #10, main bf81880): script probado 14/14 y documento
+   corregido. Faltan decisiones de negocio: quién verifica identidad y cómo,
+   quién autoriza, dónde se guarda el registro de auditoría.
+- 2026-10-05: el usuario pidió un rediseño SUTIL de HEPSA (más profesional y
+  limpio), con opciones antes de implementar. Tres opciones publicadas en
+  https://claude.ai/artifact/Q8FKabEfuvvEwVkLeJHu71 (A acabado mate, B taller
+  oscuro, C ficha técnica). Espera su elección. Rama feature/rediseno-sutil.
+  Costo común: 125 atributos style en línea que hay que pasar a clases.
+- 2026-10-05, URGENTE: el proyecto Supabase hospedado está caído. El dominio
+  qmyrosmuqfabaedzydsa.supabase.co no resuelve y la API de gestión da timeout
+  de conexión. Casi seguro pausado por inactividad (plan Free, 7 días); no
+  confirmado en el tablero. Se restaura con "Resume project" hasta 90 días
+  después de la pausa. hepsa.vercel.app carga, pero sin catálogo, acceso ni
+  cotizaciones. Lo restaura el dueño del proyecto, no el agente.
