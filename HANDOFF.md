@@ -149,6 +149,10 @@ mensajes de commit y en el PR #9.
   https://claude.ai/artifact/Q8FKabEfuvvEwVkLeJHu71 (A acabado mate, B taller
   oscuro, C ficha técnica). Espera su elección. Rama feature/rediseno-sutil.
   Costo común: 125 atributos style en línea que hay que pasar a clases.
+- Decisiones del usuario (2026-10-05): A y B como un solo diseño (A tema
+  claro, B tema oscuro); tipografía Archivo servida desde el propio sitio;
+  tema inicial según el sistema del visitante y luego el que elija; esquinas
+  de 6 px. Logo destilado en assets/ (marca + logotipo, claro y oscuro).
 - 2026-10-05, URGENTE: el proyecto Supabase hospedado está caído. El dominio
   qmyrosmuqfabaedzydsa.supabase.co no resuelve y la API de gestión da timeout
   de conexión. Casi seguro pausado por inactividad (plan Free, 7 días); no
