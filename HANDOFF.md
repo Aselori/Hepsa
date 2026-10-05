@@ -2,7 +2,7 @@
 
 - Objective: next 2FA deliverable. Cloudflare explicitly deferred. User taking over after original developers left.
 - Scope: local staff-session injection fixes, reliable MFA screens, isolated tests and real local Auth/RLS verification. No production changes or broad rewrite.
-- Branch: fix/segundo-factor-entregable; base dccb140. Preserve all existing review and implementation changes. No commit/push/deploy.
+- Rama actual: feature/rediseno-sutil (rediseño, sin push). La Mejora 3 (2FA) ya está fusionada en main.
 - Repository moved from `/home/aselori/Projects/hepsa` to `/home/aselori/Work/projects/hepsa`. Primary prior Codex thread is `01a08d52-5047-79e2-84de-603b4220c1d7`; resume it from the new checkout with `codex resume 01a08d52-5047-79e2-84de-603b4220c1d7 -C /home/aselori/Work/projects/hepsa`, or discover moved-path sessions with `codex resume --all`.
 - CONTRIBUTING.md remains project convention source. User supplied updated global AGENTS instructions (Arch/Omarchy, mise, explicit restart timing).
 - User preference saved globally: enable best free approach when unavailable or explain exact enabling steps; no purchases. Filesystem inspection authorized, secrets excluded.
@@ -144,15 +144,15 @@ mensajes de commit y en el PR #9.
 4. F09 fusionado (PR #10, main bf81880): script probado 14/14 y documento
    corregido. Faltan decisiones de negocio: quién verifica identidad y cómo,
    quién autoriza, dónde se guarda el registro de auditoría.
-- 2026-10-05: el usuario pidió un rediseño SUTIL de HEPSA (más profesional y
-  limpio), con opciones antes de implementar. Tres opciones publicadas en
-  https://claude.ai/artifact/Q8FKabEfuvvEwVkLeJHu71 (A acabado mate, B taller
-  oscuro, C ficha técnica). Espera su elección. Rama feature/rediseno-sutil.
-  Costo común: 125 atributos style en línea que hay que pasar a clases.
-- Decisiones del usuario (2026-10-05): A y B como un solo diseño (A tema
-  claro, B tema oscuro); tipografía Archivo servida desde el propio sitio;
-  tema inicial según el sistema del visitante y luego el que elija; esquinas
-  de 6 px. Logo destilado en assets/ (marca + logotipo, claro y oscuro).
+- Rediseño sutil (pedido 2026-10-05; opciones en
+  https://claude.ai/artifact/Q8FKabEfuvvEwVkLeJHu71). Decisiones del usuario:
+  A = tema claro y B = tema oscuro de un solo diseño, Archivo servida desde el
+  sitio, tema inicial según el sistema y luego el elegido, esquinas de 6 px.
+  HECHO en feature/rediseno-sutil, sin push: logo destilado (097af2c), portal
+  (2336469) y panel (8c61d5d). Verificado: npm test y npm run test:local
+  completos, capturas Playwright del panel en los dos temas. NO hecho: el panel
+  no tiene diseño para móvil (nunca lo tuvo); queda como opción para el usuario.
+  Siguiente: pedir permiso para push y PR.
 - 2026-10-05, URGENTE: el proyecto Supabase hospedado está caído. El dominio
   qmyrosmuqfabaedzydsa.supabase.co no resuelve y la API de gestión da timeout
   de conexión. Casi seguro pausado por inactividad (plan Free, 7 días); no
