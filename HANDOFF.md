@@ -27,13 +27,8 @@
 
 ## Verification / processes
 
-- PASS: all nine migrations and corrected seed on new local stack under /tmp/hepsa-mfa-local.
-- PASS: npm test (admin rendering/action assertions and eight MFA mocked scenarios). Full-load navigation timeout fixed by waiting for DOMContentLoaded with blocked image requests.
-- PASS final real local integration: 77/77 RLS, 15/15 MFA UI, 16/16 panel. Exec session 42118 finished with exit 0. Log /tmp/hepsa-local-tests-final.log; no test runner remains active.
-- PASS: missing-local-config and remote-target guards reject before launching tests; final JS syntax, local doc links and git diff --check.
-- Final cleanup verified: supabase stop --project-id hepsa-mfa-local succeeded with backup=true; docker ps filtered to HEPSA is empty. Local volumes preserved; unrelated containers not targeted. No task test process remains.
+- 2FA work (merged): all migrations, npm test and the real local suites passed; CI runs both. No production Auth/RLS verification by the agent.
 - Stack startup log /tmp/hepsa-supabase-start.log contains disposable local keys; do not print/copy into docs.
-- Prior latest GitHub check skipped functional tests. New workflow not pushed or run remotely. No current production Auth/RLS/hosting verification.
 
 ## Deliverable and exact next steps
 
