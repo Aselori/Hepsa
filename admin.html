@@ -24,7 +24,9 @@
     <style>
         /* Solo lo propio del panel. La paleta, la fuente, los botones, los
            formularios, las tablas y los avisos viven en assets/tema.css. */
-        body { display: flex; height: 100vh; overflow: hidden; }
+        /* 100dvh descuenta la barra de direcciones del telefono; 100vh queda
+           para los navegadores que no lo conocen. */
+        body { display: flex; height: 100vh; height: 100dvh; overflow: hidden; }
         aside { width: 248px; flex-shrink: 0; background: var(--sidebar-bg); border-right: 1px solid var(--card-border); display: flex; flex-direction: column; z-index: 10; }
         .sidebar-header { padding: 22px 20px 18px; border-bottom: 1px solid var(--card-border); }
         .sidebar-header .logo-img { height: 40px; width: auto; display: block; }
@@ -37,17 +39,21 @@
         .sidebar-footer { padding: 14px 12px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
         .btn-return { color: var(--text-main); border: 1px solid var(--card-border); padding: 9px 12px; border-radius: var(--radio); text-decoration: none; font-size: 0.9rem; font-weight: 500; }
         .btn-return:hover { border-color: var(--text-muted); }
-        main { flex: 1; overflow-y: auto; padding: 32px 40px; position: relative; }
+        main { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; padding: 32px 40px; position: relative; }
         .view-section { display: none; }
         .view-section.active { display: block; }
         .panel { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); padding: 24px; margin-bottom: 24px; }
         .panel-titulo { margin: 0 0 18px; padding-bottom: 12px; border-bottom: 1px solid var(--card-border); font-size: 1.05rem; font-weight: 600; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
         .form-group { margin-bottom: 14px; }
+        .fila-concepto { grid-template-columns: 2fr 1fr 1fr; align-items: end; }
         input[type="file"]::file-selector-button { background: var(--table-header-bg); color: var(--text-main); border: 1px solid var(--input-border); padding: 7px 14px; border-radius: var(--radio); font: inherit; font-weight: 600; cursor: pointer; margin-right: 12px; }
         .separador { border: none; border-top: 1px dashed var(--card-border); margin: 24px 0; }
         .pos-container { display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; align-items: start; }
         .pos-container.inventario { grid-template-columns: 1fr 1.4fr; }
+        /* Sin esto, una tabla ancha ensancha su columna en vez de deslizarse
+           dentro de su caja (un hijo de grid no baja de su ancho minimo). */
+        .pos-container > * { min-width: 0; }
         /* Dentro de un panel la tabla no lleva marco propio: el panel ya lo es. */
         .panel > .table-container { border: none; border-radius: 0; }
         .acciones-fila { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -86,10 +92,43 @@
 
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 2000; align-items: center; justify-content: center; }
         .modal-overlay.open { display: flex; }
-        .modal-box { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); padding: 28px; width: 90%; max-width: 500px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25); }
+        .modal-box { box-sizing: border-box; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); padding: 28px; width: calc(100% - 32px); max-width: 520px; max-height: calc(100% - 32px); overflow-y: auto; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25); }
         .modal-box h3 { margin-top: 0; border-bottom: 1px solid var(--card-border); padding-bottom: 14px; }
         .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
         .modal-actions button { flex: 1; }
+        /* ─── Pantallas angostas ──────────────────────────────────────────────
+           Por debajo de 1000px el ticket pasa debajo del formulario. Por debajo
+           de 900px la barra lateral se vuelve barra superior: logo, rol, tienda
+           y tema en una fila, y las vistas en una tira que se desliza de lado. */
+        @media (max-width: 1000px) {
+            .pos-container, .pos-container.inventario { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 900px) {
+            body { flex-direction: column; }
+            aside { width: auto; flex-direction: row; flex-wrap: wrap; align-items: center; border-right: none; border-bottom: 1px solid var(--card-border); }
+            .sidebar-header { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 10px 16px; border-bottom: none; }
+            .sidebar-header .logo-img { height: 26px; }
+            .sidebar-titulo { display: none; }
+            #user-role-display { margin: 0; font-size: 0.75rem; font-weight: 500; color: var(--text-muted); }
+            .sidebar-footer { padding: 10px 16px; border-top: none; }
+            .sidebar-nav { order: 3; flex: 1 0 100%; box-sizing: border-box; flex-direction: row; gap: 4px; padding: 0 12px 8px; overflow-x: auto; scrollbar-width: thin; }
+            .sidebar-nav button { width: auto; flex-shrink: 0; white-space: nowrap; padding: 8px 12px; }
+            .sidebar-nav button.active { box-shadow: inset 0 -2px 0 var(--oro); }
+            main { padding: 20px 16px 32px; }
+            h2 { font-size: 1.35rem; }
+            .encabezado-vista { flex-wrap: wrap; }
+            .panel { padding: 16px; margin-bottom: 16px; }
+            .ticket-wrapper { padding: 12px; }
+            .ticket-preview { padding: 16px; }
+            .modal-box { padding: 20px; }
+        }
+        @media (max-width: 560px) {
+            .form-grid { grid-template-columns: 1fr; gap: 0; margin-bottom: 0; }
+            /* Concepto a todo lo ancho; precio y boton comparten la fila de abajo. */
+            .form-grid.fila-concepto { grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+            .fila-concepto > :first-child { grid-column: 1 / -1; }
+            .sidebar-footer .btn-return { padding: 8px 10px; font-size: 0.85rem; }
+        }
         @media print {
             body * { visibility: hidden; }
             #printable-area, #printable-area * { visibility: visible; }
@@ -162,7 +201,7 @@
                     <div class="panel">
                         <h3 class="panel-titulo">2. Conceptos e Inventario</h3>
                         <div class="form-group"><label>Producto del Inventario</label><select id="pos-product-select" onchange="autoFillPrice()"><option value="">Selecciona un producto...</option></select></div>
-                        <div class="form-grid" style="grid-template-columns: 2fr 1fr 1fr; align-items: end;">
+                        <div class="form-grid fila-concepto">
                             <div class="form-group" style="margin-bottom: 0;"><label>Concepto (Manual)</label><input type="text" id="ticket-item"></div>
                             <div class="form-group" style="margin-bottom: 0;"><label>Precio Unit. ($)</label><input type="number" id="ticket-price"></div>
                             <button class="action-btn" onclick="addToTicket()">+ Añadir</button>
@@ -448,7 +487,12 @@
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.sidebar-nav button').forEach(el => el.classList.remove('active'));
             document.getElementById('view-' + viewId).classList.add('active');
-            document.getElementById('nav-' + viewId).classList.add('active');
+            const boton = document.getElementById('nav-' + viewId);
+            boton.classList.add('active');
+            // En el telefono el menu es una tira que se desliza: la vista activa
+            // se mantiene a la vista, y cada vista abre desde arriba.
+            boton.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            document.querySelector('main').scrollTop = 0;
             if(viewId === 'history') cargarHistorialBD();
             if(viewId === 'catalog' || viewId === 'pos') cargarInventarioBD();
             if(viewId === 'projects') cargarProyectosBD();
