@@ -145,9 +145,9 @@ mensajes de commit y en el PR #9.
   sitio, tema inicial según el sistema y luego el elegido, esquinas de 6 px.
   HECHO en feature/rediseno-sutil, sin push: logo destilado (097af2c), portal
   (2336469) y panel (8c61d5d). Verificado: npm test y npm run test:local
-  completos, capturas Playwright del panel en los dos temas. NO hecho: el panel
-  no tiene diseño para móvil (nunca lo tuvo); queda como opción para el usuario.
-  Siguiente: pedir permiso para push y PR.
+  completos, capturas Playwright del panel en los dos temas. Diseño del panel
+  para teléfono y tablet (825a6d3), pedido por el usuario antes del PR; lo cubre
+  tests/panel-movil.spec.mjs (44/44). Siguiente: pedir permiso para push y PR.
 - 2026-10-05, URGENTE: el proyecto Supabase hospedado está caído. El dominio
   qmyrosmuqfabaedzydsa.supabase.co no resuelve y la API de gestión da timeout
   de conexión. Casi seguro pausado por inactividad (plan Free, 7 días); no
