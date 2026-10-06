@@ -15,7 +15,9 @@ El runner publica solo archivos de la aplicacion en un puerto local temporal.
 No expone tests/.env.local ni respaldos. El navegador bloquea conexiones externas.
 Cubre renderizado seguro y acciones del panel, y ocho escenarios de MFA con SDK
 simulado: errores de rol/AAL/lista, alta interrumpida, factor alternativo,
-doble envio, codigo incorrecto, red, cancelacion y exito. Esto no prueba RLS.
+doble envio, codigo incorrecto, red, cancelacion y exito. Tambien mide el portal
+y el panel en telefono y tablet: nada se sale de la pantalla y cada boton clave
+recibe el toque. Esto no prueba RLS.
 
 ## Integracion real con Supabase local
 
