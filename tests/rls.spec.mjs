@@ -243,10 +243,10 @@ try {
       await page.selectOption('#quote-acabado', acabado);
     };
 
-    // Un anonimo puede cotizar sin registrarse.
+    // Un anonimo puede cotizar sin registrarse. El estimado sale solo al
+    // completar la pieza; no hay boton de calcular.
     await llenar(2000, 1000, 'acero', 'cromado');
-    await page.click('text=Calcular Cotización');
-    await page.waitForTimeout(1200);
+    await page.waitForFunction(() => /\d/.test(document.getElementById('quote-estimate-amount').textContent), null, { timeout: 8000 }).catch(() => {});
     const monto = await page.locator('#quote-estimate-amount').innerText();
     check('anonimo obtiene estimado', /7,000/.test(monto), `monto="${monto}"`);
 
@@ -254,13 +254,12 @@ try {
     check('el estimado lleva aviso de no ser en firme',
       /no constituye una cotizaci[oó]n en firme/i.test(aviso));
 
-    // Medidas absurdas: se atajan antes de llegar a la base.
-    alertas.length = 0;
+    // Medidas absurdas: se atajan antes de llegar a la base, con el aviso en
+    // el recuadro del estimado (mientras se escribe no salen ventanas).
     await llenar(50000, 1000, 'acero', 'cromado');
-    await page.click('text=Calcular Cotización');
     await page.waitForTimeout(800);
-    check('rechaza medidas fuera de rango',
-      alertas.some((a) => /20,000 mm/.test(a)), `alertas=${JSON.stringify(alertas)}`);
+    const fueraDeRango = await page.locator('#quote-estimate-amount').innerText();
+    check('rechaza medidas fuera de rango', /20,000 mm/.test(fueraDeRango), `aviso="${fueraDeRango}"`);
 
     // El tarifario es informacion comercial: no se expone al publico.
     const tarifas = await page.evaluate(async () => {

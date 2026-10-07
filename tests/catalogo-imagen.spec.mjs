@@ -55,7 +55,10 @@ try {
   // que la prueba funcione igual contra el codigo viejo y demuestre la
   // inyeccion, en vez de fallar por no encontrar un selector nuevo.
   const caja = (id) => page.evaluate((i) => {
-    const el = document.querySelectorAll('.product-card .card-img')[i - 1];
+    // La caja de imagen se busca dentro de su tarjeta: un producto sin foto
+    // ya no tiene caja, y contarlas en toda la pagina desfasaria las demas.
+    const el = document.querySelectorAll('.product-card')[i - 1].querySelector('.card-img');
+    if (!el) return { bg: '', color: getComputedStyle(document.body).color, ajenas: [], tieneUrl: false, sinFoto: true };
     const cs = getComputedStyle(el);
     // Propiedades realmente declaradas en el elemento. Una inyeccion que
     // funcione agrega propiedades nuevas (color, etc.); el texto dentro de la

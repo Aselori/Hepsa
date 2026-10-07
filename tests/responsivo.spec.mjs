@@ -69,7 +69,9 @@ try {
   await pagina.goto(`${BASE}/index.html`, { waitUntil: 'domcontentloaded' });
   await pagina.waitForSelector('nav button', { timeout: 15000 });
   const enEscritorio = await pagina.evaluate(() => {
-    const nav = [...document.querySelector('nav').children];
+    // Solo lo que se dibuja: un enlace oculto (el telefono sin configurar) no
+    // tiene posicion y su centro saldria en 0.
+    const nav = [...document.querySelector('nav').children].filter(e => e.getClientRects().length);
     const centros = nav.map(e => { const c = e.getBoundingClientRect(); return c.y + c.height / 2; });
     // Si todos los centros caben en una franja de 20px, siguen en una sola fila.
     return { desborda: document.documentElement.scrollWidth > window.innerWidth,

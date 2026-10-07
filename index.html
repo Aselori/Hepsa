@@ -54,10 +54,36 @@
         .product-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.15s ease; }
         .product-card:hover { border-color: var(--input-border); }
         .card-img { aspect-ratio: 4 / 3; background-color: var(--table-header-bg); background-size: cover; background-position: center; }
-        .card-img.sin-foto { display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.9rem; }
         .card-body { padding: 16px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
         .product-title { margin: 0; font-size: 1.05rem; font-weight: 600; }
-        .price { color: var(--text-main); font-size: 1.15rem; font-weight: 700; display: block; margin: 6px 0 10px; font-variant-numeric: tabular-nums; }
+        .price { color: var(--text-main); font-size: 1.35rem; font-weight: 700; display: block; margin: 4px 0 10px; font-variant-numeric: tabular-nums; }
+        .price-moneda { font-size: 0.85rem; font-weight: 500; color: var(--text-muted); }
+        /* Solo aparece cuando quedan pocas piezas: es la excepción, no la regla. */
+        .nota-existencias { margin: 0 0 10px; font-size: 0.9rem; font-weight: 500; color: var(--aviso); }
+        .nota-existencias:empty { display: none; }
+        .catalogo-encabezado { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-bottom: 1.5rem; }
+        .catalogo-encabezado h2 { margin: 0; }
+        .enlace-fuerte { font-weight: 600; color: var(--text-main); }
+        /* Cotizar: la pieza, el estimado y luego los datos de contacto. */
+        .cotizar { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .cotizar h2 { margin: 0; }
+        .cotizar-intro { margin: -12px 0 0; color: var(--text-muted); }
+        .cotizar-paso { margin: 0 0 18px; font-size: 1.1rem; }
+        .medidas-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+        .estimado { background: var(--card-bg); border: 1px solid var(--text-main); border-radius: var(--radio); padding: 24px 28px; display: flex; flex-direction: column; gap: 6px; }
+        .estimado-titulo { color: var(--text-muted); }
+        .estimado-monto { font-size: 2.6rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+        .estimado-monto.con-error { font-size: 1rem; letter-spacing: 0; color: var(--peligro); }
+        .estimado-detalle { color: var(--text-label); text-transform: capitalize; }
+        .estimado-aviso { margin: 8px 0 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
+        .contacto-telefono { color: var(--text-main) !important; font-weight: 600 !important; }
+        .contacto-lista { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; }
+        #contacto-cotizacion { margin-top: 8px; }
+        #contacto-cotizacion a, .contacto-lista a { color: var(--text-main); font-weight: 600; }
+        footer.pie { background: var(--header-bg); border-top: 1px solid var(--card-border); padding: 20px 2rem; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 24px; font-size: 0.9rem; color: var(--text-muted); }
+        footer.pie #btn-admin { color: var(--text-muted); }
+        footer.pie #btn-admin:hover { color: var(--text-main); }
+        @media (max-width: 600px) { .medidas-grid { grid-template-columns: 1fr 1fr; } .medidas-grid > :last-child { grid-column: 1 / -1; } }
         .card-body .action-btn { margin-top: auto; }
         /* En el catalogo hay un boton por tarjeta: si todos fueran solidos, la
            pagina seria una pared de botones. Van como secundarios. */
@@ -122,9 +148,9 @@
         </div>
         <nav>
             <button onclick="showView('catalog')" id="btn-catalog">Catálogo</button>
-            <button onclick="showView('quote')" id="btn-quote">Solicitud a Medida</button>
-            <a href="admin.html" id="btn-admin">Portal de Empleados</a>
+            <button onclick="showView('quote')" id="btn-quote">Cotizar a la medida</button>
             <button id="cart-btn" onclick="toggleCart()">Carrito <span id="cart-count">0</span></button>
+            <a id="contacto-encabezado" class="contacto-telefono" hidden></a>
             <button onclick="showView('login')" id="btn-login">Iniciar Sesión</button>
             <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
         </nav>
@@ -150,7 +176,10 @@
     <main>
         <!-- VISTA CATÁLOGO -->
         <section id="view-catalog" class="view-section active">
-            <h2>Línea Residencial e Industrial</h2>
+            <div class="catalogo-encabezado">
+                <h2>Línea Residencial e Industrial</h2>
+                <a href="#" data-ir-cotizador="1" class="enlace-fuerte">¿No está aquí? Cotiza tu pieza a la medida →</a>
+            </div>
             <div class="catalog-grid" id="public-catalog-grid">
                 <div class="product-card"><div class="card-img">Foto referencial</div><div class="card-body"><h3 class="product-title">Cargando catálogo…</h3></div></div>
             </div>
@@ -158,63 +187,71 @@
 
         <!-- VISTA COTIZACIÓN -->
         <section id="view-quote" class="view-section">
-            <h2>Solicita un Proyecto a la Medida</h2>
-            <div class="form-container" style="max-width: 700px; margin: 0 auto;">
-                <p style="color: var(--text-label); margin-bottom: 25px;">Si tienes medidas específicas o un diseño de arquitecto, envíanos los detalles para cotizar tu proyecto.</p>
-                <div class="name-grid">
-                    <div class="form-group" style="margin-bottom: 0;"><label for="quote-n1">Primer Nombre *</label><input type="text" id="quote-n1" name="given-name" autocomplete="given-name" placeholder="Ej: Juan" required></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label for="quote-n2">Segundo Nombre (Opcional)</label><input type="text" id="quote-n2" name="additional-name" autocomplete="additional-name" placeholder="Ej: Carlos"></div>
-                </div>
-                <div class="name-grid">
-                    <div class="form-group" style="margin-bottom: 0;"><label for="quote-p">Apellido Paterno *</label><input type="text" id="quote-p" name="family-name" autocomplete="family-name" placeholder="Ej: Garza" required></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label for="quote-m">Apellido Materno *</label><input type="text" id="quote-m" name="apellido-materno" autocomplete="off" placeholder="Ej: Treviño" required></div>
-                </div>
-                <div class="form-group" style="margin-top: 20px;"><label for="quote-email">Correo Electrónico *</label><input type="email" id="quote-email" name="email" autocomplete="email" spellcheck="false" autocapitalize="none" placeholder="ejemplo@correo.com"></div>
-                <div class="form-group"><label for="quote-tel">Teléfono de Contacto *</label><input type="tel" id="quote-tel" name="tel" autocomplete="tel" placeholder="(81) 0000-0000"></div>
+            <div class="cotizar">
+                <h2>Cotiza tu pieza a la medida</h2>
+                <p class="cotizar-intro">Pon las medidas y el material, y ve el precio estimado al momento.</p>
 
-                <h3 style="border-top: 1px solid var(--form-border); padding-top: 25px; margin-top: 30px;">Especificaciones de la Pieza</h3>
-
-                <div class="name-grid">
-                    <div class="form-group" style="margin-bottom: 0;"><label for="quote-largo">Largo (mm) *</label><input type="number" id="quote-largo" name="largo-mm" autocomplete="off" min="10" max="20000" step="1" placeholder="Ej: 1670"></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label for="quote-alto">Alto (mm) *</label><input type="number" id="quote-alto" name="alto-mm" autocomplete="off" min="10" max="20000" step="1" placeholder="Ej: 1240"></div>
-                </div>
-                <div class="form-group" style="margin-top: 20px;"><label for="quote-prof">Profundidad (mm) — opcional</label><input type="number" id="quote-prof" name="profundidad-mm" autocomplete="off" min="10" max="5000" step="1" placeholder="Déjalo vacío si la pieza es plana"></div>
-
-                <div class="name-grid">
-                    <div class="form-group" style="margin-bottom: 0;"><label for="quote-material">Material *</label>
-                        <select id="quote-material">
-                            <option value="">Selecciona…</option>
-                            <option value="acero">Acero</option>
-                            <option value="hierro_forjado">Hierro Forjado</option>
-                            <option value="aluminio">Aluminio</option>
-                        </select>
+                <!-- Primero la pieza: es lo que la persona viene a preguntar
+                     (cuánto cuesta). Sus datos van al final, para enviarle la
+                     cotización. -->
+                <div class="form-container">
+                    <h3 class="cotizar-paso">1. Tu pieza</h3>
+                    <div class="medidas-grid">
+                        <div class="form-group"><label for="quote-largo">Largo (mm) *</label><input type="number" id="quote-largo" name="largo-mm" autocomplete="off" min="10" max="20000" step="1" placeholder="Ej: 1670"></div>
+                        <div class="form-group"><label for="quote-alto">Alto (mm) *</label><input type="number" id="quote-alto" name="alto-mm" autocomplete="off" min="10" max="20000" step="1" placeholder="Ej: 1240"></div>
+                        <div class="form-group"><label for="quote-prof">Profundidad (mm), opcional</label><input type="number" id="quote-prof" name="profundidad-mm" autocomplete="off" min="10" max="5000" step="1" placeholder="Vacío si es plana"></div>
                     </div>
-                    <div class="form-group" style="margin-bottom: 0;"><label for="quote-acabado">Acabado *</label>
-                        <select id="quote-acabado">
-                            <option value="">Selecciona…</option>
-                            <option value="pintura_electrostatica">Pintura Electrostática</option>
-                            <option value="pavonado">Pavonado</option>
-                            <option value="cromado">Cromado</option>
-                        </select>
+                    <div class="name-grid">
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-material">Material *</label>
+                            <select id="quote-material">
+                                <option value="">Selecciona…</option>
+                                <option value="acero">Acero</option>
+                                <option value="hierro_forjado">Hierro Forjado</option>
+                                <option value="aluminio">Aluminio</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-acabado">Acabado *</label>
+                            <select id="quote-acabado">
+                                <option value="">Selecciona…</option>
+                                <option value="pintura_electrostatica">Pintura Electrostática</option>
+                                <option value="pavonado">Pavonado</option>
+                                <option value="cromado">Cromado</option>
+                            </select>
+                        </div>
                     </div>
+                    <div class="form-group" style="margin-top: 20px; margin-bottom: 0;"><label for="quote-specs">Notas Adicionales (Opcional)</label><textarea id="quote-specs" rows="3" placeholder="Diseño de arquitecto, color específico, detalles de instalación…"></textarea></div>
                 </div>
 
-                <div class="form-group" style="margin-top: 20px;"><label for="quote-specs">Notas Adicionales (Opcional)</label><textarea id="quote-specs" rows="4" placeholder="Diseño de arquitecto, color específico, detalles de instalación…"></textarea></div>
-
-                <button class="btn-secundario" onclick="calcularCotizacion()">Calcular Cotización</button>
-
-                <div id="quote-estimate" style="display:none; margin-top: 20px; padding: 20px; border: 1px solid var(--form-border); border-radius: 8px; background: var(--input-bg);">
-                    <div style="font-size: 0.9rem; color: var(--text-label);">Estimado aproximado</div>
-                    <div id="quote-estimate-amount" style="font-size: 2rem; font-weight: bold; color: var(--primary); margin: 5px 0;"></div>
-                    <div id="quote-estimate-detail" style="font-size: 0.85rem; color: var(--text-label);"></div>
-                    <p style="font-size: 0.8rem; color: var(--text-label); margin: 12px 0 0 0; line-height: 1.5;">
+                <!-- El estimado se calcula solo en cuanto la pieza está completa.
+                     Sin pieza completa no se muestra nada. -->
+                <section id="quote-estimate" class="estimado" aria-live="polite" hidden>
+                    <div class="estimado-titulo">Precio estimado</div>
+                    <div id="quote-estimate-amount" class="estimado-monto"></div>
+                    <div id="quote-estimate-detail" class="estimado-detalle"></div>
+                    <p class="estimado-aviso">
                         Este monto es <strong>aproximado y no constituye una cotización en firme</strong>.
                         Se calcula sobre medidas, material y acabado; el precio final depende del diseño,
                         la instalación y la revisión de nuestro equipo.
                     </p>
-                </div>
+                    <div id="contacto-cotizacion" class="contacto-lista" hidden></div>
+                </section>
 
-                <button class="action-btn" style="margin-top: 20px;" onclick="enviarCotizacionBD()">Solicitar Cotización</button>
+                <div class="form-container">
+                    <h3 class="cotizar-paso">2. ¿A dónde te enviamos la cotización?</h3>
+                    <div class="name-grid">
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-n1">Primer Nombre *</label><input type="text" id="quote-n1" name="given-name" autocomplete="given-name" placeholder="Ej: Juan" required></div>
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-n2">Segundo Nombre (Opcional)</label><input type="text" id="quote-n2" name="additional-name" autocomplete="additional-name" placeholder="Ej: Carlos"></div>
+                    </div>
+                    <div class="name-grid">
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-p">Apellido Paterno *</label><input type="text" id="quote-p" name="family-name" autocomplete="family-name" placeholder="Ej: Garza" required></div>
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-m">Apellido Materno *</label><input type="text" id="quote-m" name="apellido-materno" autocomplete="off" placeholder="Ej: Treviño" required></div>
+                    </div>
+                    <div class="name-grid">
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-email">Correo Electrónico *</label><input type="email" id="quote-email" name="email" autocomplete="email" spellcheck="false" autocapitalize="none" placeholder="ejemplo@correo.com"></div>
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-tel">Teléfono de Contacto *</label><input type="tel" id="quote-tel" name="tel" autocomplete="tel" placeholder="(81) 0000-0000"></div>
+                    </div>
+                    <button class="action-btn" style="margin-top: 8px;" onclick="enviarCotizacionBD()">Solicitar Cotización</button>
+                </div>
             </div>
         </section>
 
@@ -316,6 +353,14 @@
         </section>
     </main>
 
+    <footer class="pie">
+        <div class="contacto-lista">
+            <span>HEPSA · Herrería fina</span>
+            <span id="contacto-pie" class="contacto-lista"></span>
+        </div>
+        <a href="admin.html" id="btn-admin">Portal de empleados</a>
+    </footer>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script src="auth-mfa.js"></script>
@@ -351,6 +396,46 @@
 
         // ─── SUPABASE ───────────────────────────────────────────────────────
         const { supabaseUrl, supabaseKey } = window.HEPSA_CONFIG;
+
+        // ─── CONTACTO ───────────────────────────────────────────────────────
+        // Viene de config.js. Cada dato aparece solo si está configurado: sin
+        // teléfono no hay botón de llamar, en vez de uno que no lleva a nada.
+        function pintarContacto() {
+            const c = window.HEPSA_CONFIG.contacto || {};
+            const tel = String(c.telefono || '').trim();
+            const digitos = tel.replace(/\D/g, '');
+            const wa = String(c.whatsapp || '').replace(/\D/g, '');
+            const dir = String(c.direccion || '').trim();
+            const enlace = (texto, href) => {
+                const a = document.createElement('a');
+                a.href = href; a.textContent = texto;
+                if (href.startsWith('https:')) { a.target = '_blank'; a.rel = 'noopener'; }
+                return a;
+            };
+
+            if (digitos) {
+                const encabezado = document.getElementById('contacto-encabezado');
+                encabezado.href = `tel:${digitos}`;
+                encabezado.textContent = tel;
+                encabezado.setAttribute('aria-label', `Llamar a HEPSA al ${tel}`);
+                encabezado.hidden = false;
+            }
+
+            const enCotizacion = [digitos && enlace(`Llama al ${tel}`, `tel:${digitos}`),
+                                  wa && enlace('Escríbenos por WhatsApp', `https://wa.me/${wa}`)].filter(Boolean);
+            if (enCotizacion.length) {
+                const caja = document.getElementById('contacto-cotizacion');
+                const intro = document.createElement('span');
+                intro.textContent = '¿Dudas sobre la pieza?';
+                caja.replaceChildren(intro, ...enCotizacion);
+                caja.hidden = false;
+            }
+
+            const direccion = dir && Object.assign(document.createElement('span'), { textContent: dir });
+            document.getElementById('contacto-pie').replaceChildren(...[digitos && enlace(tel, `tel:${digitos}`),
+                wa && enlace('WhatsApp', `https://wa.me/${wa}`), direccion].filter(Boolean));
+        }
+        pintarContacto();
         if (window.supabase) {
             window.supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
             window.supabaseClient.auth.onAuthStateChange((event, session) => {
@@ -797,14 +882,12 @@
 
             grid.innerHTML = data.map((p) => `
                     <div class="product-card">
-                        <div class="card-img${urlImagenSegura(p.image_url) ? '' : ' sin-foto'}" data-img-id="${p.id}">
-                            ${urlImagenSegura(p.image_url) ? '' : 'Sin foto'}
-                        </div>
+                        ${urlImagenSegura(p.image_url) ? `<div class="card-img" data-img-id="${p.id}"></div>` : ''}
                         <div class="card-body">
                             <h3 class="product-title">${esc(p.name)}</h3>
-                            <span class="price">$${p.price.toLocaleString('es-MX')} MXN</span>
+                            <span class="price">$${p.price.toLocaleString('es-MX')} <span class="price-moneda">MXN</span></span>
+                            <p class="nota-existencias" data-stock-nota="${p.id}"></p>
                             <button class="action-btn" data-add-id="${p.id}">Añadir al Carrito</button>
-                            <p data-stock-nota="${p.id}" style="margin:8px 0 0; font-size:.8rem; color:var(--text-muted); min-height:1em;"></p>
                         </div>
                     </div>`).join('');
 
@@ -829,7 +912,9 @@
         // ─── COTIZACIÓN ─────────────────────────────────────────────────────
         // Lee y valida la pieza. Devuelve null y avisa si algo falta o no cuadra,
         // para que el cliente no descubra el error hasta después de enviar.
-        function leerPieza() {
+        // Devuelve { pieza } si está completa y es válida, { error } si algo está
+        // fuera de rango, o { incompleta: true } si aún faltan datos.
+        function validarPieza() {
             const largo = parseInt(document.getElementById('quote-largo').value, 10);
             const alto = parseInt(document.getElementById('quote-alto').value, 10);
             const profTexto = document.getElementById('quote-prof').value.trim();
@@ -837,37 +922,70 @@
             const material = document.getElementById('quote-material').value;
             const acabado = document.getElementById('quote-acabado').value;
 
-            if (!largo || !alto) { alert("Indica el largo y el alto en milímetros."); return null; }
+            if (!largo || !alto) return { incompleta: true, error: "Indica el largo y el alto en milímetros." };
             // Mismos límites que los CHECK de la base: mejor avisar aquí que
             // dejar que el servidor devuelva un error de restricción.
             if (largo < 10 || largo > 20000 || alto < 10 || alto > 20000) {
-                alert("Largo y alto deben estar entre 10 mm y 20,000 mm (20 m).\n¿Los capturaste en metros por error?"); return null;
+                return { error: "Largo y alto deben estar entre 10 mm y 20,000 mm (20 m). ¿Los capturaste en metros por error?" };
             }
             if (prof !== null && (isNaN(prof) || prof < 10 || prof > 5000)) {
-                alert("La profundidad debe estar entre 10 mm y 5,000 mm, o dejarse vacía."); return null;
+                return { error: "La profundidad debe estar entre 10 mm y 5,000 mm, o dejarse vacía." };
             }
-            if (!material || !acabado) { alert("Selecciona el material y el acabado."); return null; }
-            return { largo_mm: largo, alto_mm: alto, profundidad_mm: prof, material, acabado };
+            if (!material || !acabado) return { incompleta: true, error: "Selecciona el material y el acabado." };
+            return { pieza: { largo_mm: largo, alto_mm: alto, profundidad_mm: prof, material, acabado } };
+        }
+
+        function leerPieza() {
+            const r = validarPieza();
+            if (r.error) { alert(r.error); return null; }
+            return r.pieza;
         }
 
         // El precio lo calcula la base, no el navegador: si viviera aquí,
         // cualquiera podría alterarlo desde la consola.
+        // El estimado se calcula solo mientras la persona llena la pieza: antes
+        // había que pulsar "Calcular", y era fácil no verlo. Cada cálculo lleva
+        // un número; si llega uno viejo después de uno nuevo, se descarta.
+        let calculoVigente = 0;
+        let temporizadorEstimado = null;
+
+        function mostrarEstimado(monto, detalle, esError) {
+            const caja = document.getElementById('quote-estimate');
+            const cifra = document.getElementById('quote-estimate-amount');
+            cifra.textContent = monto;
+            cifra.classList.toggle('con-error', Boolean(esError));
+            document.getElementById('quote-estimate-detail').textContent = detalle;
+            caja.hidden = false;
+        }
+
         async function calcularCotizacion() {
-            const pieza = leerPieza();
-            if (!pieza) return;
+            const turno = ++calculoVigente;
+            const r = validarPieza();
+            const caja = document.getElementById('quote-estimate');
+            if (r.incompleta) { caja.hidden = true; return; }
+            if (r.error) return mostrarEstimado(r.error, '', true);
+
+            const pieza = r.pieza;
             const { data, error } = await window.supabaseClient.rpc('calcular_precio', {
                 p_largo_mm: pieza.largo_mm, p_alto_mm: pieza.alto_mm,
                 p_material: pieza.material, p_acabado: pieza.acabado
             });
-            if (error) return alert("No se pudo calcular: " + error.message);
-            if (data === null) return alert("No hay tarifa para esa combinación.");
+            if (turno !== calculoVigente) return;
+            if (error) return mostrarEstimado('No se pudo calcular el estimado. Intenta de nuevo en un momento.', '', true);
+            if (data === null) return mostrarEstimado('No hay tarifa para esa combinación de material y acabado.', '', true);
 
             const area = (pieza.largo_mm * pieza.alto_mm) / 1000000;
-            document.getElementById('quote-estimate-amount').innerText =
-                Number(data).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
-            document.getElementById('quote-estimate-detail').innerText =
-                `${area.toFixed(2)} m² · ${pieza.material.replace(/_/g, ' ')} · ${pieza.acabado.replace(/_/g, ' ')}`;
-            document.getElementById('quote-estimate').style.display = 'block';
+            mostrarEstimado(
+                Number(data).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }),
+                `${pieza.largo_mm} × ${pieza.alto_mm} mm (${area.toFixed(2)} m²) · ${pieza.material.replace(/_/g, ' ')} · ${pieza.acabado.replace(/_/g, ' ')}`,
+                false);
+        }
+
+        for (const id of ['quote-largo', 'quote-alto', 'quote-prof', 'quote-material', 'quote-acabado']) {
+            document.getElementById(id).addEventListener('input', () => {
+                clearTimeout(temporizadorEstimado);
+                temporizadorEstimado = setTimeout(calcularCotizacion, 350);
+            });
         }
 
         async function enviarCotizacionBD() {
@@ -892,7 +1010,7 @@
                 alert("Solicitud enviada. En breve nos comunicaremos contigo.");
                 document.querySelectorAll('#view-quote input, #view-quote textarea').forEach(i => i.value = '');
                 document.querySelectorAll('#view-quote select').forEach(s => s.value = '');
-                document.getElementById('quote-estimate').style.display = 'none';
+                document.getElementById('quote-estimate').hidden = true;
             }
         }
 
