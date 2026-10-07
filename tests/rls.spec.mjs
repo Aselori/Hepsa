@@ -461,11 +461,22 @@ try {
       recuperado.length === 2 && recuperado.find((l) => l.id === 5)?.qty === 2,
       JSON.stringify(recuperado));
 
-    // Limpieza.
+    // Limpieza, que ademas es una prueba: el dispositivo B solo LEYO el
+    // carrito, asi que no debe volver a escribirlo. Antes cada carga lo
+    // reescribia 300 ms despues; si el borrado llegaba antes, el carrito
+    // reaparecia y el bloque siguiente arrancaba con piezas de mas (o, en el
+    // sitio, un pedido ya confirmado volvia como carrito). Se espera mas que
+    // ese plazo con la pagina abierta para que la escritura, si existe, ocurra.
     await pageB.evaluate(async () => {
       await window.supabaseClient.from('carrito_items').delete().eq('user_id', usuarioActual);
       localStorage.removeItem('hepsa_cart');
     });
+    await pageB.waitForTimeout(1000);
+    const resucitado = await pageB.evaluate(async () => {
+      const { data } = await window.supabaseClient.from('carrito_items').select('product_id');
+      return data?.length ?? -1;
+    });
+    check('cargar el carrito no lo vuelve a escribir en la cuenta', resucitado === 0, `filas=${resucitado}`);
     await ctxB.close();
 
     // El carrito de un cliente es privado incluso para el staff.
