@@ -25,44 +25,51 @@
     font-display: swap;
 }
 
-/* ─── Tema claro (opción A, acabado mate) ────────────────────────────────── */
+/* ─── Paleta ───────────────────────────────────────────────────────────────
+   Tinta y acero: grises frios y una sola tinta casi negra para las acciones.
+   El dorado de HEPSA vive en el logo y en ningun otro lado; repartido en
+   botones, subrayados y etiquetas, todo competia por la atencion y el sitio
+   se veia como una plantilla. Cada pantalla tiene UN boton solido, el de su
+   accion principal; lo demas es neutro. */
 :root {
-    /* El dorado se separa en dos. --oro es el relleno de botones y acentos. Como
-       COLOR DE TEXTO sobre blanco tendría un contraste de 2.3:1, ilegible, así
-       que --primary, que las páginas usan sobre todo como color de texto y de
-       borde, es un dorado más oscuro que sí se lee. */
-    --oro: #C9A227;
-    --sobre-oro: #1D1F22;
-    --primary: #8A6D12;
+    --accion: #17191C;          /* boton principal */
+    --accion-hover: #33373C;
+    --sobre-accion: #FFFFFF;
 
-    --bg-color: #FBFAF8;
+    /* --primary sigue existiendo porque lo usan estilos en linea de las
+       paginas (titulos, enlaces, importes). Ahora es la tinta del texto, no
+       un color de acento. */
+    --primary: var(--text-main);
+    --oro: #C9A227;             /* solo para el logo */
+
+    --bg-color: #F5F6F7;
     --card-bg: #FFFFFF;
     --header-bg: #FFFFFF;
     --sidebar-bg: #FFFFFF;
     --form-bg: #FFFFFF;
     --input-bg: #FFFFFF;
-    --table-header-bg: #F6F4EF;
-    --table-row-hover: #FAF8F3;
-    --activo-bg: #F4EFDF;
+    --table-header-bg: #F3F4F5;
+    --table-row-hover: #F7F8F9;
+    --activo-bg: #ECEEF0;
 
-    --text-main: #1D1F22;
-    --text-muted: #686C72;
-    --text-label: #3A3D41;
-    --input-text: #1D1F22;
+    --text-main: #17191C;
+    --text-muted: #5E646B;
+    --text-label: #33373C;
+    --input-text: #17191C;
 
-    --card-border: #E6E4DF;
-    --form-border: #E6E4DF;
-    --input-border: #D3D0C9;
-    --secondary: #D3D0C9;
+    --card-border: #E1E4E7;
+    --form-border: #E1E4E7;
+    --input-border: #CDD1D5;
+    --secondary: #CDD1D5;
 
     --ok: #1F6B3A;       --ok-bg: #DCEFE2;
-    --aviso: #7A5200;    --aviso-bg: #FBEFD5;
+    --aviso: #8A5A00;    --aviso-bg: #FBEFD5;
     --peligro: #B3261E;  --peligro-bg: #F9DEDC;
     --info: #1F4E79;     --info-bg: #DCE8F4;
 
     /* Vestigios del diseño anterior, neutralizados: otras reglas aún los
        nombran y así dejan de pintar degradados, patrones y sombras. */
-    --primary-gradient: var(--oro);
+    --primary-gradient: var(--accion);
     --bg-gradient: none;
     --pattern: none;
 
@@ -71,21 +78,21 @@
     color-scheme: light;
 }
 
-/* ─── Tema oscuro (opción B, taller oscuro) ──────────────────────────────── */
 :root[data-tema="oscuro"] {
+    --accion: #ECEDEE;
+    --accion-hover: #FFFFFF;
+    --sobre-accion: #111315;
     --oro: #D4AF37;
-    --sobre-oro: #121417;
-    --primary: #E2C35A;
 
-    --bg-color: #121417;
-    --card-bg: #1A1D21;
-    --header-bg: #0D0F11;
-    --sidebar-bg: #0D0F11;
-    --form-bg: #1A1D21;
-    --input-bg: #15181B;
-    --table-header-bg: #1F2226;
-    --table-row-hover: #1D2024;
-    --activo-bg: #23262B;
+    --bg-color: #111315;
+    --card-bg: #181A1D;
+    --header-bg: #0E1012;
+    --sidebar-bg: #0E1012;
+    --form-bg: #181A1D;
+    --input-bg: #141619;
+    --table-header-bg: #1E2124;
+    --table-row-hover: #1C1F22;
+    --activo-bg: #24282C;
 
     --text-main: #ECEDEE;
     --text-muted: #9AA0A6;
@@ -117,7 +124,7 @@ body {
 h1, h2, h3 { text-wrap: balance; letter-spacing: -0.01em; }
 h2 { font-size: 1.6rem; font-weight: 700; margin: 0 0 1.5rem; border: none; padding: 0; }
 
-:focus-visible { outline: 2px solid var(--oro); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--text-main); outline-offset: 2px; }
 
 /* Un logo por tema: el SVG claro sobre fondo claro y el oscuro sobre fondo
    oscuro. El que no corresponde se oculta, y por eso tampoco se anuncia. */
@@ -126,8 +133,8 @@ h2 { font-size: 1.6rem; font-weight: 700; margin: 0 0 1.5rem; border: none; padd
 
 /* ─── Botones ────────────────────────────────────────────────────────────── */
 button.action-btn {
-    background: var(--oro);
-    color: var(--sobre-oro);
+    background: var(--accion);
+    color: var(--sobre-accion);
     border: none;
     border-radius: var(--radio);
     padding: 12px 20px;
@@ -137,9 +144,24 @@ button.action-btn {
     cursor: pointer;
     width: 100%;
     text-transform: none;
-    transition: filter 0.15s ease;
+    transition: background 0.15s ease;
 }
-button.action-btn:hover:not(:disabled) { filter: brightness(1.06); }
+button.action-btn:hover:not(:disabled) { background: var(--accion-hover); }
+/* Boton secundario: mismo tamaño que el principal, sin relleno. */
+button.btn-secundario {
+    background: transparent;
+    color: var(--text-main);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radio);
+    padding: 12px 20px;
+    font: inherit;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    width: 100%;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+button.btn-secundario:hover:not(:disabled) { border-color: var(--text-main); }
 button.action-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ─── Formularios ────────────────────────────────────────────────────────── */
@@ -156,22 +178,25 @@ input, select, textarea {
     font-size: 1rem;
     transition: border-color 0.15s ease;
 }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--oro); box-shadow: 0 0 0 3px color-mix(in srgb, var(--oro) 22%, transparent); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--text-main); box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-main) 12%, transparent); }
 input:read-only { background: var(--table-header-bg); color: var(--text-muted); cursor: not-allowed; }
 
 /* ─── Tablas ─────────────────────────────────────────────────────────────── */
 .table-container { width: 100%; overflow-x: auto; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); }
 table { width: 100%; border-collapse: collapse; color: var(--text-main); }
 th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--card-border); }
-th { background: var(--table-header-bg); color: var(--text-muted); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+th { background: var(--table-header-bg); color: var(--text-muted); font-weight: 600; font-size: 0.85rem; white-space: nowrap; }
 tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--table-row-hover); }
 
-/* ─── Etiquetas de estado ────────────────────────────────────────────────── */
-.status-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; text-transform: none; border: none; }
-.status-completo, .status-ok { background: var(--ok-bg); color: var(--ok); }
-.status-anticipo, .status-produccion, .status-aviso { background: var(--aviso-bg); color: var(--aviso); }
-.status-faltante, .status-peligro { background: var(--peligro-bg); color: var(--peligro); }
+/* ─── Etiquetas de estado ──────────────────────────────────────────────────
+   Un punto de color y el texto en tinta normal: el estado se distingue sin
+   llenar la tabla de pastillas de colores. */
+.status-badge { display: inline-flex; align-items: center; gap: 7px; padding: 0; background: none; border: none; color: var(--text-main); font-size: 0.9rem; font-weight: 500; text-transform: none; white-space: nowrap; --estado: var(--text-muted); }
+.status-badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--estado); flex-shrink: 0; }
+.status-completo, .status-ok { --estado: var(--ok); }
+.status-anticipo, .status-produccion, .status-aviso { --estado: var(--aviso); }
+.status-faltante, .status-peligro { --estado: var(--peligro); }
 
 /* ─── Avisos ─────────────────────────────────────────────────────────────── */
 #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: min(90vw, 380px); }
@@ -179,7 +204,6 @@ tbody tr:hover { background: var(--table-row-hover); }
     background: var(--card-bg);
     color: var(--text-main);
     border: 1px solid var(--card-border);
-    border-left: 4px solid var(--text-muted);
     padding: 12px 16px;
     border-radius: var(--radio);
     display: flex;
@@ -191,9 +215,9 @@ tbody tr:hover { background: var(--table-row-hover); }
     transform: translateX(120%);
     animation: hepsa-entrar 0.25s forwards;
 }
-.toast.info { border-left-color: var(--oro); }
-.toast.success { border-left-color: var(--ok); }
-.toast.error { border-left-color: var(--peligro); }
+.toast::before { content: ""; width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; }
+.toast.success::before { background: var(--ok); }
+.toast.error::before { background: var(--peligro); }
 .toast.fade-out { animation: hepsa-salir 0.3s forwards; }
 @keyframes hepsa-entrar { to { transform: translateX(0); } }
 @keyframes hepsa-salir { to { opacity: 0; transform: translateX(120%); } }
