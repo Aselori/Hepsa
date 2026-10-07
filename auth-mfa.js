@@ -150,7 +150,7 @@ async function verificarSegundoFactor() {
     estadoMfa(true);
     const btn = document.getElementById('mfa-btn');
     const etiqueta = btn.textContent;
-    btn.textContent = 'Verificando...';
+    btn.textContent = 'Verificando…';
     try {
         const { error } = await window.supabaseClient.auth.mfa.challengeAndVerify({ factorId: mfaFactorId, code: codigo });
         if (error) {

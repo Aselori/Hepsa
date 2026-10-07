@@ -16,7 +16,8 @@ No expone tests/.env.local ni respaldos. El navegador bloquea conexiones externa
 Cubre renderizado seguro y acciones del panel, y ocho escenarios de MFA con SDK
 simulado: errores de rol/AAL/lista, alta interrumpida, factor alternativo,
 doble envio, codigo incorrecto, red, cancelacion y exito. Tambien mide el portal
-y el panel en telefono y tablet, y el carrito lateral: nada se sale de la pantalla y cada boton clave
+y el panel en telefono y tablet, el carrito lateral y pautas de accesibilidad
+(etiquetas, avisos, formato de precios): nada se sale de la pantalla y cada boton clave
 recibe el toque. Esto no prueba RLS.
 
 ## Integracion real con Supabase local
