@@ -64,8 +64,8 @@
 
 - 2026-09-11: se reparó el acceso de Codex a Supabase, Vercel y Resend y se
   verificó con llamadas de solo lectura. No se envió correo ni se cambió nada.
-- 2026-10-05: el MCP de Supabase de Claude Code apunta al proyecto hospedado,
-  pero ese proyecto no responde (ver la entrada URGENTE de abajo).
+- El MCP de Supabase de Claude Code apunta al proyecto hospedado (estuvo
+  pausado del 2026-10-05 al 2026-10-07; ya responde).
 
 ## Sesion 2026-09-27: checkpoint en git (resumido)
 
@@ -139,22 +139,14 @@ mensajes de commit y en el PR #9.
 4. F09 fusionado (PR #10, main bf81880): script probado 14/14 y documento
    corregido. Faltan decisiones de negocio: quién verifica identidad y cómo,
    quién autoriza, dónde se guarda el registro de auditoría.
-- Rediseño sutil (pedido 2026-10-05; opciones en
-  https://claude.ai/artifact/Q8FKabEfuvvEwVkLeJHu71). Decisiones del usuario:
-  A = tema claro y B = tema oscuro de un solo diseño, Archivo servida desde el
-  sitio, tema inicial según el sistema y luego el elegido, esquinas de 6 px.
-  HECHO en feature/rediseno-sutil, sin push: logo destilado (097af2c), portal
-  (2336469) y panel (8c61d5d). Verificado: npm test y npm run test:local
-  completos, capturas Playwright del panel en los dos temas. Diseño del panel
-  para teléfono y tablet (825a6d3), pedido por el usuario antes del PR; lo cubre
-  tests/panel-movil.spec.mjs. 2026-10-07: el usuario dijo que el diseño se veía
-  "demasiado IA" por los acentos; paleta tinta y acero, dorado solo en el logo
-  (pendiente su visto bueno en la demo). Carrito rediseñado (tests/carrito.spec)
-  y arreglada la reescritura del carrito al cargar (2bbf33e). Siguiente: visto
-  bueno del usuario, luego push y PR.
-- 2026-10-05, URGENTE: el proyecto Supabase hospedado está caído. El dominio
-  qmyrosmuqfabaedzydsa.supabase.co no resuelve y la API de gestión da timeout
-  de conexión. Casi seguro pausado por inactividad (plan Free, 7 días); no
-  confirmado en el tablero. Se restaura con "Resume project" hasta 90 días
-  después de la pausa. hepsa.vercel.app carga, pero sin catálogo, acceso ni
-  cotizaciones. Lo restaura el dueño del proyecto, no el agente.
+- Rediseño sutil FUSIONADO y publicado (PR #11, main c0661c3, 2026-10-07):
+  tema claro y oscuro en assets/tema.css, paleta tinta y acero (dorado solo en
+  el logo, a pedido del usuario: "demasiado IA"), Archivo servida desde el
+  sitio, panel para teléfono, carrito rediseñado y arreglo de la reescritura
+  del carrito al cargar. Verificado en hepsa.vercel.app con Playwright.
+- 2026-10-07: el proyecto Supabase hospedado volvió (el usuario lo reanudó);
+  la API responde 200.
+- 2026-10-07: el sitio publicaba scripts/, .github/, .mcp.json, .vscode/ y
+  skills-lock.json. .vercelignore pasa a lista de lo que SÍ se publica (rama
+  chore/publicar-solo-el-sitio). Siguiente: revisar el diseño contra
+  ~/.claude/skills/web-design-guidelines (pedido del usuario).

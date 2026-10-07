@@ -1,26 +1,19 @@
-# El sitio es estatico y se sirve desde la raiz: todo lo que quede aqui
-# queda PUBLICO en la URL del despliegue. Solo debe publicarse el sitio.
+# El sitio es estatico y se sirve desde la raiz: todo lo que se suba queda
+# PUBLICO en la URL del despliegue.
+#
+# Por eso es una lista de lo que SI se publica, no de lo que se oculta. Con
+# la lista anterior, de exclusiones, cada carpeta nueva quedaba publica sin
+# que nadie lo decidiera: asi se publicaron scripts/ (el procedimiento de
+# recuperacion del segundo factor), .github/, .mcp.json y .vscode/.
+#
+# Si el sitio necesita un archivo nuevo en la raiz, se agrega aqui.
 
-# Esquema y semillas de la base. No son secretos, pero regalan el mapa
-# completo de tablas y politicas a cualquiera que pruebe /supabase/...
-supabase/
+# Ignorar todo lo que esta en la raiz...
+/*
 
-# Pruebas: incluyen los correos de las cuentas de prueba.
-tests/
-
-# Documentacion interna del equipo.
-docs/
-
-# Higiene
-.git/
-node_modules/
-*.md
-!README.md
-
-# Respaldos de base y material de trabajo. Contienen datos reales de
-# clientes y hashes de contrasenas: jamas deben publicarse.
-attachments/
-
-# Herramientas locales del agente.
-.agents/
-.claude/
+# ...menos el sitio.
+!index.html
+!admin.html
+!auth-mfa.js
+!config.js
+!assets/
