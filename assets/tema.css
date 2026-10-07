@@ -126,6 +126,9 @@ h2 { font-size: 1.6rem; font-weight: 700; margin: 0 0 1.5rem; border: none; padd
 
 :focus-visible { outline: 2px solid var(--text-main); outline-offset: 2px; }
 
+/* El atributo hidden oculta siempre, aunque el componente declare su display. */
+[hidden] { display: none !important; }
+
 /* Un logo por tema: el SVG claro sobre fondo claro y el oscuro sobre fondo
    oscuro. El que no corresponde se oculta, y por eso tampoco se anuncia. */
 :root[data-tema="oscuro"] .solo-tema-claro,
