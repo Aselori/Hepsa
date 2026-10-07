@@ -147,7 +147,11 @@ mensajes de commit y en el PR #9.
   (2336469) y panel (8c61d5d). Verificado: npm test y npm run test:local
   completos, capturas Playwright del panel en los dos temas. Diseño del panel
   para teléfono y tablet (825a6d3), pedido por el usuario antes del PR; lo cubre
-  tests/panel-movil.spec.mjs (44/44). Siguiente: pedir permiso para push y PR.
+  tests/panel-movil.spec.mjs. 2026-10-07: el usuario dijo que el diseño se veía
+  "demasiado IA" por los acentos; paleta tinta y acero, dorado solo en el logo
+  (pendiente su visto bueno en la demo). Carrito rediseñado (tests/carrito.spec)
+  y arreglada la reescritura del carrito al cargar (2bbf33e). Siguiente: visto
+  bueno del usuario, luego push y PR.
 - 2026-10-05, URGENTE: el proyecto Supabase hospedado está caído. El dominio
   qmyrosmuqfabaedzydsa.supabase.co no resuelve y la API de gestión da timeout
   de conexión. Casi seguro pausado por inactividad (plan Free, 7 días); no
