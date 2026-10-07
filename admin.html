@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HEPSA ERP - Panel de Administración</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <meta name="theme-color" content="#FFFFFF">
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
     <link rel="preload" href="assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="assets/tema.css">
@@ -19,6 +20,12 @@
                 t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             }
             document.documentElement.dataset.tema = t === 'dark' ? 'oscuro' : 'claro';
+            // La barra del navegador del telefono toma el color del encabezado.
+            window.pintarColorNavegador = function () {
+                var meta = document.querySelector('meta[name="theme-color"]');
+                if (meta) meta.content = document.documentElement.dataset.tema === 'oscuro' ? '#0E1012' : '#FFFFFF';
+            };
+            window.pintarColorNavegador();
         })();
     </script>
     <style>
@@ -93,7 +100,7 @@
 
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 2000; align-items: center; justify-content: center; }
         .modal-overlay.open { display: flex; }
-        .modal-box { box-sizing: border-box; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); padding: 28px; width: calc(100% - 32px); max-width: 520px; max-height: calc(100% - 32px); overflow-y: auto; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25); }
+        .modal-box { overscroll-behavior: contain; box-sizing: border-box; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); padding: 28px; width: calc(100% - 32px); max-width: 520px; max-height: calc(100% - 32px); overflow-y: auto; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25); }
         .modal-box h3 { margin-top: 0; border-bottom: 1px solid var(--card-border); padding-bottom: 14px; }
         .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
         .modal-actions button { flex: 1; }
@@ -138,18 +145,18 @@
     </style>
 </head>
 <body style="display:none;">
-    <div id="toast-container"></div>
+    <div id="toast-container" aria-live="polite"></div>
 
     <div class="modal-overlay" id="modal-edit-product">
         <div class="modal-box">
             <h3>Editar Producto</h3>
             <input type="hidden" id="edit-prod-id">
-            <div class="form-group"><label>Nombre *</label><input type="text" id="edit-prod-name"></div>
+            <div class="form-group"><label for="edit-prod-name">Nombre *</label><input type="text" id="edit-prod-name" autocomplete="off"></div>
             <div class="form-grid">
-                <div class="form-group"><label>Precio Base ($) *</label><input type="number" id="edit-prod-price"></div>
-                <div class="form-group"><label>Stock *</label><input type="number" id="edit-prod-stock"></div>
+                <div class="form-group"><label for="edit-prod-price">Precio Base ($) *</label><input type="number" id="edit-prod-price" autocomplete="off"></div>
+                <div class="form-group"><label for="edit-prod-stock">Stock *</label><input type="number" id="edit-prod-stock" autocomplete="off"></div>
             </div>
-            <div class="form-group"><label>Descripción</label><textarea id="edit-prod-desc" rows="3"></textarea></div>
+            <div class="form-group"><label for="edit-prod-desc">Descripción</label><textarea id="edit-prod-desc" rows="3" autocomplete="off"></textarea></div>
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="cerrarModalEdicion()">Cancelar</button>
                 <button class="action-btn" onclick="guardarEdicionProducto()">Guardar Cambios</button>
@@ -159,10 +166,10 @@
 
     <aside>
         <div class="sidebar-header">
-            <img src="assets/logo.svg" alt="HEPSA" class="logo-img solo-tema-claro">
-            <img src="assets/logo-dark.svg" alt="HEPSA" class="logo-img solo-tema-oscuro">
+            <img src="assets/logo.svg" width="306" height="100" alt="HEPSA" class="logo-img solo-tema-claro">
+            <img src="assets/logo-dark.svg" width="306" height="100" alt="HEPSA" class="logo-img solo-tema-oscuro">
             <p class="sidebar-titulo">Panel de administración</p>
-            <p id="user-role-display">Validando...</p>
+            <p id="user-role-display">Validando…</p>
         </div>
         <div class="sidebar-nav">
             <button onclick="showAdminView('pos')" id="nav-pos" class="active">Punto de Venta</button>
@@ -186,34 +193,34 @@
                     <div class="panel">
                         <h3 class="panel-titulo">1. Datos del Cliente</h3>
                         <div class="form-grid">
-                            <div class="form-group"><label>Primer Nombre *</label><input type="text" id="cli-nom1" oninput="updateTicketClient()"></div>
-                            <div class="form-group"><label>Segundo Nombre</label><input type="text" id="cli-nom2" oninput="updateTicketClient()"></div>
+                            <div class="form-group"><label for="cli-nom1">Primer Nombre *</label><input type="text" id="cli-nom1" oninput="updateTicketClient()" autocomplete="off"></div>
+                            <div class="form-group"><label for="cli-nom2">Segundo Nombre</label><input type="text" id="cli-nom2" oninput="updateTicketClient()" autocomplete="off"></div>
                         </div>
                         <div class="form-grid">
-                            <div class="form-group"><label>Apellido Paterno *</label><input type="text" id="cli-ap-pat" oninput="updateTicketClient()"></div>
-                            <div class="form-group"><label>Apellido Materno</label><input type="text" id="cli-ap-mat" oninput="updateTicketClient()"></div>
+                            <div class="form-group"><label for="cli-ap-pat">Apellido Paterno *</label><input type="text" id="cli-ap-pat" oninput="updateTicketClient()" autocomplete="off"></div>
+                            <div class="form-group"><label for="cli-ap-mat">Apellido Materno</label><input type="text" id="cli-ap-mat" oninput="updateTicketClient()" autocomplete="off"></div>
                         </div>
                         <div class="form-grid" style="margin-top: 10px;">
-                            <div class="form-group"><label>Teléfono</label><input type="tel" id="cli-tel" oninput="updateTicketClient()"></div>
-                            <div class="form-group"><label>Correo Electrónico</label><input type="email" id="cli-email" oninput="updateTicketClient()"></div>
+                            <div class="form-group"><label for="cli-tel">Teléfono</label><input type="tel" id="cli-tel" oninput="updateTicketClient()" autocomplete="off"></div>
+                            <div class="form-group"><label for="cli-email">Correo Electrónico</label><input type="email" id="cli-email" oninput="updateTicketClient()" autocomplete="off" spellcheck="false"></div>
                         </div>
                     </div>
                     <div class="panel">
                         <h3 class="panel-titulo">2. Conceptos e Inventario</h3>
-                        <div class="form-group"><label>Producto del Inventario</label><select id="pos-product-select" onchange="autoFillPrice()"><option value="">Selecciona un producto...</option></select></div>
+                        <div class="form-group"><label for="pos-product-select">Producto del Inventario</label><select id="pos-product-select" onchange="autoFillPrice()"><option value="">Selecciona un producto…</option></select></div>
                         <div class="form-grid fila-concepto">
-                            <div class="form-group" style="margin-bottom: 0;"><label>Concepto (Manual)</label><input type="text" id="ticket-item"></div>
-                            <div class="form-group" style="margin-bottom: 0;"><label>Precio Unit. ($)</label><input type="number" id="ticket-price"></div>
+                            <div class="form-group" style="margin-bottom: 0;"><label for="ticket-item">Concepto (Manual)</label><input type="text" id="ticket-item" autocomplete="off"></div>
+                            <div class="form-group" style="margin-bottom: 0;"><label for="ticket-price">Precio Unit. ($)</label><input type="number" id="ticket-price" autocomplete="off"></div>
                             <button class="btn-secundario" onclick="addToTicket()">+ Añadir</button>
                         </div>
                         <hr class="separador">
                         
                         <div class="form-group" style="margin-top: 15px;">
-                            <label>Notas / Descripción del Ticket</label>
-                            <textarea id="ticket-notes" rows="2" placeholder="Ej: Entregar por la tarde, color especial..."></textarea>
+                            <label for="ticket-notes">Notas / Descripción del Ticket</label>
+                            <textarea id="ticket-notes" rows="2" placeholder="Ej: Entregar por la tarde, color especial…" autocomplete="off"></textarea>
                         </div>
 
-                        <div class="form-group"><label>Estado de Venta *</label>
+                        <div class="form-group"><label for="payment-type">Estado de Venta *</label>
                             <select id="payment-type" onchange="updatePaymentStatus()">
                                 <option value="completo">Pago Completo (100%)</option>
                                 <option value="anticipo">Anticipo (50% aprox.)</option>
@@ -282,7 +289,7 @@
                             </tr>
                         </thead>
                         <tbody id="history-table-body">
-                            <tr><td colspan="10" style="text-align: center;">Cargando datos...</td></tr>
+                            <tr><td colspan="10" style="text-align: center;">Cargando datos…</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -295,13 +302,13 @@
                 <div class="panel">
                     <h3 class="panel-titulo">Agregar Producto</h3>
                     <div class="form-grid">
-                        <div class="form-group"><label>Nombre *</label><input type="text" id="cat-name"></div>
-                        <div class="form-group"><label>Precio Base *</label><input type="number" id="cat-price"></div>
+                        <div class="form-group"><label for="cat-name">Nombre *</label><input type="text" id="cat-name" autocomplete="off"></div>
+                        <div class="form-group"><label for="cat-price">Precio Base *</label><input type="number" id="cat-price" autocomplete="off"></div>
                     </div>
-                    <div class="form-group"><label>Descripción</label><textarea id="cat-desc" rows="3"></textarea></div>
+                    <div class="form-group"><label for="cat-desc">Descripción</label><textarea id="cat-desc" rows="3" autocomplete="off"></textarea></div>
                     <div class="form-grid">
-                        <div class="form-group"><label>Stock Inicial *</label><input type="number" id="cat-stock"></div>
-                        <div class="form-group"><label>Foto</label><input type="file" accept="image/*" id="cat-img"></div>
+                        <div class="form-group"><label for="cat-stock">Stock Inicial *</label><input type="number" id="cat-stock" autocomplete="off"></div>
+                        <div class="form-group"><label for="cat-img">Foto</label><input type="file" accept="image/*" id="cat-img"></div>
                     </div>
                     <div class="form-group">
                         <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
@@ -318,7 +325,7 @@
                                 <tr><th>Producto</th><th>Precio</th><th>Stock</th><th>Visible</th><th>Acciones</th></tr>
                             </thead>
                             <tbody id="inventory-table-body">
-                                <tr><td colspan="5">Cargando inventario...</td></tr>
+                                <tr><td colspan="5">Cargando inventario…</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -329,8 +336,8 @@
         <section id="view-config" class="view-section">
             <h2>Configuración</h2>
             <div class="panel" style="max-width: 600px;">
-                <div class="form-group"><label>IVA (%)</label><input type="number" id="cfg-iva" value="16"></div>
-                <div class="form-group"><label>Mensaje en Ticket / Footer</label><textarea id="cfg-msg" rows="3">Este documento ampara su pedido. Garantía HEPSA.</textarea></div>
+                <div class="form-group"><label for="cfg-iva">IVA (%)</label><input type="number" id="cfg-iva" value="16" autocomplete="off"></div>
+                <div class="form-group"><label for="cfg-msg">Mensaje en Ticket / Footer</label><textarea id="cfg-msg" rows="3" autocomplete="off">Este documento ampara su pedido. Garantía HEPSA.</textarea></div>
                 <button class="action-btn" onclick="saveConfig()">Aplicar Cambios</button>
             </div>
         </section>
@@ -344,7 +351,7 @@
                 <div class="table-container">
                     <table>
                         <thead><tr><th>Cliente</th><th>Contacto</th><th>Pieza</th><th>Estimado</th><th>Fecha</th><th>Estatus</th></tr></thead>
-                        <tbody id="projects-table-body"><tr><td colspan="6" style="text-align: center;">Cargando solicitudes...</td></tr></tbody>
+                        <tbody id="projects-table-body"><tr><td colspan="6" style="text-align: center;">Cargando solicitudes…</td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -360,7 +367,7 @@
                 <div class="table-container">
                     <table>
                         <thead><tr><th>Nombre Completo</th><th>Teléfono</th><th>Fecha Registro</th><th>Rol de Sistema</th></tr></thead>
-                        <tbody id="users-table-body"><tr><td colspan="4" style="text-align: center;">Cargando directorio...</td></tr></tbody>
+                        <tbody id="users-table-body"><tr><td colspan="4" style="text-align: center;">Cargando directorio…</td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -380,6 +387,7 @@
         function pintarBotonTema() {
             const btn = document.getElementById('theme-toggle');
             if (btn) btn.innerHTML = document.documentElement.dataset.tema === 'oscuro' ? ICONO_SOL : ICONO_LUNA;
+            window.pintarColorNavegador?.();
         }
         pintarBotonTema();
         window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', (e) => {
@@ -553,6 +561,7 @@
                 const remove = document.createElement('button');
                 remove.type = 'button';
                                 remove.textContent = '×';
+                remove.setAttribute('aria-label', `Quitar ${x.item} del ticket`);
                 remove.addEventListener('click', () => removeFromTicket(idx));
                 row.append(item, price, remove);
                 l.appendChild(row);
@@ -595,7 +604,7 @@
             if (posCart.length === 0) { showToast('Agrega al menos un concepto al ticket', 'error'); return; }
             
             const btn = document.getElementById('btn-registrar-venta');
-            btn.disabled = true; btn.textContent = 'Registrando...';
+            btn.disabled = true; btn.textContent = 'Registrando…';
 
             const iva = posSubtotal * configIVA;
             const total = posSubtotal + iva;
@@ -730,11 +739,11 @@
                         nameCell.appendChild(document.createElement('br'));
                         const description = document.createElement('small');
                         description.style.color = 'var(--text-muted)';
-                        description.textContent = `${String(p.description).substring(0, 40)}...`;
+                        description.textContent = `${String(p.description).substring(0, 40)}…`;
                         nameCell.appendChild(description);
                     }
                     const price = document.createElement('td');
-                    price.textContent = `$${parseFloat(p.price).toLocaleString()}`;
+                    price.textContent = `$${parseFloat(p.price).toLocaleString('es-MX')}`;
                     const stock = document.createElement('td');
                     stock.className = p.stock < 3 ? 'stock-low' : 'stock-ok';
                     stock.textContent = String(p.stock ?? '');
@@ -762,7 +771,7 @@
                 const select = document.getElementById('pos-product-select');
                 select.replaceChildren();
                 const placeholder = document.createElement('option');
-                placeholder.value = ''; placeholder.textContent = 'Seleccionar producto...';
+                placeholder.value = ''; placeholder.textContent = 'Seleccionar producto…';
                 select.appendChild(placeholder);
                 data.filter(p => p.is_active).forEach(p => {
                     const option = document.createElement('option');
@@ -782,7 +791,7 @@
             if (!name || isNaN(price) || isNaN(stock)) { showToast('Nombre, precio y stock son obligatorios', 'error'); return; }
 
             const btn = document.getElementById('btn-guardar-prod');
-            btn.disabled = true; btn.textContent = 'Guardando...';
+            btn.disabled = true; btn.textContent = 'Guardando…';
 
             let image_url = null;
             const fileInput = document.getElementById('cat-img');
@@ -854,7 +863,7 @@
 
         async function cargarHistorialBD() {
             const tbody = document.getElementById('history-table-body');
-            renderTableMessage(tbody, 10, 'Cargando...');
+            renderTableMessage(tbody, 10, 'Cargando…');
             const { data, error } = await window.supabaseClient.from('orders').select('*').order('created_at', { ascending: false });
             if (error) { renderTableMessage(tbody, 10, `Error: ${error.message}`, 'mensaje-error'); return; }
             if (!data || data.length === 0) { renderTableMessage(tbody, 10, 'No hay ventas registradas.'); return; }
