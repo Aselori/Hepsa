@@ -63,7 +63,7 @@ try {
     const ajenas = [...el.style].filter(prop => !prop.startsWith('background'));
     return { bg: el.style.backgroundImage, color: cs.color, ajenas,
              tieneUrl: el.style.backgroundImage.includes('url('),
-             sinFoto: el.textContent.includes('SIN FOTO') };
+             sinFoto: /sin foto/i.test(el.textContent) };
   }, id);
 
   const mala = await caja(1);
