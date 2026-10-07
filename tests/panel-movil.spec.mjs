@@ -155,6 +155,15 @@ try {
   });
   check('escritorio 1366px: la barra lateral sigue a la izquierda y a toda altura', escritorio.lateral);
   check('escritorio 1366px: el menu sigue en una columna', escritorio.columna);
+
+  // El ticket es papel blanco en los dos temas: su texto debe seguir oscuro
+  // aunque el panel este en oscuro, o la etiqueta de estado no se lee.
+  const tinta = await page.evaluate(() => ['claro', 'oscuro'].map(tema => {
+    document.documentElement.dataset.tema = tema;
+    const [r, g, b] = getComputedStyle(document.getElementById('tkt-status-badge')).color.match(/\d+/g).map(Number);
+    return { tema, oscuro: r < 100 && g < 100 && b < 100, color: `${r},${g},${b}` };
+  }));
+  for (const t of tinta) check(`ticket en tema ${t.tema}: la etiqueta de estado va en tinta oscura`, t.oscuro, `rgb(${t.color})`);
   await context.close();
 } finally {
   await browser.close();
