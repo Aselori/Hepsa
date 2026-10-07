@@ -354,7 +354,9 @@ try {
     await page.click(`[data-qty-id="${ids[0]}"][data-delta="-1"]`);
     check('bajar la cantidad a cero quita la linea', (await leerCart()).length === 0);
 
-    // Sobrevive a recargar la pagina.
+    // Sobrevive a recargar la pagina. Con el carrito abierto el fondo cubre
+    // el catalogo, asi que primero se cierra, como lo haria una persona.
+    await page.keyboard.press('Escape');
     await page.click(`[data-add-id="${ids[0]}"]`);
     await page.reload();
     await page.waitForSelector('[data-add-id]');

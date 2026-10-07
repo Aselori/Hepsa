@@ -54,17 +54,33 @@
         .name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
         @media (max-width: 768px) { .name-grid { grid-template-columns: 1fr; } }
         .form-group { margin-bottom: 18px; }
-        #cart-modal { position: fixed; top: 0; right: -450px; width: 400px; max-width: 100vw; height: 100vh; background: var(--card-bg); border-left: 1px solid var(--card-border); box-shadow: -8px 0 30px rgba(0, 0, 0, 0.12); transition: right 0.3s ease; z-index: 1000; padding: 24px; box-sizing: border-box; overflow-y: auto; }
+        #cart-modal { position: fixed; top: 0; right: -450px; width: 400px; max-width: 100vw; height: 100vh; height: 100dvh; background: var(--card-bg); border-left: 1px solid var(--card-border); box-shadow: -8px 0 30px rgba(0, 0, 0, 0.12); transition: right 0.3s ease; z-index: 1000; padding: 24px; box-sizing: border-box; overflow-y: auto; }
         #cart-modal.open { right: 0; }
+        /* Fondo atenuado detras del carrito abierto. Va despues del carrito en
+           el HTML y se muestra con el selector de hermano, asi que cualquier
+           codigo que cierre el carrito tambien lo oculta. */
+        #cart-fondo { position: fixed; inset: 0; z-index: 999; background: rgba(0, 0, 0, 0.4); opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        #cart-modal.open ~ #cart-fondo { opacity: 1; pointer-events: auto; }
         .cart-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 14px; margin-bottom: 16px; }
         .close-cart { background: transparent; color: var(--text-muted); border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; }
-        .cart-item { display: flex; justify-content: space-between; border-bottom: 1px solid var(--card-border); padding: 12px 0; }
+        /* Cada linea en dos filas: el nombre a todo lo ancho y, debajo, la
+           cantidad y el importe. Asi el nombre no se parte en tres renglones
+           en el telefono y los botones tienen un tamano que se puede tocar. */
+        .cart-item { display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--card-border); padding: 14px 0; }
+        .cart-item-name { font-weight: 600; }
+        .cart-item-unit { display: block; color: var(--text-muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+        .cart-item-controles { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .stepper { display: inline-flex; align-items: stretch; border: 1px solid var(--input-border); border-radius: var(--radio); overflow: hidden; }
+        .stepper button { width: 36px; height: 36px; padding: 0; background: transparent; border: none; color: var(--text-main); font: inherit; font-size: 1.1rem; cursor: pointer; }
+        .stepper button:hover:not(.tope) { background: var(--table-row-hover); }
+        .stepper-valor { min-width: 2.5em; display: flex; align-items: center; justify-content: center; border-inline: 1px solid var(--input-border); font-weight: 600; font-variant-numeric: tabular-nums; }
+        .cart-item-quitar { align-self: flex-start; background: none; border: none; padding: 6px 0; margin: -6px 0; color: var(--text-muted); font: inherit; font-size: 0.85rem; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+        .cart-item-quitar:hover { color: var(--peligro); }
+        .cart-vacio { color: var(--text-muted); text-align: center; }
         .cart-total { font-size: 1.25rem; font-weight: 700; text-align: right; margin: 18px 0; color: var(--text-main); font-variant-numeric: tabular-nums; }
         .profile-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; }
         @media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } }
-        #cart-items-container .cart-item { align-items: center; }
-        .cart-item-name { flex: 1; }
-        .cart-item-price { font-weight: 600; color: var(--text-main); }
+        .cart-item-price { font-weight: 600; color: var(--text-main); font-variant-numeric: tabular-nums; }
         .btn-peligro { width: 100%; margin-top: 24px; background: transparent; border: 1px solid var(--peligro); color: var(--peligro); padding: 11px; border-radius: var(--radio); cursor: pointer; font: inherit; font-weight: 600; transition: background 0.15s ease; }
         .btn-peligro:hover { background: var(--peligro-bg); }
 
@@ -106,9 +122,9 @@
     <div id="cart-modal">
         <div class="cart-header">
             <h2 style="margin:0; border:none; padding:0; color: var(--text-main);">Tu Pedido</h2>
-            <button class="close-cart" onclick="toggleCart()">×</button>
+            <button class="close-cart" onclick="toggleCart()" aria-label="Cerrar carrito">×</button>
         </div>
-        <div id="cart-items-container"><p style="color: var(--text-muted); text-align:center;">El carrito está vacío</p></div>
+        <div id="cart-items-container"><p class="cart-vacio">El carrito está vacío</p></div>
         <div class="cart-total">Total: $<span id="cart-total-price">0.00</span></div>
         <button class="action-btn" id="btn-checkout" onclick="confirmarPedido()">Confirmar Pedido</button>
         <p style="font-size:.8rem; color:var(--text-muted); margin:12px 0 0; line-height:1.4;">
@@ -116,6 +132,7 @@
             pago y la instalación. Todavía no se cobra nada en línea.
         </p>
     </div>
+    <div id="cart-fondo" onclick="toggleCart()" aria-hidden="true"></div>
 
     <main>
         <!-- VISTA CATÁLOGO -->
@@ -643,7 +660,7 @@
             actualizarBotonesCatalogo();
 
             if (lineas.length === 0) {
-                c.innerHTML = '<p style="color: var(--text-muted); text-align:center;">El carrito está vacío</p>';
+                c.innerHTML = '<p class="cart-vacio">El carrito está vacío</p>';
                 document.getElementById('cart-total-price').textContent = '0.00';
                 return;
             }
@@ -652,19 +669,23 @@
             c.innerHTML = lineas.map(({ id, qty, p }) => {
                 const importe = p.price * qty;
                 total += importe;
+                const enTope = qty >= topeDe(id);
                 return `<div class="cart-item">
-                    <span class="cart-item-name">${esc(p.name)}<br>
-                        <small style="opacity:.7;">$${p.price.toLocaleString()} c/u</small>
-                    </span>
-                    <span style="display:flex; align-items:center; gap:8px;">
-                        <button data-qty-id="${id}" data-delta="-1" style="width:28px; padding:2px;">−</button>
-                        <span style="min-width:1.5em; text-align:center;">${qty}</span>
-                        <button data-qty-id="${id}" data-delta="1" style="width:28px; padding:2px;"
-                            class="${qty >= topeDe(id) ? 'tope' : ''}"
-                            title="${qty >= topeDe(id) ? 'No hay más existencias' : 'Agregar uno más'}">+</button>
-                        <span class="cart-item-price" style="min-width:6em; text-align:right;">$${importe.toLocaleString()}</span>
-                        <button data-remove-id="${id}" title="Quitar" style="width:28px; padding:2px;">×</button>
-                    </span>
+                    <div>
+                        <span class="cart-item-name">${esc(p.name)}</span>
+                        <span class="cart-item-unit">$${p.price.toLocaleString()} c/u</span>
+                    </div>
+                    <div class="cart-item-controles">
+                        <div class="stepper">
+                            <button type="button" data-qty-id="${id}" data-delta="-1" aria-label="Quitar uno">−</button>
+                            <span class="stepper-valor" aria-label="Cantidad">${qty}</span>
+                            <button type="button" data-qty-id="${id}" data-delta="1" class="${enTope ? 'tope' : ''}"
+                                title="${enTope ? 'No hay más existencias' : 'Agregar uno más'}"
+                                aria-label="${enTope ? 'No hay más existencias' : 'Agregar uno más'}">+</button>
+                        </div>
+                        <span class="cart-item-price">$${importe.toLocaleString()}</span>
+                    </div>
+                    <button type="button" class="cart-item-quitar" data-remove-id="${id}">Quitar</button>
                 </div>`;
             }).join('');
             document.getElementById('cart-total-price').textContent = total.toLocaleString('en-US', {minimumFractionDigits:2});
@@ -686,6 +707,10 @@
             }
         });
         function toggleCart() { document.getElementById('cart-modal').classList.toggle('open'); }
+        // Escape cierra el carrito, como cualquier panel lateral.
+        document.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Escape') document.getElementById('cart-modal').classList.remove('open');
+        });
 
         // ─── NAVEGACIÓN ─────────────────────────────────────────────────────
         function showView(viewId) {
