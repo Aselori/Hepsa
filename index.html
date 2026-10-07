@@ -390,8 +390,12 @@
             return p && Number.isInteger(p.stock) ? p.stock : Infinity;
         }
 
-        function guardarCart() {
+        function guardarCartLocal() {
             try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch (e) { /* modo privado */ }
+        }
+
+        function guardarCart() {
+            guardarCartLocal();
             sincronizarCarritoRemoto();
         }
 
@@ -480,7 +484,11 @@
                 .filter(([id]) => catalogo[id])
                 .map(([id, qty]) => ({ id, qty: Math.min(qty, topeDe(id)) }));
 
-            guardarCart();
+            // Solo en este dispositivo. Con guardarCart() cada carga
+            // reescribia en la cuenta, 300 ms despues, el carrito que acababa
+            // de leer: si en ese lapso otro dispositivo confirmaba un pedido
+            // y vaciaba el carrito, esta escritura lo resucitaba.
+            guardarCartLocal();
             renderCart();
 
             // Al entrar, lo que traia el dispositivo todavia no esta en la
