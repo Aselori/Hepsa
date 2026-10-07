@@ -19,6 +19,14 @@ window.HEPSA_CONFIG = {
     // bucket real siempre se llamó 'productos'; por eso fallaba subir imágenes.
     storageBucket: 'productos',
 
+    // Datos de contacto que el portal muestra en el encabezado, junto al
+    // estimado de la cotización y al pie. Un campo vacío no se muestra, así
+    // que el sitio nunca enseña un dato a medias o de relleno.
+    //   telefono:  como se lee, por ejemplo '81 1234 5678'
+    //   whatsapp:  con lada de país, por ejemplo '528112345678' (para wa.me)
+    //   direccion: una línea, por ejemplo 'Av. Ejemplo 123, Monterrey, N.L.'
+    contacto: { telefono: '', whatsapp: '', direccion: '' },
+
     // ¿Se puede pedir más de lo que hay en existencia?
     //
     // NO se configura aquí. Vive en la base, en parametros_cotizacion:
