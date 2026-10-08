@@ -43,7 +43,9 @@
         #btn-login:hover { color: var(--sobre-accion); background: var(--accion-hover); }
         #btn-login.active { box-shadow: none; }
         #theme-toggle { margin-left: 6px; }
-        main { padding: 2.5rem 2rem 4rem; max-width: 1240px; margin: 0 auto; }
+        /* El pie queda abajo aunque la vista sea corta: main ocupa lo que sobra. */
+        body { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+        main { padding: 2.5rem 2rem 4rem; max-width: 1240px; margin: 0 auto; width: 100%; box-sizing: border-box; flex: 1 0 auto; }
         .view-section { display: none; }
         /* Sin animacion de entrada: partia de opacidad 0 y, si el navegador
            tardaba en pintar, el catalogo quedaba invisible mas de un segundo. */
