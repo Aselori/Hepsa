@@ -71,7 +71,7 @@ try {
     scripts: document.querySelectorAll('script[src], script:not([src])').length,
     inlineHandlers: document.querySelectorAll('#inventory-table-body [onclick], #history-table-body [onclick], #projects-table-body [onchange], #users-table-body [onclick], #ticket-list [onclick]').length,
     productText: document.querySelector('#inventory-table-body strong')?.textContent,
-    historyText: document.querySelector('#history-table-body td:nth-child(3)')?.textContent,
+    historyText: document.querySelector('#history-table-body td:nth-child(2)')?.textContent,
     projectText: document.querySelector('#projects-table-body td strong')?.textContent,
     userText: document.querySelector('#users-table-body td')?.textContent,
     toastText: document.querySelector('#toast-container .toast')?.textContent,
@@ -82,7 +82,7 @@ try {
   check('los renderizadores no crean scripts', result.scripts === scriptsBefore, `scripts=${result.scripts}, antes=${scriptsBefore}`);
   check('las filas dinámicas no tienen handlers inline', result.inlineHandlers === 0, `handlers=${result.inlineHandlers}`);
   check('inventario conserva el texto literal', result.productText === productName);
-  check('historial conserva el texto literal', result.historyText === payload);
+  check('historial conserva el texto literal', result.historyText === `${payload} ${payload}`, JSON.stringify(result.historyText));
   check('proyectos conserva el texto literal', result.projectText === `${payload} ${payload}`, JSON.stringify(result.projectText));
   check('usuarios conserva el texto literal', result.userText === `${payload} ${payload}`, JSON.stringify(result.userText));
   check('toast conserva el texto literal', result.toastText === '<img src=x onerror="window.__xss=1">');
