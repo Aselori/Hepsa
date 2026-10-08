@@ -67,57 +67,14 @@
 - El MCP de Supabase de Claude Code apunta al proyecto hospedado (estuvo
   pausado del 2026-10-05 al 2026-10-07; ya responde).
 
-## Sesion 2026-09-27: checkpoint en git (resumido)
+## Sesiones 2026-09-27 y 2026-09-28 (fusionadas; detalle en PR #8 y #9)
 
-El detalle vive en los mensajes de los ocho commits y en el PR #8.
-
-- El trabajo de sesiones previas estaba entero SIN CONFIRMAR. Quedo en git en
-  la rama fix/segundo-factor-entregable.
-- hepsa-demo.service estaba inactivo aunque este documento lo daba por vivo.
-  El stack de Supabase si seguia arriba.
-- output/ pasa a estar ignorado: la evidencia del curso va en la carpeta del
-  curso, no en el repositorio de codigo.
-- package.json entro con cuatro devDependencies fijadas (playwright, supabase,
-  @supabase/supabase-js, esbuild). Ninguna en dependencies: nada llega al
-  navegador. Reportado al usuario, que no puso objecion.
-- Corregida una assercion fragil en mfa-ui.spec.mjs: la auditoria exigia
-  exactamente una fila y fallaba con las cuentas del demo, que existen a
-  proposito sin factor.
-- Corregido el encabezado en pantallas angostas. El sintoma anotado antes
-  ("botones que se encimaban") era incorrecto: medido, cero solapes; era
-  desbordamiento horizontal con el boton de acceso fuera de la ventana, y
-  afectaba tambien a 768 px. Cubierto por tests/responsivo.spec.mjs, que falla
-  sin el arreglo.
-
-## Sesión 2026-09-28: revisión con Opus 5.5 y fallos de seguridad
-
-El usuario cambió de modelo y pidió analizar y rehacer lo hecho. Se hizo una
-revisión independiente en vez de regenerar a ciegas; el detalle está en los
-mensajes de commit y en el PR #9.
-
-- PR #8 abierto, CI en verde (incluida la integración real de Supabase dentro
-  de Actions). El nombre del job "Sintaxis y suites" coincide con el control
-  obligatorio de main.
-- La revisión encontró que el primer análisis de seguridad estaba INCOMPLETO:
-  afirmaba una sola aparición del guardia sensible a NULL y había dos. La que
-  faltaba era peor.
-  - Escalada: con role NULL un usuario se ascendía a admin (disparador
-    prevent_role_self_escalation, escrito "AND NOT is_admin()").
-    Reproducido por la API real: role antes=null, después=admin.
-  - Fuga: sin fila en profiles, empleados_sin_segundo_factor() devolvía la
-    lista del personal sin segundo factor.
-- Arreglo en una migración coherente
-  (20260928211428_blindar_guardias_ante_perfil_ausente.sql): role NOT NULL
-  con relleno a 'cliente', is_admin/is_staff con COALESCE, y los dos guardias
-  con IS NOT TRUE. RLS no cambia de comportamiento.
-- Inyección de CSS en el catálogo público (index.html): image_url iba dentro
-  de style="url('...')" y el escapado HTML no protege ahí. Ahora se valida
-  (https, mismo origen u origen de Supabase) y se asigna por CSSOM.
-- Cada arreglo tiene su prueba y se verificó que falla sin él:
-  rol-nulo 1/4, perfil-ausente 6/7, catalogo-imagen 2/7 (con el código viejo
-  el navegador sí descargaba el píxel de rastreo).
-- Historial de #8 y #9 reescrito para corregir mensajes sin acentos y el
-  análisis equivocado. Árbol de #8 verificado idéntico byte a byte al original.
+- Checkpoint en git del trabajo previo, encabezado móvil arreglado
+  (tests/responsivo.spec.mjs) y package.json con devDependencies fijadas.
+- Revisión con Opus 5.5: escalada a admin con role NULL y fuga de la lista
+  de personal sin segundo factor, arregladas en la migración
+  20260928211428_blindar_guardias_ante_perfil_ausente.sql; inyección de CSS
+  del catálogo arreglada. Cada arreglo tiene prueba que falla sin él.
 
 ### Verificación
 
