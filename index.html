@@ -151,7 +151,7 @@
             <button onclick="showView('quote')" id="btn-quote">Cotizar a la medida</button>
             <button id="cart-btn" onclick="toggleCart()">Carrito <span id="cart-count">0</span></button>
             <a id="contacto-encabezado" class="contacto-telefono" hidden></a>
-            <button onclick="showView('login')" id="btn-login">Iniciar Sesión</button>
+            <button onclick="showView('login')" id="btn-login">Iniciar sesión</button>
             <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
         </nav>
     </header>
@@ -160,12 +160,12 @@
 
     <div id="cart-modal">
         <div class="cart-header">
-            <h2 style="margin:0; border:none; padding:0; color: var(--text-main);">Tu Pedido</h2>
+            <h2 style="margin:0; border:none; padding:0; color: var(--text-main);">Tu pedido</h2>
             <button class="close-cart" onclick="toggleCart()" aria-label="Cerrar carrito">×</button>
         </div>
         <div id="cart-items-container"><p class="cart-vacio">El carrito está vacío</p></div>
         <div class="cart-total">Total: $<span id="cart-total-price">0.00</span></div>
-        <button class="action-btn" id="btn-checkout" onclick="confirmarPedido()">Confirmar Pedido</button>
+        <button class="action-btn" id="btn-checkout" onclick="confirmarPedido()">Confirmar pedido</button>
         <p style="font-size:.8rem; color:var(--text-muted); margin:12px 0 0; line-height:1.4;">
             Al confirmar registramos tu pedido y te contactamos para acordar el
             pago y la instalación. Todavía no se cobra nada en línea.
@@ -177,7 +177,7 @@
         <!-- VISTA CATÁLOGO -->
         <section id="view-catalog" class="view-section active">
             <div class="catalogo-encabezado">
-                <h2>Línea Residencial e Industrial</h2>
+                <h2>Línea residencial e industrial</h2>
                 <a href="#" data-ir-cotizador="1" class="enlace-fuerte">¿No está aquí? Cotiza tu pieza a la medida →</a>
             </div>
             <div class="catalog-grid" id="public-catalog-grid">
@@ -206,20 +206,20 @@
                             <select id="quote-material">
                                 <option value="">Selecciona…</option>
                                 <option value="acero">Acero</option>
-                                <option value="hierro_forjado">Hierro Forjado</option>
+                                <option value="hierro_forjado">Hierro forjado</option>
                                 <option value="aluminio">Aluminio</option>
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;"><label for="quote-acabado">Acabado *</label>
                             <select id="quote-acabado">
                                 <option value="">Selecciona…</option>
-                                <option value="pintura_electrostatica">Pintura Electrostática</option>
+                                <option value="pintura_electrostatica">Pintura electrostática</option>
                                 <option value="pavonado">Pavonado</option>
                                 <option value="cromado">Cromado</option>
                             </select>
                         </div>
                     </div>
-                    <div class="form-group" style="margin-top: 20px; margin-bottom: 0;"><label for="quote-specs">Notas Adicionales (Opcional)</label><textarea id="quote-specs" rows="3" placeholder="Diseño de arquitecto, color específico, detalles de instalación…"></textarea></div>
+                    <div class="form-group" style="margin-top: 20px; margin-bottom: 0;"><label for="quote-specs">Notas adicionales (opcional)</label><textarea id="quote-specs" rows="3" placeholder="Diseño de arquitecto, color específico, detalles de instalación…"></textarea></div>
                 </div>
 
                 <!-- El estimado se calcula solo en cuanto la pieza está completa.
@@ -239,18 +239,18 @@
                 <div class="form-container">
                     <h3 class="cotizar-paso">2. ¿A dónde te enviamos la cotización?</h3>
                     <div class="name-grid">
-                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-n1">Primer Nombre *</label><input type="text" id="quote-n1" name="given-name" autocomplete="given-name" placeholder="Ej: Juan" required></div>
-                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-n2">Segundo Nombre (Opcional)</label><input type="text" id="quote-n2" name="additional-name" autocomplete="additional-name" placeholder="Ej: Carlos"></div>
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-n1">Primer nombre *</label><input type="text" id="quote-n1" name="given-name" autocomplete="given-name" placeholder="Ej: Juan" required></div>
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-n2">Segundo nombre (opcional)</label><input type="text" id="quote-n2" name="additional-name" autocomplete="additional-name" placeholder="Ej: Carlos"></div>
                     </div>
                     <div class="name-grid">
-                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-p">Apellido Paterno *</label><input type="text" id="quote-p" name="family-name" autocomplete="family-name" placeholder="Ej: Garza" required></div>
-                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-m">Apellido Materno *</label><input type="text" id="quote-m" name="apellido-materno" autocomplete="off" placeholder="Ej: Treviño" required></div>
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-p">Apellido paterno *</label><input type="text" id="quote-p" name="family-name" autocomplete="family-name" placeholder="Ej: Garza" required></div>
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-m">Apellido materno *</label><input type="text" id="quote-m" name="apellido-materno" autocomplete="off" placeholder="Ej: Treviño" required></div>
                     </div>
                     <div class="name-grid">
-                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-email">Correo Electrónico *</label><input type="email" id="quote-email" name="email" autocomplete="email" spellcheck="false" autocapitalize="none" placeholder="ejemplo@correo.com"></div>
-                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-tel">Teléfono de Contacto *</label><input type="tel" id="quote-tel" name="tel" autocomplete="tel" placeholder="(81) 0000-0000"></div>
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-email">Correo electrónico *</label><input type="email" id="quote-email" name="email" autocomplete="email" spellcheck="false" autocapitalize="none" placeholder="ejemplo@correo.com"></div>
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-tel">Teléfono de contacto *</label><input type="tel" id="quote-tel" name="tel" autocomplete="tel" placeholder="(81) 0000-0000"></div>
                     </div>
-                    <button class="action-btn" style="margin-top: 8px;" onclick="enviarCotizacionBD()">Solicitar Cotización</button>
+                    <button class="action-btn" style="margin-top: 8px;" onclick="enviarCotizacionBD()">Solicitar cotización</button>
                 </div>
             </div>
         </section>
@@ -262,7 +262,7 @@
                 <p style="color: var(--text-muted); margin-bottom: 30px; font-weight:bold;">Ingresa para dar seguimiento a tus proyectos.</p>
                 <div class="form-group" style="text-align: left;"><label for="log-email">Correo</label><input type="email" placeholder="cliente@correo.com" id="log-email" name="email" autocomplete="username" spellcheck="false" autocapitalize="none"></div>
                 <div class="form-group" style="text-align: left;"><label for="log-pass">Contraseña</label><input type="password" placeholder="••••••••" id="log-pass" name="password" autocomplete="current-password"></div>
-                <button class="action-btn" style="margin-top: 10px;" onclick="iniciarSesionBD()">Ingresar Seguro</button>
+                <button class="action-btn" style="margin-top: 10px;" onclick="iniciarSesionBD()">Ingresar seguro</button>
                 <div style="margin-top: 25px; font-size: 0.95rem; border-top: 1px dashed var(--card-border); padding-top: 15px;">
                     <span style="color: var(--text-label);">¿No tienes cuenta?</span> <a href="#" onclick="showView('register'); return false;" style="color: var(--primary); font-weight:bold; text-decoration:none;">Regístrate aquí</a>
                 </div>
@@ -305,10 +305,10 @@
         <!-- VISTA REGISTRO -->
         <section id="view-register" class="view-section">
             <div class="form-container" style="max-width: 600px; margin: 40px auto;">
-                <h2 style="border:none; padding:0; margin-bottom: 10px; color: var(--primary); text-align:center;">Crear Cuenta</h2>
+                <h2 style="border:none; padding:0; margin-bottom: 10px; color: var(--primary); text-align:center;">Crear cuenta</h2>
                 <div class="name-grid">
-                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-n1">Primer Nombre *</label><input type="text" id="reg-n1" name="given-name" autocomplete="given-name"></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-n2">Segundo Nombre</label><input type="text" id="reg-n2" name="additional-name" autocomplete="additional-name"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-n1">Primer nombre *</label><input type="text" id="reg-n1" name="given-name" autocomplete="given-name"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-n2">Segundo nombre</label><input type="text" id="reg-n2" name="additional-name" autocomplete="additional-name"></div>
                 </div>
                 <div class="name-grid">
                     <div class="form-group" style="margin-bottom: 0;"><label for="reg-p">Paterno *</label><input type="text" id="reg-p" name="family-name" autocomplete="family-name"></div>
@@ -322,7 +322,7 @@
                     <div class="form-group" style="margin-bottom: 0;"><label for="reg-pass">Contraseña *</label><input type="password" id="reg-pass" name="new-password" autocomplete="new-password"></div>
                     <div class="form-group" style="margin-bottom: 0;"><label for="reg-pass2">Confirmar *</label><input type="password" id="reg-pass2" name="new-password-confirm" autocomplete="new-password"></div>
                 </div>
-                <button class="action-btn" style="margin-top: 25px;" onclick="registrarUsuarioBD()">Crear Cuenta</button>
+                <button class="action-btn" style="margin-top: 25px;" onclick="registrarUsuarioBD()">Crear cuenta</button>
                 <div style="margin-top: 25px; font-size: 0.95rem; border-top: 1px dashed var(--card-border); padding-top: 15px; text-align:center;">
                     <a href="#" onclick="showView('login'); return false;" style="color: var(--primary); font-weight:bold; text-decoration:none;">Inicia sesión aquí</a>
                 </div>
@@ -331,17 +331,17 @@
 
         <!-- VISTA PERFIL -->
         <section id="view-profile" class="view-section">
-            <h2>Mi Perfil y Pedidos</h2>
+            <h2>Mi perfil y pedidos</h2>
             <div class="profile-grid">
                 <div class="form-container" style="height: fit-content;">
-                    <h3 style="margin-top:0; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">Info Personal</h3>
-                    <div class="form-group"><label for="prof-name">Nombre Completo</label><input type="text" id="prof-name" readonly></div>
-                    <div class="form-group"><label for="prof-email">Correo Registrado</label><input type="text" id="prof-email" readonly></div>
+                    <h3 style="margin-top:0; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">Info personal</h3>
+                    <div class="form-group"><label for="prof-name">Nombre completo</label><input type="text" id="prof-name" readonly></div>
+                    <div class="form-group"><label for="prof-email">Correo registrado</label><input type="text" id="prof-email" readonly></div>
                     <div class="form-group"><label for="prof-tel">Teléfono</label><input type="tel" id="prof-tel" name="tel" autocomplete="tel"></div>
-                    <button type="button" class="btn-peligro" onclick="cerrarSesionBD()">Cerrar Sesión</button>
+                    <button type="button" class="btn-peligro" onclick="cerrarSesionBD()">Cerrar sesión</button>
                 </div>
                 <div class="form-container">
-                    <h3 style="margin-top:0; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">Proyectos Activos</h3>
+                    <h3 style="margin-top:0; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">Proyectos activos</h3>
                     <div class="table-container">
                         <table>
                             <thead><tr><th>Folio</th><th>Fecha</th><th>Inversión</th><th>Estatus</th></tr></thead>
@@ -693,11 +693,11 @@
                 mostrarAviso(`<span>${esc(e.message || 'No se pudo confirmar el pedido')}</span>`, 'error', 7000);
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Confirmar Pedido';
+                btn.textContent = 'Confirmar pedido';
             }
         }
 
-        // "Proyectos Activos" se quedaba en "Cargando..." porque nadie
+        // "Proyectos activos" se quedaba en "Cargando..." porque nadie
         // consultaba orders. RLS ya permitía al cliente ver las suyas.
         async function cargarPedidosCliente() {
             const tbody = document.getElementById('client-history-body');
@@ -741,7 +741,7 @@
                 const tope = topeDe(id);
                 const lleno = enCarrito >= tope;
                 btn.classList.toggle('agotado', lleno);
-                btn.textContent = lleno ? 'Sin más existencias' : 'Añadir al Carrito';
+                btn.textContent = lleno ? 'Sin más existencias' : 'Añadir al carrito';
 
                 const nota = document.querySelector(`[data-stock-nota="${id}"]`);
                 if (!nota) return;
@@ -887,7 +887,7 @@
                             <h3 class="product-title">${esc(p.name)}</h3>
                             <span class="price">$${p.price.toLocaleString('es-MX')} <span class="price-moneda">MXN</span></span>
                             <p class="nota-existencias" data-stock-nota="${p.id}"></p>
-                            <button class="action-btn" data-add-id="${p.id}">Añadir al Carrito</button>
+                            <button class="action-btn" data-add-id="${p.id}">Añadir al carrito</button>
                         </div>
                     </div>`).join('');
 
@@ -1052,7 +1052,7 @@
             const { data: { session } } = await window.supabaseClient.auth.getSession();
             if (session) {
                 const btnLogin = document.getElementById('btn-login');
-                btnLogin.innerHTML = "Mi Perfil";
+                btnLogin.innerHTML = "Mi perfil";
                 btnLogin.onclick = () => showView('profile');
                 // profiles es la fuente de verdad; user_metadata solo refleja
                 // lo que se escribió una vez al registrarse.
@@ -1083,7 +1083,7 @@
             renderCart();
             // Limpiar UI
             const btnLogin = document.getElementById('btn-login');
-            btnLogin.innerHTML = "Iniciar Sesión";
+            btnLogin.innerHTML = "Iniciar sesión";
             btnLogin.onclick = () => showView('login');
             document.getElementById('prof-name').value = '';
             document.getElementById('prof-email').value = '';
