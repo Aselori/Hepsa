@@ -148,5 +148,19 @@ mensajes de commit y en el PR #9.
   la API responde 200.
 - 2026-10-07: el sitio publicaba scripts/, .github/, .mcp.json, .vscode/ y
   skills-lock.json. .vercelignore pasa a lista de lo que SÍ se publica (rama
-  chore/publicar-solo-el-sitio). Siguiente: revisar el diseño contra
-  ~/.claude/skills/web-design-guidelines (pedido del usuario).
+  chore/publicar-solo-el-sitio). FUSIONADO (PR #12, main c644490); en vivo
+  esas rutas dan 404 y el sitio carga completo.
+- 2026-10-07: las instrucciones globales del usuario ahora tienen una sección
+  "Design thinking" (~/.codex/AGENTS.md): evaluar antes de implementar, lo
+  urgente primero, mostrar excepciones. Con ella se evaluó el sitio y se
+  hicieron maquetas: https://claude.ai/artifact/7MWvstUSjYHGPzKy27x94s
+  (privadas). El usuario aprobó TODAS.
+- PR #13 (fix/pautas-de-interfaz): pautas de Vercel (etiquetas ligadas,
+  autocompletado, precios es-MX). Abierto, espera fusión.
+- Rama feature/diseno-por-tareas (apilada sobre #13): portal y panel según
+  las maquetas, mayúscula inicial. Pruebas: tests/tareas.spec.mjs (0/18 en
+  main, 19/19 en la rama) y todas las suites locales en verde.
+- Faltan datos del negocio (el usuario aún no los tiene): teléfono,
+  WhatsApp y dirección van en config.js (contacto); vacíos no se muestran.
+  Hay nombres de producto repetidos ("Puerta principal", "Puerta de madera
+  de abeto"): se corrigen en los datos, no en el código.
