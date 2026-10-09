@@ -747,9 +747,11 @@
 
                 const nota = document.querySelector(`[data-stock-nota="${id}"]`);
                 if (!nota) return;
-                if (lleno) nota.textContent = `Tienes las ${tope} disponibles en tu carrito`;
-                else if (Number.isFinite(tope) && tope - enCarrito <= 3) {
-                    nota.textContent = `Quedan ${tope - enCarrito} disponibles`;
+                // Singular y plural: con una sola pieza decía "Quedan 1 disponibles".
+                const quedan = tope - enCarrito;
+                if (lleno) nota.textContent = tope === 1 ? 'Tienes en tu carrito la única disponible' : `Tienes en tu carrito las ${tope} disponibles`;
+                else if (Number.isFinite(tope) && quedan <= 3) {
+                    nota.textContent = quedan === 1 ? 'Queda 1 disponible' : `Quedan ${quedan} disponibles`;
                 } else nota.textContent = '';
             });
         }

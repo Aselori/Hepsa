@@ -35,7 +35,9 @@ try {
   await page.goto(`${BASE}/index.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => typeof cargarCatalogoPublico === 'function');
   await page.evaluate(async () => {
-    const respuesta = Promise.resolve({ data: [{ id: 1, name: 'Porton', price: 15000, stock: 8, image_url: null }], error: null });
+    const respuesta = Promise.resolve({ data: [{ id: 1, name: 'Porton', price: 15000, stock: 8, image_url: null },
+                                                { id: 2, name: 'Ultima', price: 7500, stock: 1, image_url: null },
+                                                { id: 3, name: 'Pocas', price: 5000, stock: 3, image_url: null }], error: null });
     const consulta = { select: () => consulta, eq: () => consulta, order: () => respuesta };
     window.supabaseClient = {
       ...window.supabaseClient,
@@ -50,6 +52,18 @@ try {
     return { cajaImagen: Boolean(card.querySelector('.card-img')), texto: card.textContent };
   });
   check('producto sin foto: no hay caja de imagen vacia', !tarjeta.cajaImagen && !/sin foto/i.test(tarjeta.texto));
+
+  const existencias = await page.evaluate(() => ({
+    una: document.querySelector('[data-stock-nota="2"]').textContent,
+    tres: document.querySelector('[data-stock-nota="3"]').textContent,
+    muchas: document.querySelector('[data-stock-nota="1"]').textContent,
+  }));
+  check('la nota de existencias concuerda en singular y plural, y calla si hay muchas',
+    existencias.una === 'Queda 1 disponible' && existencias.tres === 'Quedan 3 disponibles' && existencias.muchas === '', JSON.stringify(existencias));
+  await page.locator('[data-add-id="2"]').click();
+  const llena = await page.evaluate(() => document.querySelector('[data-stock-nota="2"]').textContent);
+  check('con la unica pieza en el carrito la nota va en singular', llena === 'Tienes en tu carrito la única disponible', llena);
+  await page.evaluate(() => { cart = []; guardarCart(); renderCart(); });
 
   const empleados = await page.evaluate(() => ({
     enMenu: Boolean(document.querySelector('nav #btn-admin')),
