@@ -119,5 +119,7 @@
   main, 19/19 en la rama) y todas las suites locales en verde.
 - Faltan datos del negocio (el usuario aún no los tiene): teléfono,
   WhatsApp y dirección van en config.js (contacto); vacíos no se muestran.
-  Hay nombres de producto repetidos ("Puerta principal", "Puerta de madera
-  de abeto"): se corrigen en los datos, no en el código.
+- 2026-10-09: PR #13 y #14 FUSIONADOS (main b7e79c5) y verificados en vivo.
+  Catálogo hospedado corregido con permiso del usuario (nombres repetidos,
+  ortografía, medidas): docs/catalogo-correccion-2026-10-09.md tiene el antes
+  y después y 4 dudas de datos para el negocio. Demo local detenida.
