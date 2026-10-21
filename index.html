@@ -33,16 +33,20 @@
         html { scroll-padding-top: 5rem; }
         header { background: var(--header-bg); border-bottom: 1px solid var(--card-border); padding: 0.75rem 2rem; display: flex; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100; }
         .logo-img { height: 44px; width: auto; display: block; }
-        nav { display: flex; align-items: center; gap: 2px; }
+        /* Tres grupos: las vistas, el carrito (un panel, no una vista) y la
+           cuenta. El aire va entre grupos, no entre todos por igual. */
+        nav { display: flex; align-items: center; gap: 28px; }
+        .nav-grupo { display: flex; align-items: center; gap: 8px; }
         nav button, nav a { background: transparent; border: none; color: var(--text-muted); padding: 8px 12px; font: inherit; font-size: 0.97rem; font-weight: 500; cursor: pointer; text-decoration: none; box-shadow: inset 0 -2px 0 transparent; transition: color 0.15s ease, box-shadow 0.15s ease; }
         nav button:hover, nav a:hover { color: var(--text-main); }
         nav button.active { color: var(--text-main); box-shadow: inset 0 -2px 0 var(--text-main); }
         #cart-btn { display: inline-flex; align-items: center; gap: 6px; }
-        #cart-count { color: var(--text-muted); font-variant-numeric: tabular-nums; }
-        #btn-login { background: var(--accion); color: var(--sobre-accion); font-weight: 600; border-radius: var(--radio); margin-left: 6px; }
+        /* El numero es lo unico del menu que cambia: va en la tinta de accion
+           para verse de un vistazo. Con el carrito vacio no se muestra. */
+        #cart-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; height: 1.5rem; padding: 0 6px; border-radius: 999px; background: var(--accion); color: var(--sobre-accion); font-size: 0.8rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+        #btn-login { background: var(--accion); color: var(--sobre-accion); font-weight: 600; border-radius: var(--radio); }
         #btn-login:hover { color: var(--sobre-accion); background: var(--accion-hover); }
         #btn-login.active { box-shadow: none; }
-        #theme-toggle { margin-left: 6px; }
         /* El pie queda abajo aunque la vista sea corta: main ocupa lo que sobra. */
         body { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
         main { padding: 2.5rem 2rem 4rem; max-width: 1240px; margin: 0 auto; width: 100%; box-sizing: border-box; flex: 1 0 auto; }
@@ -131,7 +135,8 @@
            Importa porque el codigo del segundo factor se lee en el telefono. */
         @media (max-width: 900px) {
             header { padding: 0.7rem 1rem; flex-wrap: wrap; justify-content: center; gap: 10px; }
-            nav { flex-wrap: wrap; justify-content: center; }
+            nav { flex-wrap: wrap; justify-content: center; gap: 6px 20px; }
+            .nav-grupo { gap: 4px; }
             .logo-img { height: 38px; }
             nav button, nav a { padding: 8px 10px; font-size: 0.95rem; }
         }
@@ -139,6 +144,7 @@
             header { padding: 0.6rem 0.6rem; }
             .logo-img { height: 34px; }
             nav button, nav a { padding: 7px 8px; font-size: 0.9rem; }
+            nav { gap: 4px 12px; }
         }
     </style>
 </head>
@@ -149,12 +155,18 @@
             <img src="assets/logo-dark.svg" width="306" height="100" alt="HEPSA" class="logo-img solo-tema-oscuro">
         </div>
         <nav>
-            <button onclick="showView('catalog')" id="btn-catalog">Catálogo</button>
-            <button onclick="showView('quote')" id="btn-quote">Cotizar a la medida</button>
-            <button id="cart-btn" onclick="toggleCart()">Carrito <span id="cart-count">0</span></button>
-            <a id="contacto-encabezado" class="contacto-telefono" hidden></a>
-            <button onclick="showView('login')" id="btn-login">Iniciar sesión</button>
-            <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+            <div class="nav-grupo">
+                <button onclick="showView('catalog')" id="btn-catalog">Catálogo</button>
+                <button onclick="showView('quote')" id="btn-quote">Cotizar a la medida</button>
+            </div>
+            <div class="nav-grupo">
+                <button id="cart-btn" onclick="toggleCart()" aria-label="Carrito">Carrito <span id="cart-count" hidden>0</span></button>
+            </div>
+            <div class="nav-grupo">
+                <a id="contacto-encabezado" class="contacto-telefono" hidden></a>
+                <button onclick="showView('login')" id="btn-login">Iniciar sesión</button>
+                <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+            </div>
         </nav>
     </header>
 
@@ -759,7 +771,12 @@
         function renderCart() {
             const c = document.getElementById('cart-items-container');
             const piezas = cart.reduce((n, l) => n + l.qty, 0);
-            document.getElementById('cart-count').textContent = piezas;
+            const contador = document.getElementById('cart-count');
+            contador.textContent = piezas;
+            contador.hidden = piezas === 0;
+            // El lector de pantalla oye "Carrito, 3 piezas", no "Carrito 3".
+            document.getElementById('cart-btn').setAttribute('aria-label',
+                piezas === 0 ? 'Carrito' : `Carrito, ${piezas} ${piezas === 1 ? 'pieza' : 'piezas'}`);
 
             // Si un producto se desactivó o se borró mientras estaba en el
             // carrito, ya no está en el catálogo: se descarta en vez de pintar
