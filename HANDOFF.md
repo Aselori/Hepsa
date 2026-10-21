@@ -123,3 +123,9 @@
   Catálogo hospedado corregido con permiso del usuario (nombres repetidos,
   ortografía, medidas): docs/catalogo-correccion-2026-10-09.md tiene el antes
   y después y 4 dudas de datos para el negocio. Demo local detenida.
+- 2026-10-21: fotos de producto: el usuario decidió dejarlo como está (sin
+  relleno ni fotos de muestra) hasta que el negocio mande fotos reales.
+- 2026-10-21: rama navbar-carrito-visible (sin push): número del carrito en
+  píldora de la tinta de acción, oculto con el carrito vacío; menú en tres
+  grupos (vistas, carrito, cuenta). npm test en verde; revisado con
+  Playwright a 1366, 768 y 390 px en ambos temas. Falta push, PR y fusión.
