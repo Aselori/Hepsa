@@ -127,5 +127,6 @@
   relleno ni fotos de muestra) hasta que el negocio mande fotos reales.
 - 2026-10-21: rama navbar-carrito-visible (sin push): número del carrito en
   píldora de la tinta de acción, oculto con el carrito vacío; menú en tres
-  grupos (vistas, carrito, cuenta). npm test en verde; revisado con
-  Playwright a 1366, 768 y 390 px en ambos temas. Falta push, PR y fusión.
+  grupos (vistas, carrito, cuenta); "Cotizar" corto; en teléfono (≤640 px)
+  dos filas: logo y cuenta, luego vistas y carrito. npm test en verde; revisado con
+  Playwright de 1366 a 360 px, ambos temas, con y sin teléfono. Falta push, PR y fusión.
