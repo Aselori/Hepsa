@@ -140,6 +140,18 @@
             .logo-img { height: 38px; }
             nav button, nav a { padding: 8px 10px; font-size: 0.95rem; }
         }
+        /* En telefono, dos filas en vez de tres: logo y cuenta arriba, vistas
+           y carrito abajo. El telefono del negocio, si lo hay, va en la suya. */
+        @media (max-width: 640px) {
+            header { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 8px 4px; }
+            nav, .nav-grupo:last-child { display: contents; }
+            .logo-container { grid-area: 1 / 1; }
+            #btn-login { grid-area: 1 / 2; }
+            #theme-toggle { grid-area: 1 / 3; }
+            .nav-grupo:first-child { grid-area: 2 / 1; }
+            .nav-grupo:nth-child(2) { grid-area: 2 / 2 / 3 / 4; justify-self: end; }
+            #contacto-encabezado { grid-column: 1 / -1; justify-self: center; }
+        }
         @media (max-width: 480px) {
             header { padding: 0.6rem 0.6rem; }
             .logo-img { height: 34px; }
@@ -157,7 +169,7 @@
         <nav>
             <div class="nav-grupo">
                 <button onclick="showView('catalog')" id="btn-catalog">Catálogo</button>
-                <button onclick="showView('quote')" id="btn-quote">Cotizar a la medida</button>
+                <button onclick="showView('quote')" id="btn-quote">Cotizar</button>
             </div>
             <div class="nav-grupo">
                 <button id="cart-btn" onclick="toggleCart()" aria-label="Carrito">Carrito <span id="cart-count" hidden>0</span></button>
