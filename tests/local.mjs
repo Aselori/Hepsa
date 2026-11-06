@@ -198,6 +198,11 @@ try {
         const ordenes = await admin.from('orders').delete().in('id', idsPedidos);
         if (pagos.error || renglones.error || ordenes.error) { console.error('Fallo la limpieza de los pedidos de prueba.'); process.exitCode = 1; }
     }
+    // rls.spec.mjs envia una solicitud como anonimo para comprobar que el precio
+    // lo pone el servidor; el anonimo no puede borrarla, asi que se borra aqui.
+    // Sin esto se acumulaban en la bandeja del panel local.
+    const solicitudes = await admin.from('custom_requests').delete().like('email', '%@test.local');
+    if (solicitudes.error) { console.error(`Fallo la limpieza de las solicitudes de prueba: ${solicitudes.error.message}`); process.exitCode = 1; }
     if (productoPagos) {
         const borrado = await admin.from('products').delete().eq('id', productoPagos);
         if (borrado.error) { console.error(`Fallo la limpieza del producto de pagos: ${borrado.error.message}`); process.exitCode = 1; }

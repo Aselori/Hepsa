@@ -1048,7 +1048,11 @@
             pintarResumen('projects-resumen', pendientes.length, 'solicitud', 'solicitudes',
                 ` sin responder; la más antigua espera desde ${mayorEspera === 0 ? 'hoy' : `hace ${textoEspera(mayorEspera)}`}.`);
 
-            const legible = (v) => (v || '').replace(/_/g, ' ');
+            // Nombres fijos y no derivados del valor: de 'pintura_electrostatica'
+            // no se recupera el acento. Mismos textos que el cotizador del portal.
+            const NOMBRES_PIEZA = { acero: 'Acero', hierro_forjado: 'Hierro forjado', aluminio: 'Aluminio',
+                pintura_electrostatica: 'Pintura electrostática', pavonado: 'Pavonado', cromado: 'Cromado' };
+            const legible = (v) => NOMBRES_PIEZA[v] || (v || '').replace(/_/g, ' ');
             const textCell = (value, tag = 'td') => { const el = document.createElement(tag); el.textContent = value || ''; return el; };
             const fila = (req) => {
                 const name = `${req.first_name||''} ${req.last_name_p||''}`.trim();
@@ -1083,7 +1087,7 @@
 
                 const piece = textCell(''); piece.style.cssText = 'max-width:300px; white-space:normal;';
                 const dimensions = textCell(medidas, 'strong'); piece.append(dimensions, document.createTextNode(` (${area} m²)`), document.createElement('br'));
-                const details = textCell(`${legible(req.material)} · ${legible(req.acabado)}`, 'small'); details.style.textTransform = 'capitalize'; piece.appendChild(details);
+                const details = textCell(`${legible(req.material)} · ${legible(req.acabado)}`, 'small'); piece.appendChild(details);
                 if (req.specifications) {
                     piece.appendChild(document.createElement('br'));
                     const texto = String(req.specifications);
