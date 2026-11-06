@@ -52,7 +52,7 @@ try {
   // real, con el correo marcado como usuario. Sin esto Bitwarden no ofrecía
   // nada en el registro.
   const estructura = await page.evaluate(() => ({
-    registro: ['reg-email', 'reg-pass', 'reg-pass2'].every((id) => document.getElementById(id).closest('form')?.id === 'form-registro'),
+    registro: ['reg-email', 'reg-pass'].every((id) => document.getElementById(id).closest('form')?.id === 'form-registro'),
     usuario: document.getElementById('reg-email').autocomplete,
     nueva: document.getElementById('reg-pass').autocomplete,
     login: ['log-email', 'log-pass'].every((id) => document.getElementById(id).closest('form')?.id === 'form-login'),
@@ -62,9 +62,19 @@ try {
     estructura.registro && estructura.login && estructura.usuario === 'username' && estructura.nueva === 'new-password' && estructura.actual === 'current-password',
     JSON.stringify(estructura));
 
+  // Un solo campo de contraseña, con "Mostrar": se ve lo escrito y se puede
+  // copiar, que en un type="password" el navegador no permite.
+  const campos = await page.evaluate(() => document.querySelectorAll('#form-registro input[type="password"]').length);
+  await page.click('#form-registro .btn-mostrar');
+  const visible = await page.evaluate(() => ({ tipo: document.getElementById('reg-pass').type, boton: document.querySelector('#form-registro .btn-mostrar').textContent, pulsado: document.querySelector('#form-registro .btn-mostrar').getAttribute('aria-pressed') }));
+  await page.click('#form-registro .btn-mostrar');
+  const oculto = await page.evaluate(() => document.getElementById('reg-pass').type);
+  check('el registro tiene un solo campo de contraseña y "Mostrar" la deja ver y la vuelve a ocultar',
+    campos === 1 && visible.tipo === 'text' && visible.boton === 'Ocultar' && visible.pulsado === 'true' && oculto === 'password', JSON.stringify({ campos, visible, oculto }));
+
   const llenar = async (pass) => {
     await page.fill('#reg-n1', 'Prueba'); await page.fill('#reg-p', 'Contraseña'); await page.fill('#reg-m', 'Fuerte');
-    await page.fill('#reg-email', correo()); await page.fill('#reg-pass', pass); await page.fill('#reg-pass2', pass);
+    await page.fill('#reg-email', correo()); await page.fill('#reg-pass', pass);
     await page.evaluate(() => registrarUsuarioBD());
     await page.waitForTimeout(800);
   };

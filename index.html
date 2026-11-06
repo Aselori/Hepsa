@@ -143,6 +143,9 @@
         .cart-total { font-size: 1.25rem; font-weight: 700; text-align: right; margin: 18px 0 2px; color: var(--text-main); font-variant-numeric: tabular-nums; }
         .cart-iva { font-size: 0.85rem; color: var(--text-muted); text-align: right; margin: 0 0 16px; }
         .ayuda-campo { margin: 6px 0 0; font-size: 0.85rem; color: var(--text-muted); }
+        .campo-contrasena { position: relative; }
+        .campo-contrasena input { padding-right: 96px; }
+        .campo-contrasena .btn-mostrar { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); min-height: 32px; padding: 4px 12px; border: 1px solid var(--input-border); border-radius: var(--radio); background: transparent; color: var(--text-main); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
         .profile-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; }
         /* Sin min-width: 0 la columna crecia hasta el ancho minimo de la tabla de
            pedidos y en telefono toda la pagina se salia de la pantalla. Asi la
@@ -374,9 +377,16 @@
                     <div class="form-group" style="margin-bottom: 0;"><label for="reg-tel">Teléfono</label><input type="tel" id="reg-tel" name="tel" autocomplete="tel"></div>
                     <div class="form-group" style="margin-bottom: 0;"><label for="reg-email">Correo *</label><input type="email" id="reg-email" name="username" autocomplete="username" spellcheck="false" autocapitalize="none"></div>
                 </div>
-                <div class="name-grid" style="margin-top: 15px;">
-                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-pass">Contraseña *</label><input type="password" id="reg-pass" name="new-password" autocomplete="new-password" minlength="10" aria-describedby="reg-pass-regla"><p id="reg-pass-regla" class="ayuda-campo">10 caracteres o más, con mayúscula, minúscula y número.</p></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-pass2">Confirmar *</label><input type="password" id="reg-pass2" name="new-password-confirm" autocomplete="new-password"></div>
+                <!-- Un solo campo con "Mostrar" en vez de "Confirmar": la
+                     confirmación no deja ver el error que intenta atrapar, y
+                     estorbaba al gestor de contraseñas, que llena un campo. -->
+                <div class="form-group" style="margin: 15px 0 0;">
+                    <label for="reg-pass">Contraseña *</label>
+                    <div class="campo-contrasena">
+                        <input type="password" id="reg-pass" name="new-password" autocomplete="new-password" minlength="10" aria-describedby="reg-pass-regla">
+                        <button type="button" class="btn-mostrar" aria-controls="reg-pass" aria-pressed="false" onclick="alternarContrasena(this)">Mostrar</button>
+                    </div>
+                    <p id="reg-pass-regla" class="ayuda-campo">10 caracteres o más, con mayúscula, minúscula y número.</p>
                 </div>
                 <button type="submit" class="action-btn" style="margin-top: 25px;">Crear cuenta</button>
                 <div style="margin-top: 25px; font-size: 0.95rem; border-top: 1px dashed var(--card-border); padding-top: 15px; text-align:center;">
@@ -1157,9 +1167,7 @@
             const m = document.getElementById('reg-m').value;
             const email = document.getElementById('reg-email').value;
             const pass = document.getElementById('reg-pass').value;
-            const pass2 = document.getElementById('reg-pass2').value;
             if (!n1 || !p || !m || !email || !pass) return alert("Completa todos los campos obligatorios.");
-            if (pass !== pass2) return alert("Las contraseñas no coinciden.");
             // La regla la impone Auth (minimum_password_length y
             // password_requirements); aquí sólo se avisa antes de enviar.
             const falta = faltaEnContrasena(pass);
@@ -1172,6 +1180,16 @@
             if (error?.code === 'weak_password') alert('La contraseña es demasiado débil: usa 10 caracteres o más, con mayúscula, minúscula y número.');
             else if (error) alert("Error: " + error.message);
             else { alert("Cuenta creada. Revisa tu correo para verificarla."); showView('login'); }
+        }
+
+        // Con la contraseña a la vista se revisa lo escrito y se puede copiar:
+        // el navegador no deja copiar de un campo type="password".
+        function alternarContrasena(btn) {
+            const campo = document.getElementById(btn.getAttribute('aria-controls'));
+            const visible = campo.type === 'password';
+            campo.type = visible ? 'text' : 'password';
+            btn.textContent = visible ? 'Ocultar' : 'Mostrar';
+            btn.setAttribute('aria-pressed', String(visible));
         }
 
         function faltaEnContrasena(pass) {
