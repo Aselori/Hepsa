@@ -48,6 +48,20 @@ try {
   const regla = await page.locator('#reg-pass-regla').textContent();
   check('el formulario dice la regla antes de escribir', /10 caracteres/.test(regla), regla);
 
+  // Los gestores de contraseñas sólo generan y guardan dentro de un formulario
+  // real, con el correo marcado como usuario. Sin esto Bitwarden no ofrecía
+  // nada en el registro.
+  const estructura = await page.evaluate(() => ({
+    registro: ['reg-email', 'reg-pass', 'reg-pass2'].every((id) => document.getElementById(id).closest('form')?.id === 'form-registro'),
+    usuario: document.getElementById('reg-email').autocomplete,
+    nueva: document.getElementById('reg-pass').autocomplete,
+    login: ['log-email', 'log-pass'].every((id) => document.getElementById(id).closest('form')?.id === 'form-login'),
+    actual: document.getElementById('log-pass').autocomplete,
+  }));
+  check('registro e inicio de sesión son formularios que un gestor de contraseñas reconoce',
+    estructura.registro && estructura.login && estructura.usuario === 'username' && estructura.nueva === 'new-password' && estructura.actual === 'current-password',
+    JSON.stringify(estructura));
+
   const llenar = async (pass) => {
     await page.fill('#reg-n1', 'Prueba'); await page.fill('#reg-p', 'Contraseña'); await page.fill('#reg-m', 'Fuerte');
     await page.fill('#reg-email', correo()); await page.fill('#reg-pass', pass); await page.fill('#reg-pass2', pass);
@@ -59,6 +73,16 @@ try {
     avisos.at(-1)?.includes('al menos 10 caracteres') && avisos.at(-1)?.includes('una mayúscula'), avisos.at(-1));
   await llenar(contrasenaDePrueba());
   check('con una contraseña fuerte la cuenta se crea', avisos.at(-1)?.startsWith('Cuenta creada'), avisos.at(-1));
+
+  // Enter en el inicio de sesión envía el formulario sin recargar la página.
+  await page.evaluate(() => showView('login'));
+  await page.fill('#log-email', correo()); await page.fill('#log-pass', 'NoExiste2026x');
+  const antes = page.url();
+  await page.press('#log-pass', 'Enter');
+  await page.waitForTimeout(1500);
+  const aviso = await page.locator('#toast-container').textContent();
+  check('Enter en el inicio de sesión intenta entrar y no recarga la página',
+    aviso.includes('Credenciales incorrectas') && page.url() === antes, aviso.trim());
 } finally {
   await navegador.close();
 }
