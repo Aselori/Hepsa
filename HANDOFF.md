@@ -139,8 +139,10 @@
   confirmar por el usuario). #26 (guía para proyecto propio) ABIERTO: el
   usuario decide si se fusiona.
 - 2026-11-06: proyecto hospedado movido a una organización nueva (sólo el
-  usuario como miembro); integración de GitHub reconectada, "Deploy to
-  production" apagado. Consulta de sólo lectura en 0/0 y `db push` hecho por
+  usuario como miembro). Integración de GitHub conectada por primera vez
+  (antes nunca existió: nada se aplicaba solo) con "Deploy to production"
+  ENCENDIDO: cada fusión a main aplica migraciones nuevas y despliega las
+  Edge Functions de config.toml (sin secretos de Stripe responden 503). Consulta de sólo lectura en 0/0 y `db push` hecho por
   el usuario: el hospedado tiene las 11 migraciones del repo. Advisor de
   seguridad: sólo avisos intencionales (ver manual técnico) y rls_auto_enable,
   que es de Supabase.
@@ -159,7 +161,8 @@
 
 ### Siguientes pasos
 
-1. Usuario: regla de contraseñas en el panel de Supabase y encender
-   "Deploy to production" en la integración de GitHub.
+1. Usuario: regla de contraseñas en el panel de Supabase.
+   Tras la próxima fusión a main: comprobar que se desplegaron crear-pago y
+   webhook-stripe y que responden 503 sin secretos.
 2. Siguiente tema pedido por el usuario: panel de administración y permisos
    (hoy los roles se asignan por SQL; Configuración sólo en memoria, F03).
