@@ -50,7 +50,16 @@ enroll_enabled = true
 verify_enabled = true
 
 [edge_runtime]
-enabled = false
+enabled = true
+
+# Mejora 2. Ninguna de las dos usa la verificacion de JWT de la pasarela:
+# Stripe no manda un token de Supabase, y crear-pago comprueba la sesion del
+# cliente por su cuenta con auth.getUser().
+[functions.crear-pago]
+verify_jwt = false
+
+[functions.webhook-stripe]
+verify_jwt = false
 
 [analytics]
 enabled = false
