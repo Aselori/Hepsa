@@ -34,8 +34,11 @@ window.HEPSA_CONFIG = {
 };
 ```
 
-**No trabajes contra el proyecto del cliente.** Ahí viven pedidos y datos de
-contacto reales del negocio. Usa el proyecto de desarrollo del equipo.
+**Ojo: tal como viene en el repositorio, `config.js` apunta al proyecto de
+HEPSA**, el que usa `hepsa.vercel.app`. Si sirves la página sin cambiarlo,
+lo que hagas (cuentas, solicitudes, pedidos) cae en la base real del negocio.
+Antes de abrirla, usa `npm run demo:local` (stack local con datos de prueba)
+o apunta `config.js` a tu propio proyecto (paso 5).
 
 La `supabaseKey` (publishable / anon) sí puede estar en el repo: está diseñada
 para viajar al navegador, y lo que protege los datos son las políticas RLS. La
@@ -85,7 +88,45 @@ panel pero no ve Configuración ni Usuarios.
 > Si en el código viejo ves el rol `empleado`, es un error: nunca existió en la
 > base. El equivalente real es `vendedor`.
 
-## 5. Flujo de trabajo
+## 5. Tu propio proyecto en Supabase
+
+Para tener una copia completa en la nube, separada de la de HEPSA. Las
+migraciones crean todo lo que el sistema necesita: esquema, políticas RLS,
+tarifas del cotizador, IVA, la tabla de pagos y el bucket `productos`.
+
+1. Crea un proyecto en [supabase.com](https://supabase.com) y anota su
+   *project ref* (la parte de la URL antes de `.supabase.co`).
+2. Aplica las migraciones:
+
+   ```bash
+   npx supabase login
+   npx supabase link --project-ref <tu-ref>
+   npx supabase db push
+   ```
+
+   No apliques `seed.sql` (es para el stack local). Si quieres datos para
+   enseñarlo, corre `scripts/demo/datos-demo.sql` en el SQL Editor; se quitan
+   con `scripts/demo/borrar-datos-demo.sql`.
+3. En el panel, *Authentication*:
+   - *URL Configuration*: Site URL = donde vayas a publicar (o
+     `http://localhost:8000` para probar) y agrégala a Redirect URLs.
+   - *Providers → Email*: confirmación de correo activada, longitud mínima
+     10 y requisitos "minúsculas, mayúsculas y números" (la misma regla que
+     `supabase/config.toml`).
+   - *Multi-Factor*: TOTP habilitado (el personal lo necesita para entrar).
+4. En `config.js`, `supabaseUrl` y `supabaseKey` de tu proyecto (*Project
+   Settings → API Keys*, la llave **publishable**).
+5. Tu primer admin: regístrate en el portal, confirma el correo y asígnate
+   el rol con el SQL del paso 4. En tu siguiente ingreso registras el
+   autenticador.
+6. Para publicarlo, ver [Desplegar](#desplegar). Para pagos en línea
+   (opcional), [pagos-en-linea.md](pagos-en-linea.md), pasos 1 y 3 a 6 con
+   tu *project ref*.
+
+`.mcp.json` también apunta al proyecto de HEPSA: cámbialo si usas el
+servidor MCP de Supabase con tu proyecto.
+
+## 6. Flujo de trabajo
 
 Está en [team-guide.md](team-guide.md). En corto: rama por tarea, Pull Request
 hacia `main`, que otro integrante lo revise.
@@ -93,14 +134,14 @@ hacia `main`, que otro integrante lo revise.
 ## Problemas comunes
 
 **"No hay productos disponibles" en el catálogo.**
-El catálogo solo muestra productos con `is_active = true`. En la base de
-producción los 6 están en `false`, así que se ve vacío aunque todo funcione.
-El `seed.sql` los inserta activos justo por esto.
+El catálogo solo muestra productos con `is_active = true`. Una base nueva no
+trae productos: agrégalos desde el panel (Inventario) o carga los datos de
+demostración. El `seed.sql` local ya los inserta activos.
 
 **Falla subir la imagen de un producto.**
-Debe existir un bucket público llamado `productos`. El nombre importa: durante
-mucho tiempo el código subía a `product-images`, que no existía, y por eso
-varios productos quedaron sin imagen.
+Debe existir el bucket público `productos`; la primera migración lo crea. El
+nombre importa: durante mucho tiempo el código subía a `product-images`, que
+no existía, y por eso varios productos quedaron sin imagen.
 
 **"ACCESO DENEGADO" al abrir `admin.html`.**
 Tu perfil sigue en `cliente`. Ver el paso 4.
