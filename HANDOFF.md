@@ -67,56 +67,21 @@
 - El MCP de Supabase de Claude Code apunta al proyecto hospedado (estuvo
   pausado del 2026-10-05 al 2026-10-07; ya responde).
 
-## Sesiones 2026-09-27 y 2026-09-28 (fusionadas; detalle en PR #8 y #9)
+## Septiembre y octubre de 2026 (todo fusionado; detalle en cada PR)
 
-- Checkpoint en git del trabajo previo, encabezado móvil arreglado
-  (tests/responsivo.spec.mjs) y package.json con devDependencies fijadas.
-- Revisión con Opus 5.5: escalada a admin con role NULL y fuga de la lista
-  de personal sin segundo factor, arregladas en la migración
-  20260928211428_blindar_guardias_ante_perfil_ausente.sql; inyección de CSS
-  del catálogo arreglada. Cada arreglo tiene prueba que falla sin él.
-
-### Verificación
-
-- PASS: 77/77 RLS, 15/15 MFA UI, 16/16 panel, 7/7 sin perfil, 4/4 role NULL,
-  11/11 responsivo, 7/7 imagen del catálogo, 8 escenarios MFA aislados.
-- Stack local nunca reiniciado con db reset: cuentas del demo intactas.
-- NO verificado: proyecto hospedado, sitio publicado, Auth/RLS remoto. La
-  migración solo se aplicó al stack local.
-
-### Siguientes pasos exactos
-
-1. #8 fusionado el 2026-09-29 (main 743af3a, contenido idéntico a la rama).
-   #9 rebasado sobre main con árbol idéntico al verificado; espera a que el
-   usuario lo fusione.
-2. En el proyecto hospedado, antes de aplicar la migración, contar filas con
-   role NULL y usuarios sin fila en profiles (consulta de solo lectura).
-3. Pendiente con decisión de negocio: F02/F03, F07, F08. F12 (restricciones
-   del esquema) sin decisión, pero exige inventariar antes los datos hospedados.
-4. F09 fusionado (PR #10, main bf81880): script probado 14/14 y documento
-   corregido. Faltan decisiones de negocio: quién verifica identidad y cómo,
-   quién autoriza, dónde se guarda el registro de auditoría.
-- Rediseño sutil FUSIONADO y publicado (PR #11, main c0661c3, 2026-10-07):
-  tema claro y oscuro en assets/tema.css, paleta tinta y acero (dorado solo en
-  el logo, a pedido del usuario: "demasiado IA"), Archivo servida desde el
-  sitio, panel para teléfono, carrito rediseñado y arreglo de la reescritura
-  del carrito al cargar. Verificado en hepsa.vercel.app con Playwright.
-- 2026-10-07: el proyecto Supabase hospedado volvió (el usuario lo reanudó);
-  la API responde 200.
-- 2026-10-07: el sitio publicaba scripts/, .github/, .mcp.json, .vscode/ y
-  skills-lock.json. .vercelignore pasa a lista de lo que SÍ se publica (rama
-  chore/publicar-solo-el-sitio). FUSIONADO (PR #12, main c644490); en vivo
-  esas rutas dan 404 y el sitio carga completo.
-- 2026-10-07: las instrucciones globales del usuario ahora tienen una sección
-  "Design thinking" (~/.codex/AGENTS.md): evaluar antes de implementar, lo
-  urgente primero, mostrar excepciones. Con ella se evaluó el sitio y se
-  hicieron maquetas: https://claude.ai/artifact/7MWvstUSjYHGPzKy27x94s
-  (privadas). El usuario aprobó TODAS.
-- PR #13 y #14 (pautas de interfaz, diseño por tareas) FUSIONADOS el
-  2026-10-09 (main b7e79c5) y verificados en vivo. Catálogo hospedado
-  corregido con permiso: docs/catalogo-correccion-2026-10-09.md.
-- Faltan datos del negocio: teléfono, WhatsApp y dirección (config.js) y
-  fotos reales. Decisión del usuario (2026-10-21): sin fotos de muestra.
+- #8/#9: revisión con escalada por role NULL y fuga de personal sin 2FA,
+  arregladas en 20260928211428 (aplicada al hospedado el 2026-11-06).
+- #10 recuperación del 2FA (falta decidir quién verifica identidad, quién
+  autoriza y dónde va la auditoría: F09). Pendientes de negocio: F02/F03,
+  F07, F08, F12.
+- #11 rediseño (tema claro y oscuro, tinta y acero; dorado sólo en el logo,
+  a pedido: "demasiado IA"). #12 .vercelignore como lista de lo publicado.
+  #13/#14 pautas de interfaz y diseño por tareas (maquetas aprobadas:
+  https://claude.ai/artifact/7MWvstUSjYHGPzKy27x94s). Catálogo hospedado
+  corregido: docs/catalogo-correccion-2026-10-09.md.
+- Faltan datos del negocio: dirección y fotos reales (sin fotos de muestra,
+  decisión del 2026-10-21). En Facebook: tel. 81 2679 6586 y
+  admonhepsa@outlook.com; mostrarlos en config.js espera el visto bueno.
 
 ## Sesión 2026-11-06 (todo fusionado; detalle en cada PR)
 
@@ -158,6 +123,19 @@
   Pregunta abierta en el de usuario: recuperación de contraseña.
 - MCP de Supabase falló al conectar al iniciar la sesión (red lenta); el
   endpoint sí responde. Se reconecta con /mcp.
+
+- #28 registro e inicio de sesión como formularios reales (Bitwarden los
+  reconoce). #30: un solo campo de contraseña con Mostrar (sin Confirmar).
+- #29: crear-pago y webhook-stripe se caían con 500 al desplegarse sin
+  secretos (Stripe 23 lanza sin llave); ahora contestan 503, verificado en
+  vivo. test:local también las prueba sin secretos.
+- Regla de contraseñas en el hospedado: longitud 10 puesta por el usuario;
+  los requisitos deben ser "minúsculas, mayúsculas y dígitos" (sin
+  símbolos) para coincidir con el formulario: CONFIRMAR.
+- SMTP con Brevo (remitente aslopezrivas@gmail.com, "HEPSA"): sin él
+  Supabase sólo envía a miembros de la organización. La llave vence el
+  2027-11-06 o tras 90 días sin envíos. Dirección en Brevo provisional
+  (FIME). Prueba con un correo externo: PENDIENTE de resultado.
 
 ### Siguientes pasos
 
