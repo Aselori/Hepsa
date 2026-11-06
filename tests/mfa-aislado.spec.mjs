@@ -41,7 +41,7 @@ async function escenario(nombre, run) {
                         getAuthenticatorAssuranceLevel: async () => ({ data: t.aal, error: t.errorAal }),
                         listFactors: async () => ({ data: { all: t.factores, totp: t.factores.filter(f => f.factor_type === 'totp' && f.status === 'verified') }, error: t.errorLista }),
                         unenroll: async ({ factorId }) => { t.llamadas.push(['unenroll', factorId]); return { error: t.errorLimpiar }; },
-                        enroll: async () => { t.llamadas.push('enroll'); return { error: t.errorAlta, data: { id: 'nuevo', totp: { qr_code: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E', secret: 'SOLO-SINTETICO' } } }; },
+                        enroll: async (args) => { t.llamadas.push(['enroll', args]); return { error: t.errorAlta, data: { id: 'nuevo', totp: { qr_code: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg"/%3E', secret: 'SOLO-SINTETICO' } } }; },
                         challengeAndVerify: async (args) => {
                             t.llamadas.push(['verify', args]);
                             if (t.esperar) await new Promise(resolve => { window.resolverVerificacion = resolve; });
@@ -95,6 +95,8 @@ try {
         await set(page, { errorLimpiar: null });
         await preparar(page);
         assert.equal(await page.locator('#mfa-secreto').textContent(), 'SOLO-SINTETICO');
+        // El nombre en la app autenticadora: sin issuer salia la Site URL.
+        assert.equal(await page.evaluate(() => estadoPrueba.llamadas.find(x => x[0] === 'enroll')?.[1]?.issuer), 'HEPSA');
         assert.equal(await page.locator('#mfa-btn').isEnabled(), true);
         assert.equal(await page.evaluate(() => estadoPrueba.llamadas.some(x => x[1] === 'ajeno')), false);
     });
