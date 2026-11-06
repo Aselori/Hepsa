@@ -46,7 +46,7 @@ async function entrarPorElFormulario(page, email, pass) {
   await page.click('#btn-login');
   await page.fill('#log-email', email);
   await page.fill('#log-pass', pass);
-  await page.click('button[onclick="iniciarSesionBD()"]');
+  await page.click('#form-login button[type="submit"]');
 }
 
 const aalDe = (page) => page.evaluate(async () => {

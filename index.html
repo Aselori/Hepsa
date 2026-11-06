@@ -311,16 +311,16 @@
 
         <!-- VISTA LOGIN -->
         <section id="view-login" class="view-section">
-            <div class="form-container" style="max-width: 400px; margin: 40px auto; text-align: center;">
+            <form id="form-login" class="form-container" style="max-width: 400px; margin: 40px auto; text-align: center;" onsubmit="event.preventDefault(); iniciarSesionBD();">
                 <h2 style="border:none; padding:0; margin-bottom: 10px; color: var(--primary);">Bienvenido</h2>
                 <p style="color: var(--text-muted); margin-bottom: 30px; font-weight:bold;">Ingresa para dar seguimiento a tus proyectos.</p>
                 <div class="form-group" style="text-align: left;"><label for="log-email">Correo</label><input type="email" placeholder="cliente@correo.com" id="log-email" name="email" autocomplete="username" spellcheck="false" autocapitalize="none"></div>
                 <div class="form-group" style="text-align: left;"><label for="log-pass">Contraseña</label><input type="password" placeholder="••••••••" id="log-pass" name="password" autocomplete="current-password"></div>
-                <button class="action-btn" style="margin-top: 10px;" onclick="iniciarSesionBD()">Ingresar seguro</button>
+                <button type="submit" class="action-btn" style="margin-top: 10px;">Ingresar seguro</button>
                 <div style="margin-top: 25px; font-size: 0.95rem; border-top: 1px dashed var(--card-border); padding-top: 15px;">
                     <span style="color: var(--text-label);">¿No tienes cuenta?</span> <a href="#" onclick="showView('register'); return false;" style="color: var(--primary); font-weight:bold; text-decoration:none;">Regístrate aquí</a>
                 </div>
-            </div>
+            </form>
         </section>
 
         <!-- VISTA SEGUNDO FACTOR (MEJORA 3) -->
@@ -358,7 +358,9 @@
 
         <!-- VISTA REGISTRO -->
         <section id="view-register" class="view-section">
-            <div class="form-container" style="max-width: 600px; margin: 40px auto;">
+            <!-- Un formulario de verdad: los gestores de contraseñas (Bitwarden, el
+                 del navegador) sólo ofrecen generar y guardar dentro de uno. -->
+            <form id="form-registro" class="form-container" style="max-width: 600px; margin: 40px auto;" onsubmit="event.preventDefault(); registrarUsuarioBD();">
                 <h2 style="border:none; padding:0; margin-bottom: 10px; color: var(--primary); text-align:center;">Crear cuenta</h2>
                 <div class="name-grid">
                     <div class="form-group" style="margin-bottom: 0;"><label for="reg-n1">Primer nombre *</label><input type="text" id="reg-n1" name="given-name" autocomplete="given-name"></div>
@@ -370,17 +372,17 @@
                 </div>
                 <div class="name-grid">
                     <div class="form-group" style="margin-bottom: 0;"><label for="reg-tel">Teléfono</label><input type="tel" id="reg-tel" name="tel" autocomplete="tel"></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-email">Correo *</label><input type="email" id="reg-email" name="email" autocomplete="email" spellcheck="false" autocapitalize="none"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-email">Correo *</label><input type="email" id="reg-email" name="username" autocomplete="username" spellcheck="false" autocapitalize="none"></div>
                 </div>
                 <div class="name-grid" style="margin-top: 15px;">
                     <div class="form-group" style="margin-bottom: 0;"><label for="reg-pass">Contraseña *</label><input type="password" id="reg-pass" name="new-password" autocomplete="new-password" minlength="10" aria-describedby="reg-pass-regla"><p id="reg-pass-regla" class="ayuda-campo">10 caracteres o más, con mayúscula, minúscula y número.</p></div>
                     <div class="form-group" style="margin-bottom: 0;"><label for="reg-pass2">Confirmar *</label><input type="password" id="reg-pass2" name="new-password-confirm" autocomplete="new-password"></div>
                 </div>
-                <button class="action-btn" style="margin-top: 25px;" onclick="registrarUsuarioBD()">Crear cuenta</button>
+                <button type="submit" class="action-btn" style="margin-top: 25px;">Crear cuenta</button>
                 <div style="margin-top: 25px; font-size: 0.95rem; border-top: 1px dashed var(--card-border); padding-top: 15px; text-align:center;">
                     <a href="#" onclick="showView('login'); return false;" style="color: var(--primary); font-weight:bold; text-decoration:none;">Inicia sesión aquí</a>
                 </div>
-            </div>
+            </form>
         </section>
 
         <!-- VISTA PERFIL -->
