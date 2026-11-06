@@ -2,7 +2,7 @@
 
 - Objective: next 2FA deliverable. Cloudflare explicitly deferred. User taking over after original developers left.
 - Scope: local staff-session injection fixes, reliable MFA screens, isolated tests and real local Auth/RLS verification. No production changes or broad rewrite.
-- Rama actual: feature/rediseno-sutil (rediseño, sin push). La Mejora 3 (2FA) ya está fusionada en main.
+- Rama actual: feature/pagos-en-linea (Mejora 2). Mejoras 1 y 3 fusionadas y publicadas.
 - Repository moved from `/home/aselori/Projects/hepsa` to `/home/aselori/Work/projects/hepsa`. Primary prior Codex thread is `01a08d52-5047-79e2-84de-603b4220c1d7`; resume it from the new checkout with `codex resume 01a08d52-5047-79e2-84de-603b4220c1d7 -C /home/aselori/Work/projects/hepsa`, or discover moved-path sessions with `codex resume --all`.
 - CONTRIBUTING.md remains project convention source. User supplied updated global AGENTS instructions (Arch/Omarchy, mise, explicit restart timing).
 - User preference saved globally: enable best free approach when unavailable or explain exact enabling steps; no purchases. Filesystem inspection authorized, secrets excluded.
@@ -125,8 +125,19 @@
   y después y 4 dudas de datos para el negocio. Demo local detenida.
 - 2026-10-21: fotos de producto: el usuario decidió dejarlo como está (sin
   relleno ni fotos de muestra) hasta que el negocio mande fotos reales.
-- 2026-10-21: rama navbar-carrito-visible (sin push): número del carrito en
-  píldora de la tinta de acción, oculto con el carrito vacío; menú en tres
-  grupos (vistas, carrito, cuenta); "Cotizar" corto; en teléfono (≤640 px)
-  dos filas: logo y cuenta, luego vistas y carrito. npm test en verde; revisado con
-  Playwright de 1366 a 360 px, ambos temas, con y sin teléfono. Falta push, PR y fusión.
+- 2026-10-21: menú (píldora del carrito, "Cotizar", dos filas en teléfono):
+  FUSIONADO (PR #16, 2026-11-06) y revisado en vivo.
+- 2026-11-06: el proyecto Supabase hospedado está pausado otra vez (la API
+  responde 521). Solo el usuario puede reanudarlo desde el panel.
+- 2026-11-06: Mejora 2 (decisión del usuario: Stripe en modo de prueba, MVP;
+  para el curso basta el diseño justificado, pero se implementó). Rama
+  feature/pagos-en-linea: migración 20261106120000_pagos_en_linea.sql, Edge
+  Functions crear-pago y webhook-stripe, botón "Pagar en línea" en el perfil
+  (oculto con pagosEnLinea: false en config.js), tarjetas de pedido en
+  teléfono y arreglo del desbordamiento del perfil (ya pasaba en main).
+  Probado SOLO en local: tests/pagos.spec.mjs 31/31 con Stripe simulado en un
+  contenedor (ufw del anfitrión bloquea Docker → anfitrión); todas las suites
+  en verde. NO aplicado a la base hospedada ni desplegado: pasos en
+  docs/pagos-en-linea.md (requieren cuenta Stripe y login de Supabase del
+  usuario, y la consulta de sólo lectura del PR #9 antes de db push).
+- Siguiente: manuales (usuario cliente, personal/admin y técnico).

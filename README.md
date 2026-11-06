@@ -132,6 +132,7 @@ HEPSA/
 ## 📚 Documentación
 
 - [Entrega y recuperacion del segundo factor](docs/entrega-2fa.md)
+- [Pagos en línea con Stripe (Mejora 2)](docs/pagos-en-linea.md)
 - [Revision integral y plan de recuperacion, septiembre 2026](docs/revision-integral.md)
 - [Arquitectura del sistema](docs/architecture.md)
 - [Requerimientos y módulos](docs/requirements.md)
@@ -144,7 +145,7 @@ HEPSA/
 - [ ] Mejorar la validación de roles y permisos.
 - [ ] Revisar y optimizar consultas a Supabase.
 - [x] Fortalecer las políticas RLS.
-- [ ] Integrar una pasarela de pagos.
+- [x] Integrar una pasarela de pagos (Stripe en modo de prueba; activación en [docs/pagos-en-linea.md](docs/pagos-en-linea.md)).
 - [x] Implementar 2FA para cuentas de empleados.
 - [ ] Añadir pruebas automatizadas.
 - [ ] Preparar despliegue de producción.

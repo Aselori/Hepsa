@@ -27,6 +27,12 @@ window.HEPSA_CONFIG = {
     //   direccion: una línea, por ejemplo 'Av. Ejemplo 123, Monterrey, N.L.'
     contacto: { telefono: '', whatsapp: '', direccion: '' },
 
+    // Pagos con tarjeta por Stripe (Mejora 2). Queda en false hasta que las
+    // Edge Functions crear-pago y webhook-stripe estén desplegadas con sus
+    // secretos: con false el portal no muestra el botón de pagar. Pasos en
+    // docs/pagos-en-linea.md.
+    pagosEnLinea: false,
+
     // ¿Se puede pedir más de lo que hay en existencia?
     //
     // NO se configura aquí. Vive en la base, en parametros_cotizacion:
