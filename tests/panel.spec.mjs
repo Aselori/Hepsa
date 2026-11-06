@@ -43,6 +43,7 @@ async function entrarConSegundoFactor(page, prefijo) {
 const browser = await navegadorLocal();
 let pedidoCreado = null;
 let imagenCreada = null;
+let fotoEditada = null;
 let page = null;
 
 try {
@@ -125,6 +126,37 @@ try {
   }, pedidoCreado);
   check('la venta guarda sus renglones', renglones === 1, `renglones=${renglones}`);
 
+  // ── Historial: el personal cambia el pago y el estatus del proyecto ──────
+  // El cliente ve ambos en su perfil; antes el panel no tenia donde cambiarlos.
+  await page.evaluate(() => showAdminView('history'));
+  const selProyecto = `select[aria-label="Proyecto del folio #${pedidoCreado}"]`;
+  await page.waitForSelector(selProyecto, { timeout: 10000 });
+  await page.selectOption(selProyecto, 'en_produccion');
+  await page.waitForTimeout(1500);
+  await page.selectOption(`select[aria-label="Pago del folio #${pedidoCreado}"]`, 'completo');
+  await page.waitForTimeout(1500);
+  const estatus = await page.evaluate(async (id) =>
+    (await window.supabaseClient.from('orders').select('project_status, payment_status').eq('id', id).single()).data, pedidoCreado);
+  check('desde el historial se cambian el estatus del proyecto y el pago',
+    estatus?.project_status === 'en_produccion' && estatus?.payment_status === 'completo', JSON.stringify(estatus));
+
+  // ── Inventario: la edicion acepta una foto nueva ──────────────────────────
+  // Antes solo el alta tenia campo de foto: un producto existente no podia
+  // recibir una.
+  await page.evaluate(() => showAdminView('catalog'));
+  await page.waitForSelector('#inventory-table-body .btn-edit', { timeout: 10000 });
+  const original = await page.evaluate(() => productosInventario[0] && { id: productosInventario[0].id, image_url: productosInventario[0].image_url });
+  await page.evaluate((id) => abrirModalEdicion(id), original.id);
+  await page.setInputFiles('#edit-prod-img', { name: 'foto-prueba.png', mimeType: 'image/png',
+    buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') });
+  await page.click('#modal-edit-product .action-btn');
+  await page.waitForTimeout(2500);
+  const editada = await page.evaluate(async (id) =>
+    (await window.supabaseClient.from('products').select('image_url').eq('id', id).single()).data?.image_url, original.id);
+  const cambio = typeof editada === 'string' && editada !== original.image_url && editada.includes('/productos/products/');
+  if (cambio) fotoEditada = { id: original.id, previa: original.image_url, objeto: decodeURIComponent(editada.split('/productos/')[1]) };
+  check('editar un producto le cambia la foto', cambio, `antes=${original.image_url} despues=${editada}`);
+
   // ── Subir imagen a Storage: tambien pasa por is_staff() ──────────────────
   const subida = await page.evaluate(async (bucket) => {
     const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
@@ -190,6 +222,14 @@ try {
       const { data } = await window.supabaseClient.from('orders').select('id').eq('id', id);
       return data?.length ?? -1;
     }, pedidoCreado).catch((e) => `fallo: ${e.message}`);
+    if (fotoEditada) {
+      const restaurada = await pL.evaluate(async ({ id, previa, objeto }) => {
+        const r = await window.supabaseClient.from('products').update({ image_url: previa }).eq('id', id);
+        const b = await window.supabaseClient.storage.from('productos').remove([objeto]);
+        return !r.error && !b.error;
+      }, fotoEditada);
+      check('la foto de prueba se retira y el producto vuelve a su imagen', restaurada === true);
+    }
     if (imagenCreada) {
       const limpia = await pL.evaluate(async nombre => {
         const { data, error } = await window.supabaseClient.storage.from('productos').remove([nombre]);
