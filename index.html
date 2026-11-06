@@ -140,7 +140,8 @@
         .cart-item-quitar { align-self: flex-start; background: none; border: none; padding: 6px 0; margin: -6px 0; color: var(--text-muted); font: inherit; font-size: 0.85rem; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
         .cart-item-quitar:hover { color: var(--peligro); }
         .cart-vacio { color: var(--text-muted); text-align: center; }
-        .cart-total { font-size: 1.25rem; font-weight: 700; text-align: right; margin: 18px 0; color: var(--text-main); font-variant-numeric: tabular-nums; }
+        .cart-total { font-size: 1.25rem; font-weight: 700; text-align: right; margin: 18px 0 2px; color: var(--text-main); font-variant-numeric: tabular-nums; }
+        .cart-iva { font-size: 0.85rem; color: var(--text-muted); text-align: right; margin: 0 0 16px; }
         .profile-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; }
         /* Sin min-width: 0 la columna crecia hasta el ancho minimo de la tabla de
            pedidos y en telefono toda la pagina se salia de la pantalla. Asi la
@@ -212,9 +213,13 @@
             <button class="close-cart" onclick="toggleCart()" aria-label="Cerrar carrito">×</button>
         </div>
         <div id="cart-items-container"><p class="cart-vacio">El carrito está vacío</p></div>
-        <div class="cart-total">Total: $<span id="cart-total-price">0.00</span></div>
+        <!-- Subtotal y no total: el IVA lo suma crear_pedido_desde_carrito()
+             al confirmar. Decir "Total" aqui hacia que el pedido saliera 16%
+             mas caro de lo que el carrito habia mostrado. -->
+        <div class="cart-total">Subtotal: $<span id="cart-total-price">0.00</span></div>
+        <p class="cart-iva">Más IVA, que se suma al confirmar.</p>
         <button class="action-btn" id="btn-checkout" onclick="confirmarPedido()">Confirmar pedido</button>
-        <p style="font-size:.8rem; color:var(--text-muted); margin:12px 0 0; line-height:1.4;">
+        <p id="cart-nota-pago" style="font-size:.8rem; color:var(--text-muted); margin:12px 0 0; line-height:1.4;">
             Al confirmar registramos tu pedido y te contactamos para acordar el
             pago y la instalación. Todavía no se cobra nada en línea.
         </p>
@@ -484,6 +489,12 @@
                 wa && enlace('WhatsApp', `https://wa.me/${wa}`), direccion].filter(Boolean));
         }
         pintarContacto();
+        // La nota del carrito cambia cuando hay pagos en linea: "todavia no se
+        // cobra nada en linea" dejaria de ser cierto.
+        if (window.HEPSA_CONFIG.pagosEnLinea) {
+            document.getElementById('cart-nota-pago').textContent =
+                'Al confirmar registramos tu pedido. Puedes pagarlo en línea desde Mi perfil o acordar el pago con nosotros.';
+        }
         if (window.supabase) {
             window.supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
             window.supabaseClient.auth.onAuthStateChange((event, session) => {
