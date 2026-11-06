@@ -119,6 +119,18 @@ try {
         assert.equal(await page.locator('#mfa-codigo').inputValue(), '');
         assert.equal(await page.locator('#mfa-factor img').count(), 0);
     });
+    await escenario('dos factores con el mismo nombre se distinguen por fecha y el reciente va primero', async page => {
+        await set(page, { factores: [
+            { id: 'viejo', status: 'verified', factor_type: 'totp', friendly_name: 'HEPSA', created_at: '2026-09-07T15:00:00Z' },
+            { id: 'nuevo', status: 'verified', factor_type: 'totp', friendly_name: 'HEPSA', created_at: '2026-11-06T18:00:00Z' },
+        ] });
+        await preparar(page);
+        const opciones = await page.evaluate(() => [...document.querySelectorAll('#mfa-factor option')].map(o => [o.value, o.textContent]));
+        assert.equal(opciones[0][0], 'nuevo');
+        assert.equal(await page.locator('#mfa-factor').inputValue(), 'nuevo');
+        assert.notEqual(opciones[0][1], opciones[1][1]);
+        assert.match(opciones[0][1], /^HEPSA · registrado el /);
+    });
     await escenario('codigo invalido local no llama Auth y una caida de red permite reintentar', async page => {
         await preparar(page);
         await page.fill('#mfa-codigo', '12a456');
