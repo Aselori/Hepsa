@@ -44,10 +44,15 @@ Contiene el panel de administración. Incluye POS, registro de ventas, tickets P
 
 El código utiliza el SDK de Supabase para autenticación, consultas a PostgreSQL y almacenamiento de imágenes.
 
+### Edge Functions
+
+`supabase/functions/` contiene lo único que corre en servidor: `crear-pago` y `webhook-stripe`, los pagos con tarjeta de la Mejora 2. Existen porque el cobro necesita una llave secreta de Stripe que no puede viajar al navegador. Detalle en [pagos-en-linea.md](pagos-en-linea.md).
+
 ## Librerías externas
 
 - Supabase JavaScript SDK 2.
 - jsPDF 2.5.1 para generación de documentos PDF.
+- Stripe (`npm:stripe@23.0.1`), sólo dentro de las Edge Functions.
 
 ## Consideraciones de seguridad
 
