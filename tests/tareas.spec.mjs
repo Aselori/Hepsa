@@ -96,7 +96,7 @@ try {
   await page.evaluate(() => showView('quote'));
   const orden = await page.evaluate(() => {
     const antes = (a, b) => Boolean(document.getElementById(a).compareDocumentPosition(document.getElementById(b)) & Node.DOCUMENT_POSITION_FOLLOWING);
-    return { piezaAntesQueNombre: antes('quote-largo', 'quote-n1'), estimadoAntesQueNombre: antes('quote-estimate', 'quote-n1') };
+    return { piezaAntesQueNombre: antes('quote-largo', 'quote-nombre'), estimadoAntesQueNombre: antes('quote-estimate', 'quote-nombre') };
   });
   check('cotizar pide la pieza y da el estimado antes de los datos personales',
     orden.piezaAntesQueNombre && orden.estimadoAntesQueNombre, JSON.stringify(orden));
