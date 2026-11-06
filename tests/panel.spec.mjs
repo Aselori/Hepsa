@@ -114,6 +114,9 @@ try {
   check('la venta queda registrada en la base', despues.count === antes + 1,
     `${antes} -> ${despues.count}`);
   pedidoCreado = despues.ultima?.id ?? null;
+  // El folio del ticket (y del PDF) es el id del pedido, no un número al azar.
+  const folioTicket = await page.locator('#ticket-folio').textContent();
+  check('el ticket muestra el folio real del pedido registrado', folioTicket === `#${pedidoCreado}`, `ticket=${folioTicket} pedido=${pedidoCreado}`);
 
   const cuadra = despues.ultima &&
     Math.abs(Number(despues.ultima.total) - (armado.precio * 1.16)) < 0.02;

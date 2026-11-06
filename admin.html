@@ -96,6 +96,8 @@
         .stock-low { color: var(--peligro); font-weight: 600; }
         select.selector-estatus { width: auto; padding: 4px 8px; font-size: 0.9rem; margin-left: 6px; }
         td > select.selector-estatus:first-child { margin-left: 0; }
+        /* El punto de pendiente va junto al selector, no encima. */
+        #history-table-body td:first-child { white-space: nowrap; }
         .mensaje-error { color: var(--peligro); }
         /* Una línea arriba de cada tabla con lo que pide atención; si no hay
            nada, no se muestra. */
@@ -256,7 +258,7 @@
                             <small style="color: #555; font-weight: bold;">HERRERÍA FINA</small><br><br>
                             <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
                                 <span id="ticket-date">Fecha: --/--/----</span>
-                                <span>Folio: #<span id="ticket-folio">0001</span></span>
+                                <span>Folio: <span id="ticket-folio">—</span></span>
                             </div>
                         </div>
                         <div style="margin-bottom: 15px; font-size: 0.9rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">
@@ -536,10 +538,26 @@
         let productosInventario = [];
         const formatMoney = (num) => num.toLocaleString('en-US', {minimumFractionDigits: 2});
 
+        // El folio es el id del pedido en la base, y existe sólo al registrar.
+        // Antes era un número al azar de 4 cifras: se repetía y no coincidía
+        // con el pedido, así que el folio del PDF no servía para buscarlo.
+        let folioRegistrado = null;
+
         function initTicket() {
             const now = new Date();
             document.getElementById('ticket-date').textContent = `Fecha: ${now.toLocaleDateString('es-MX')}`;
-            document.getElementById('ticket-folio').textContent = String(Math.floor(Math.random() * 9000) + 1000);
+            folioRegistrado = null;
+            document.getElementById('ticket-folio').textContent = '—';
+            const btn = document.getElementById('btn-registrar-venta');
+            btn.disabled = false; btn.textContent = 'Registrar ticket';
+        }
+
+        // Una venta registrada ya no se edita: el ticket debe decir lo mismo
+        // que el pedido guardado.
+        function ventaYaRegistrada() {
+            if (!folioRegistrado) return false;
+            showToast(`La venta #${folioRegistrado} ya está registrada. Usa "Limpiar venta" para empezar otra.`, 'error');
+            return true;
         }
 
         function updateTicketClient() {
@@ -555,6 +573,7 @@
         }
 
         function addToTicket() {
+            if (ventaYaRegistrada()) return;
             const i = document.getElementById('ticket-item').value.trim();
             const p = parseFloat(document.getElementById('ticket-price').value);
             const prodSelectId = document.getElementById('pos-product-select').value;
@@ -596,7 +615,7 @@
             document.getElementById('tkt-total').textContent = formatMoney(total);
         }
 
-        function removeFromTicket(idx) { posCart.splice(idx, 1); renderPOSTicket(); }
+        function removeFromTicket(idx) { if (ventaYaRegistrada()) return; posCart.splice(idx, 1); renderPOSTicket(); }
 
         function updatePaymentStatus() {
             const val = document.getElementById('payment-type').value;
@@ -625,7 +644,8 @@
 
         async function registrarVentaBD() {
             if (posCart.length === 0) { showToast('Agrega al menos un concepto al ticket', 'error'); return; }
-            
+            if (ventaYaRegistrada()) return;
+
             const btn = document.getElementById('btn-registrar-venta');
             btn.disabled = true; btn.textContent = 'Registrando…';
 
@@ -671,19 +691,23 @@
                 .from('order_items')
                 .insert(itemsPayload);
 
-            btn.disabled = false; btn.textContent = 'Registrar ticket';
-
-            if (itemsError) { 
-                showToast('Orden creada, pero fallaron items: ' + itemsError.message, 'error'); 
-            } else { 
-                showToast('Venta registrada exitosamente');
-                clearPOS();
-                cargarHistorialBD();
+            // El ticket se queda en pantalla con su folio real para exportar el
+            // PDF; "Limpiar venta" empieza la siguiente. Antes se limpiaba aquí y
+            // el PDF de una venta registrada ya no se podía sacar.
+            folioRegistrado = orderId;
+            document.getElementById('ticket-folio').textContent = `#${orderId}`;
+            btn.textContent = 'Venta registrada';
+            cargarHistorialBD();
+            if (itemsError) {
+                showToast('Orden creada, pero fallaron items: ' + itemsError.message, 'error');
+            } else {
+                showToast(`Venta #${orderId} registrada. Exporta el PDF o limpia la venta para empezar otra.`);
             }
         }
 
         function imprimirTicketPDF() {
             if (posCart.length === 0) { showToast('El ticket está vacío', 'error'); return; }
+            if (!folioRegistrado) { showToast('Registra la venta antes de exportar: el folio lo asigna el registro.', 'error'); return; }
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ unit: 'mm', format: [80, 200], orientation: 'portrait' });
             const W = 80; let y = 10; const lineH = 6;
@@ -696,7 +720,7 @@
 
             const now = new Date(); doc.setFontSize(8);
             doc.text(`Fecha: ${now.toLocaleDateString('es-MX')}`, 5, y);
-            doc.text(`Folio: #${document.getElementById('ticket-folio').textContent}`, W - 5, y, { align: 'right' }); y += lineH;
+            doc.text(`Folio: #${folioRegistrado}`, W - 5, y, { align: 'right' }); y += lineH;
             doc.setLineDash([1, 1]); doc.line(5, y, W - 5, y); y += 4;
 
             doc.setFont('courier', 'bold'); doc.setFontSize(8); doc.text('CLIENTE:', 5, y); y += lineH;
@@ -740,7 +764,7 @@
             doc.text('¡Gracias por su preferencia!', W / 2, y, { align: 'center' });
 
             const nombreCliente = document.getElementById('cli-nom1').value || 'cliente';
-            const folio = document.getElementById('ticket-folio').textContent;
+            const folio = folioRegistrado;
             doc.save(`HEPSA_Ticket_${folio}_${nombreCliente}.pdf`);
             showToast('PDF generado y descargado');
         }
@@ -954,7 +978,8 @@
                 if (o.payment_status === 'anticipo' || o.payment_status === 'faltante') {
                     const marca = document.createElement('span');
                     marca.className = `status-badge ${o.payment_status === 'anticipo' ? 'status-anticipo' : 'status-faltante'}`;
-                    marca.textContent = o.payment_status === 'anticipo' ? 'Anticipo' : 'Falta liquidar';
+                    // Solo el punto: el texto ya lo dice el selector de al lado.
+                    marca.setAttribute('aria-hidden', 'true');
                     pago.appendChild(marca);
                 }
                 // El personal cambia aqui el pago y el estatus del proyecto: el
