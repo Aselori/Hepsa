@@ -2,7 +2,7 @@
 
 - Objective: next 2FA deliverable. Cloudflare explicitly deferred. User taking over after original developers left.
 - Scope: local staff-session injection fixes, reliable MFA screens, isolated tests and real local Auth/RLS verification. No production changes or broad rewrite.
-- Rama actual: feature/pagos-en-linea (Mejora 2). Mejoras 1 y 3 fusionadas y publicadas.
+- Rama actual: docs/manuales. Mejoras 1, 2 (modo de prueba, sin activar) y 3 fusionadas.
 - Repository moved from `/home/aselori/Projects/hepsa` to `/home/aselori/Work/projects/hepsa`. Primary prior Codex thread is `01a08d52-5047-79e2-84de-603b4220c1d7`; resume it from the new checkout with `codex resume 01a08d52-5047-79e2-84de-603b4220c1d7 -C /home/aselori/Work/projects/hepsa`, or discover moved-path sessions with `codex resume --all`.
 - CONTRIBUTING.md remains project convention source. User supplied updated global AGENTS instructions (Arch/Omarchy, mise, explicit restart timing).
 - User preference saved globally: enable best free approach when unavailable or explain exact enabling steps; no purchases. Filesystem inspection authorized, secrets excluded.
@@ -130,8 +130,8 @@
 - 2026-11-06: el proyecto Supabase hospedado está pausado otra vez (la API
   responde 521). Solo el usuario puede reanudarlo desde el panel.
 - 2026-11-06: Mejora 2 (decisión del usuario: Stripe en modo de prueba, MVP;
-  para el curso basta el diseño justificado, pero se implementó). Rama
-  feature/pagos-en-linea: migración 20261106120000_pagos_en_linea.sql, Edge
+  para el curso basta el diseño justificado, pero se implementó). FUSIONADO
+  (PR #17, main 835914d; en vivo el botón sigue oculto y supabase/ da 404): migración 20261106120000_pagos_en_linea.sql, Edge
   Functions crear-pago y webhook-stripe, botón "Pagar en línea" en el perfil
   (oculto con pagosEnLinea: false en config.js), tarjetas de pedido en
   teléfono y arreglo del desbordamiento del perfil (ya pasaba en main).
