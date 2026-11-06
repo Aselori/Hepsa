@@ -140,7 +140,9 @@ if (args.compromiso && ROLES_PERSONAL.includes(rol)) {
   hechos.push(`rol bajado de ${rol} a cliente`);
 }
 
-const temporal = randomBytes(18).toString('base64url');
+// Con sufijo fijo para cumplir siempre la regla de Auth (minúscula, mayúscula
+// y número); los 18 bytes al azar son los que dan la fuerza.
+const temporal = `${randomBytes(18).toString('base64url')}aA1`;
 const cambio = await admin.auth.admin.updateUserById(usuario.id, { password: temporal });
 if (cambio.error) fallar(`No se pudo cambiar la contrasena: ${cambio.error.message}. No se borro ningun factor.`, 1);
 hechos.push('contrasena cambiada; tokens de refresco revocados');

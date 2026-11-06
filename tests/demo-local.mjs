@@ -3,7 +3,8 @@
 import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { readFile, writeFile } from 'node:fs/promises';
-import { randomUUID, randomBytes } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { contrasenaDePrueba } from './contrasena.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { build } from 'esbuild';
 
@@ -53,7 +54,7 @@ try {
 const etiqueta = randomUUID().slice(0, 8);
 for (const role of (cuentas.length ? [] : ['admin', 'vendedor', 'cliente'])) {
     const email = `${role}-${etiqueta}@example.test`;
-    const password = randomBytes(15).toString('base64url');
+    const password = contrasenaDePrueba();
     const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true,
         user_metadata: { first_name: 'Demo', last_name_p: role } });
     if (error) throw error;
