@@ -973,7 +973,7 @@ try {
     await page.fill('#log-pass', CUENTAS.cliente.pass);
     await Promise.all([
       page.waitForNavigation({ waitUntil: 'load', timeout: 25000 }),
-      page.click('button[onclick="iniciarSesionBD()"]'),
+      page.click('#form-login button[type="submit"]'),
     ]);
     await page.waitForSelector('[data-add-id]');
     await page.waitForFunction(() => usuarioActual !== null, null, { timeout: 12000 }).catch(() => {});
