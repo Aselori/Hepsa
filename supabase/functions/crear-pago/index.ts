@@ -4,7 +4,7 @@
 // leído con el token del propio cliente: si el pedido no es suyo, RLS no lo
 // devuelve y aquí se responde 404, sin distinguir "no existe" de "no es tuyo".
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
-import { stripe } from '../_compartido/stripe.ts';
+import { clienteStripe } from '../_compartido/stripe.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -22,7 +22,8 @@ Deno.serve(async (req) => {
   // A dónde vuelve el cliente al terminar. Sale de un secreto y no del
   // encabezado Origin, para que nadie arme una sesión que regrese a otro sitio.
   const sitio = Deno.env.get('HEPSA_SITIO_URL');
-  if (!Deno.env.get('STRIPE_SECRET_KEY') || !sitio) {
+  const stripe = clienteStripe();
+  if (!stripe || !sitio) {
     return responder(503, { error: 'Los pagos en línea no están configurados' });
   }
 
