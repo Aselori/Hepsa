@@ -143,9 +143,8 @@
         .cart-total { font-size: 1.25rem; font-weight: 700; text-align: right; margin: 18px 0 2px; color: var(--text-main); font-variant-numeric: tabular-nums; }
         .cart-iva { font-size: 0.85rem; color: var(--text-muted); text-align: right; margin: 0 0 16px; }
         .ayuda-campo { margin: 6px 0 0; font-size: 0.85rem; color: var(--text-muted); }
-        .campo-contrasena { position: relative; }
-        .campo-contrasena input { padding-right: 96px; }
-        .campo-contrasena .btn-mostrar { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); min-height: 32px; padding: 4px 12px; border: 1px solid var(--input-border); border-radius: var(--radio); background: transparent; color: var(--text-main); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+        .fila-contrasena { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+        .fila-contrasena .btn-mostrar { flex-shrink: 0; margin-top: 4px; min-height: 32px; padding: 4px 12px; border: 1px solid var(--input-border); border-radius: var(--radio); background: transparent; color: var(--text-main); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
         .profile-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; }
         /* Sin min-width: 0 la columna crecia hasta el ancho minimo de la tabla de
            pedidos y en telefono toda la pagina se salia de la pantalla. Asi la
@@ -382,11 +381,16 @@
                      estorbaba al gestor de contraseñas, que llena un campo. -->
                 <div class="form-group" style="margin: 15px 0 0;">
                     <label for="reg-pass">Contraseña *</label>
-                    <div class="campo-contrasena">
-                        <input type="password" id="reg-pass" name="new-password" autocomplete="new-password" minlength="10" aria-describedby="reg-pass-regla">
+                    <!-- "Mostrar" va debajo y no dentro del campo: el borde derecho del
+                         campo es donde el gestor de contraseñas pone su botón, y con el
+                         nuestro encima Bitwarden dejaba de ofrecer una contraseña generada.
+                         passwordrules le dice al gestor la regla de Auth. -->
+                    <input type="password" id="reg-pass" name="new-password" autocomplete="new-password" minlength="10" aria-describedby="reg-pass-regla"
+                           passwordrules="minlength: 10; required: lower; required: upper; required: digit;">
+                    <div class="fila-contrasena">
+                        <p id="reg-pass-regla" class="ayuda-campo">10 caracteres o más, con mayúscula, minúscula y número.</p>
                         <button type="button" class="btn-mostrar" aria-controls="reg-pass" aria-pressed="false" onclick="alternarContrasena(this)">Mostrar</button>
                     </div>
-                    <p id="reg-pass-regla" class="ayuda-campo">10 caracteres o más, con mayúscula, minúscula y número.</p>
                 </div>
                 <button type="submit" class="action-btn" style="margin-top: 25px;">Crear cuenta</button>
                 <div style="margin-top: 25px; font-size: 0.95rem; border-top: 1px dashed var(--card-border); padding-top: 15px; text-align:center;">
