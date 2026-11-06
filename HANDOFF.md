@@ -126,6 +126,11 @@
 
 - #28 registro e inicio de sesión como formularios reales (Bitwarden los
   reconoce). #30: un solo campo de contraseña con Mostrar (sin Confirmar).
+  #32: Mostrar pasa a ser un ícono de ojo dentro del campo, más passwordrules.
+  Bitwarden no sugiere contraseña generada en el registro; causa no hallada y
+  el usuario decidió que no importa.
+- #33: registro y Cotizar piden "Nombre(s)" y "Apellidos" (dos campos, no
+  cuatro), guardados en first_name y last_name_p; sin migración.
 - #29: crear-pago y webhook-stripe se caían con 500 al desplegarse sin
   secretos (Stripe 23 lanza sin llave); ahora contestan 503, verificado en
   vivo. test:local también las prueba sin secretos.
@@ -135,7 +140,8 @@
 - SMTP con Brevo (remitente aslopezrivas@gmail.com, "HEPSA"): sin él
   Supabase sólo envía a miembros de la organización. La llave vence el
   2027-11-06 o tras 90 días sin envíos. Dirección en Brevo provisional
-  (FIME). Prueba con un correo externo: PENDIENTE de resultado.
+  (FIME). Probado: un registro con un correo ajeno a la organización recibió
+  la confirmación.
 
 ### Siguientes pasos
 
