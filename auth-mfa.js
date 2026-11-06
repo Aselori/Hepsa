@@ -85,7 +85,10 @@ async function mostrarAltaSegundoFactor() {
             if (error) throw new Error('No se pudo limpiar el alta anterior. Reintenta; si persiste, contacta al responsable de HEPSA.');
         }
     }
-    const { data, error } = await window.supabaseClient.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'HEPSA' });
+    // issuer es el nombre que muestra la app autenticadora. Sin él, Supabase
+    // pone la Site URL del proyecto y la entrada no dice "HEPSA": con varias
+    // cuentas (vendedor, admin) no se distinguía cuál era cuál.
+    const { data, error } = await window.supabaseClient.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'HEPSA', issuer: 'HEPSA' });
     if (error || !data?.totp) throw new Error('No se pudo iniciar el alta. Reintenta; si persiste, contacta al responsable de HEPSA.');
     mfaFactorId = data.id;
     document.getElementById('mfa-qr').src = data.totp.qr_code;
