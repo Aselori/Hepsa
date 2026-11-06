@@ -1092,11 +1092,12 @@
             if (data === null) return mostrarEstimado('No hay tarifa para esa combinación de material y acabado.', '', true);
 
             const area = (pieza.largo_mm * pieza.alto_mm) / 1000000;
-            // Solo el material y el acabado van con mayúscula; "mm" se queda igual.
-            const nombre = (v) => v.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+            // El nombre sale del texto de la opción, no del valor interno: de
+            // 'pintura_electrostatica' no se puede recuperar el acento.
+            const nombre = (id) => document.querySelector(`#${id} option:checked`).textContent;
             mostrarEstimado(
                 Number(data).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }),
-                `${pieza.largo_mm} × ${pieza.alto_mm} mm (${area.toFixed(2)} m²) · ${nombre(pieza.material)} · ${nombre(pieza.acabado)}`,
+                `${pieza.largo_mm} × ${pieza.alto_mm} mm (${area.toFixed(2)} m²) · ${nombre('quote-material')} · ${nombre('quote-acabado')}`,
                 false);
         }
 
