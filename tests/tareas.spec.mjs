@@ -152,7 +152,7 @@ try {
       custom_requests: [
         { id: 'r-hecha', created_at: fechas.hace10, first_name: 'Ya', last_name_p: 'Atendida', status: 'Finalizado', largo_mm: 1000, alto_mm: 1000, material: 'acero', acabado: 'pavonado' },
         { id: 'r-vieja', created_at: fechas.hace5, first_name: 'Espera', last_name_p: 'Mucho', phone: '81 1000 0001', email: 'a@b.test', status: 'Pendiente de Revisión', largo_mm: 1000, alto_mm: 1000, material: 'acero', acabado: 'pavonado' },
-        { id: 'r-nueva', created_at: fechas.ayer, first_name: 'Espera', last_name_p: 'Poco', status: null, largo_mm: 1000, alto_mm: 1000, material: 'acero', acabado: 'pavonado' },
+        { id: 'r-nueva', created_at: fechas.ayer, first_name: 'Espera', last_name_p: 'Poco', status: null, largo_mm: 1000, alto_mm: 1000, material: 'hierro_forjado', acabado: 'pintura_electrostatica' },
       ],
     };
     window.supabaseClient = {
@@ -198,7 +198,10 @@ try {
     espera: document.querySelector('#projects-table-body tr .status-badge')?.textContent,
     esperaUrgente: document.querySelector('#projects-table-body tr .status-badge')?.classList.contains('status-peligro'),
     telefono: document.querySelector('#projects-table-body a[href^="tel:"]')?.getAttribute('href'),
+    pieza: document.querySelector('#projects-table-body').textContent,
   }));
+  check('proyectos: material y acabado se leen con su acento y mayúscula correcta',
+    proyectos.pieza.includes('Hierro forjado · Pintura electrostática'), proyectos.pieza.match(/[A-Z][a-z]+ [a-z]+ · [A-Za-zá ]+/)?.[0]);
   check('proyectos: lo que espera respuesta va primero, el mas antiguo arriba',
     proyectos.filas.join(',') === 'Espera Mucho,Espera Poco,|,Ya Atendida', proyectos.filas.join(','));
   check('proyectos: se ve cuanto lleva esperando y se cuenta arriba',
