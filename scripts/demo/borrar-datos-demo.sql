@@ -14,7 +14,11 @@ DECLARE
 BEGIN
   SELECT array_agg(id) INTO v_pedidos FROM public.orders WHERE notes LIKE '[DEMO-BORRAR]%';
 
-  DELETE FROM public.pagos       WHERE order_id = ANY (v_pedidos);
+  -- pagos existe desde la migración 20261106120000; en una base sin ella
+  -- el borrado seguiría fallando aquí.
+  IF to_regclass('public.pagos') IS NOT NULL THEN
+    EXECUTE 'DELETE FROM public.pagos WHERE order_id = ANY ($1)' USING v_pedidos;
+  END IF;
   DELETE FROM public.order_items WHERE order_id = ANY (v_pedidos);
   DELETE FROM public.orders      WHERE id = ANY (v_pedidos);
   DELETE FROM public.custom_requests WHERE email LIKE '%@demo.invalid';
