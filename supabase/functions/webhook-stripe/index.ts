@@ -4,7 +4,7 @@
 // es auténtico es la firma Stripe-Signature, calculada sobre el cuerpo crudo
 // con el secreto del endpoint. Por eso se lee con text() y no con json().
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
-import { stripe, cryptoProvider } from '../_compartido/stripe.ts';
+import { clienteStripe, cryptoProvider } from '../_compartido/stripe.ts';
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -14,7 +14,8 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('Método no permitido', { status: 405 });
 
   const secreto = Deno.env.get('STRIPE_WEBHOOK_SECRET');
-  if (!secreto) return new Response('Webhook sin configurar', { status: 503 });
+  const stripe = clienteStripe();
+  if (!secreto || !stripe) return new Response('Webhook sin configurar', { status: 503 });
 
   const firma = req.headers.get('Stripe-Signature');
   if (!firma) return new Response('Falta la firma', { status: 400 });

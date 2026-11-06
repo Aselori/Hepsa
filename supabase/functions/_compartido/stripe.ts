@@ -13,11 +13,20 @@ function destino() {
   return { host: u.hostname, port: Number(u.port), protocol: u.protocol.replace(':', '') as 'http' | 'https' };
 }
 
-export const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  httpClient: Stripe.createFetchHttpClient(),
-  maxNetworkRetries: 2,
-  ...destino(),
-});
+// Se crea al usarse y no al cargar el módulo: Stripe 23 lanza un error si no
+// recibe llave, y creado al cargar tiraba la función entera (500) antes de
+// que pudiera contestar "pagos no configurados" (503). Sin llave, null.
+let cliente: Stripe | null = null;
+export function clienteStripe(): Stripe | null {
+  const llave = Deno.env.get('STRIPE_SECRET_KEY');
+  if (!llave) return null;
+  cliente ??= new Stripe(llave, {
+    httpClient: Stripe.createFetchHttpClient(),
+    maxNetworkRetries: 2,
+    ...destino(),
+  });
+  return cliente;
+}
 
 // Deno no tiene el crypto de Node: la firma del webhook se verifica con
 // Web Crypto.

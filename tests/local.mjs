@@ -180,6 +180,34 @@ try {
         const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('exit', resolve); });
         if (code !== 0) { process.exitCode = 1; break; }
     }
+
+    // Sin secretos de Stripe (como en el proyecto hospedado mientras no se
+    // activan los pagos), las funciones deben contestar 503 "no configurado".
+    // Stripe 23 lanza al crear su cliente sin llave; cuando se creaba al cargar
+    // el módulo, las dos funciones morían con 500 y esto no se probaba, porque
+    // la suite siempre les daba una llave.
+    if (!process.exitCode) {
+        const fin = new Promise((resolve) => funciones.once('exit', resolve));
+        funciones.kill('SIGINT');
+        await fin;
+        funciones = spawn('node_modules/.bin/supabase', ['functions', 'serve'], { stdio: ['ignore', 'pipe', 'pipe'] });
+        const respuestas = {};
+        const limiteSinLlaves = Date.now() + 240_000;
+        for (;;) {
+            for (const f of ['crear-pago', 'webhook-stripe']) {
+                const r = await fetch(`${url.origin}/functions/v1/${f}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => null);
+                respuestas[f] = r ? { status: r.status, cuerpo: (await r.text()).slice(0, 120) } : null;
+            }
+            // 503 de la pasarela ("name resolution failed") = todavía arrancando.
+            const listas = Object.values(respuestas).every((x) => x && !/name resolution/i.test(x.cuerpo) && x.status !== 502);
+            if (listas || Date.now() > limiteSinLlaves) break;
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+        const ok = respuestas['crear-pago']?.status === 503 && /no están configurados/.test(respuestas['crear-pago'].cuerpo)
+            && respuestas['webhook-stripe']?.status === 503 && /sin configurar/.test(respuestas['webhook-stripe'].cuerpo);
+        console.log(`${ok ? 'PASA  ' : 'FALLA '} sin secretos de Stripe las funciones contestan 503, no 500  — ${JSON.stringify(respuestas)}`);
+        if (!ok) process.exitCode = 1;
+    }
 } finally {
     for (const client of clientes) await client.auth.signOut();
     if (funciones && funciones.exitCode === null) {
