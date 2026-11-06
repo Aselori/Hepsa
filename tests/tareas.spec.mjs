@@ -114,6 +114,12 @@ try {
     mayusculas: getComputedStyle(document.getElementById('quote-estimate-detail')).textTransform,
   }));
   check('el detalle del estimado dice "mm", no "Mm"', estimado.detalle.includes('1000 mm') && estimado.mayusculas !== 'capitalize', estimado.detalle);
+  await page.selectOption('#quote-acabado', 'pintura_electrostatica');
+  await page.waitForTimeout(800);
+  const conAcento = await page.locator('#quote-estimate-detail').textContent();
+  check('el detalle del estimado conserva el acento del acabado', conAcento.includes('Pintura electrostática'), conAcento);
+  await page.selectOption('#quote-acabado', 'cromado');
+  await page.waitForTimeout(800);
   check('el estimado aparece solo al completar la pieza, sin boton',
     !hayBotonCalcular && estimado.visible && estimado.monto.includes('7,000'), JSON.stringify(estimado));
 
