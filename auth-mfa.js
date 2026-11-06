@@ -51,14 +51,20 @@ async function rolDelUsuario(userId) {
 async function mostrarRetoSegundoFactor() {
     const { data, error } = await window.supabaseClient.auth.mfa.listFactors();
     if (error || !data) throw new Error('No se pudieron consultar tus autenticadores. Reintenta.');
-    mfaFactores = (data.totp || []).filter(f => f.status === 'verified');
+    // El más reciente primero y preseleccionado: es el que con más
+    // probabilidad está en el teléfono. Todos se llaman "HEPSA", así que la
+    // fecha de alta es lo que los distingue; sin ella, con dos factores, no
+    // había forma de saber a cuál correspondía el código.
+    mfaFactores = (data.totp || []).filter(f => f.status === 'verified')
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
     if (!mfaFactores.length) throw new Error('No hay un autenticador TOTP disponible. Contacta al responsable de HEPSA para recuperar tu acceso.');
     mfaFactorId = mfaFactores[0].id;
     const selector = document.getElementById('mfa-factor');
     selector.replaceChildren(...mfaFactores.map((factor, i) => {
         const option = document.createElement('option');
         option.value = factor.id;
-        option.textContent = factor.friendly_name || `Autenticador ${i + 1}`;
+        const fecha = factor.created_at ? new Date(factor.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+        option.textContent = `${factor.friendly_name || `Autenticador ${i + 1}`}${fecha ? ` · registrado el ${fecha}` : ''}`;
         return option;
     }));
     document.getElementById('mfa-factores-grupo').hidden = mfaFactores.length < 2;
