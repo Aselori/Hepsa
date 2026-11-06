@@ -75,8 +75,16 @@ try {
   check('el registro tiene un solo campo de contraseña y el ojo la deja ver y la vuelve a ocultar',
     campos === 1 && visible.tipo === 'text' && visible.nombre === 'Mostrar contraseña' && visible.pulsado === 'true' && oculto === 'password', JSON.stringify({ campos, visible, oculto }));
 
+  // Dos campos de nombre y no cuatro: nombre(s) y apellidos completos.
+  const nombres = await page.evaluate(() => ({
+    registro: [...document.querySelectorAll('#form-registro label')].map((l) => l.textContent.trim()).filter((x) => /nombre|apellido|paterno|materno/i.test(x)),
+    cotizar: [...document.querySelectorAll('#view-quote label')].map((l) => l.textContent.trim()).filter((x) => /nombre|apellido|paterno|materno/i.test(x)),
+  }));
+  check('registro y cotización piden sólo "Nombre(s)" y "Apellidos"',
+    JSON.stringify(nombres.registro) === '["Nombre(s) *","Apellidos *"]' && JSON.stringify(nombres.cotizar) === '["Nombre(s) *","Apellidos *"]', JSON.stringify(nombres));
+
   const llenar = async (pass) => {
-    await page.fill('#reg-n1', 'Prueba'); await page.fill('#reg-p', 'Contraseña'); await page.fill('#reg-m', 'Fuerte');
+    await page.fill('#reg-nombre', 'Prueba'); await page.fill('#reg-apellidos', 'Contraseña Fuerte');
     await page.fill('#reg-email', correo()); await page.fill('#reg-pass', pass);
     await page.evaluate(() => registrarUsuarioBD());
     await page.waitForTimeout(800);
@@ -86,6 +94,15 @@ try {
     avisos.at(-1)?.includes('al menos 10 caracteres') && avisos.at(-1)?.includes('una mayúscula'), avisos.at(-1));
   await llenar(contrasenaDePrueba());
   check('con una contraseña fuerte la cuenta se crea', avisos.at(-1)?.startsWith('Cuenta creada'), avisos.at(-1));
+  // El perfil guarda nombre(s) y apellidos completos en las columnas que el
+  // sistema muestra; las de segundo nombre y apellido materno quedan vacías.
+  const perfil = await page.evaluate(async () => {
+    const { data: { session } } = await window.supabaseClient.auth.getSession();
+    if (!session) return null;
+    return (await window.supabaseClient.from('profiles').select('first_name, last_name_p, middle_name, last_name_m').eq('id', session.user.id).single()).data;
+  });
+  check('el perfil guarda "Prueba" y "Contraseña Fuerte" completos',
+    perfil?.first_name === 'Prueba' && perfil?.last_name_p === 'Contraseña Fuerte' && !perfil?.middle_name && !perfil?.last_name_m, JSON.stringify(perfil));
 
   // Enter en el inicio de sesión envía el formulario sin recargar la página.
   await page.evaluate(() => showView('login'));

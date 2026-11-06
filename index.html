@@ -298,13 +298,12 @@
 
                 <div class="form-container">
                     <h3 class="cotizar-paso">2. ¿A dónde te enviamos la cotización?</h3>
+                    <!-- Dos campos y no cuatro: nombre(s) y apellidos completos. Se guardan
+                         en first_name y last_name_p, que son los que se muestran en todo el
+                         sistema; middle_name y last_name_m quedan vacíos. -->
                     <div class="name-grid">
-                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-n1">Primer nombre *</label><input type="text" id="quote-n1" name="given-name" autocomplete="given-name" placeholder="Ej: Juan" required></div>
-                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-n2">Segundo nombre (opcional)</label><input type="text" id="quote-n2" name="additional-name" autocomplete="additional-name" placeholder="Ej: Carlos"></div>
-                    </div>
-                    <div class="name-grid">
-                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-p">Apellido paterno *</label><input type="text" id="quote-p" name="family-name" autocomplete="family-name" placeholder="Ej: Garza" required></div>
-                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-m">Apellido materno *</label><input type="text" id="quote-m" name="apellido-materno" autocomplete="off" placeholder="Ej: Treviño" required></div>
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-nombre">Nombre(s) *</label><input type="text" id="quote-nombre" name="given-name" autocomplete="given-name" placeholder="Ej: Juan Carlos" required></div>
+                        <div class="form-group" style="margin-bottom: 0;"><label for="quote-apellidos">Apellidos *</label><input type="text" id="quote-apellidos" name="family-name" autocomplete="family-name" placeholder="Ej: Garza Treviño" required></div>
                     </div>
                     <div class="name-grid">
                         <div class="form-group" style="margin-bottom: 0;"><label for="quote-email">Correo electrónico *</label><input type="email" id="quote-email" name="email" autocomplete="email" spellcheck="false" autocapitalize="none" placeholder="ejemplo@correo.com"></div>
@@ -369,12 +368,8 @@
             <form id="form-registro" class="form-container" style="max-width: 600px; margin: 40px auto;" onsubmit="event.preventDefault(); registrarUsuarioBD();">
                 <h2 style="border:none; padding:0; margin-bottom: 10px; color: var(--primary); text-align:center;">Crear cuenta</h2>
                 <div class="name-grid">
-                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-n1">Primer nombre *</label><input type="text" id="reg-n1" name="given-name" autocomplete="given-name"></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-n2">Segundo nombre</label><input type="text" id="reg-n2" name="additional-name" autocomplete="additional-name"></div>
-                </div>
-                <div class="name-grid">
-                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-p">Paterno *</label><input type="text" id="reg-p" name="family-name" autocomplete="family-name"></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-m">Materno *</label><input type="text" id="reg-m" name="apellido-materno" autocomplete="off"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-nombre">Nombre(s) *</label><input type="text" id="reg-nombre" name="given-name" autocomplete="given-name" placeholder="Ej: Juan Carlos"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-apellidos">Apellidos *</label><input type="text" id="reg-apellidos" name="family-name" autocomplete="family-name" placeholder="Ej: Garza Treviño"></div>
                 </div>
                 <div class="name-grid">
                     <div class="form-group" style="margin-bottom: 0;"><label for="reg-tel">Teléfono</label><input type="tel" id="reg-tel" name="tel" autocomplete="tel"></div>
@@ -1132,20 +1127,18 @@
         }
 
         async function enviarCotizacionBD() {
-            const n1 = document.getElementById('quote-n1').value;
-            const n2 = document.getElementById('quote-n2').value;
-            const p = document.getElementById('quote-p').value;
-            const m = document.getElementById('quote-m').value;
+            const nombre = document.getElementById('quote-nombre').value.trim();
+            const apellidos = document.getElementById('quote-apellidos').value.trim();
             const email = document.getElementById('quote-email').value;
             const tel = document.getElementById('quote-tel').value;
             const specs = document.getElementById('quote-specs').value;
-            if(!n1 || !p || !m || !email || !tel) return alert("Completa los campos obligatorios.");
+            if(!nombre || !apellidos || !email || !tel) return alert("Completa los campos obligatorios.");
             const pieza = leerPieza();
             if (!pieza) return;
 
             // precio_estimado no se manda: lo pone un trigger en la base.
             const { error } = await window.supabaseClient.from('custom_requests').insert([{
-                first_name: n1, middle_name: n2, last_name_p: p, last_name_m: m,
+                first_name: nombre, last_name_p: apellidos,
                 email: email, phone: tel, specifications: specs, ...pieza
             }]);
             if (error) alert("Error: " + error.message);
@@ -1172,12 +1165,11 @@
         }
 
         async function registrarUsuarioBD() {
-            const n1 = document.getElementById('reg-n1').value;
-            const p = document.getElementById('reg-p').value;
-            const m = document.getElementById('reg-m').value;
+            const nombre = document.getElementById('reg-nombre').value.trim();
+            const apellidos = document.getElementById('reg-apellidos').value.trim();
             const email = document.getElementById('reg-email').value;
             const pass = document.getElementById('reg-pass').value;
-            if (!n1 || !p || !m || !email || !pass) return alert("Completa todos los campos obligatorios.");
+            if (!nombre || !apellidos || !email || !pass) return alert("Completa todos los campos obligatorios.");
             // La regla la impone Auth (minimum_password_length y
             // password_requirements); aquí sólo se avisa antes de enviar.
             const falta = faltaEnContrasena(pass);
@@ -1185,7 +1177,7 @@
             const { error } = await window.supabaseClient.auth.signUp({
                 email, password: pass,
                 // Sin 'role': lo asigna handle_new_user() en el servidor.
-                options: { data: { first_name: n1, middle_name: document.getElementById('reg-n2').value, last_name_p: p, last_name_m: m, phone: document.getElementById('reg-tel').value } }
+                options: { data: { first_name: nombre, last_name_p: apellidos, phone: document.getElementById('reg-tel').value } }
             });
             if (error?.code === 'weak_password') alert('La contraseña es demasiado débil: usa 10 caracteres o más, con mayúscula, minúscula y número.');
             else if (error) alert("Error: " + error.message);
