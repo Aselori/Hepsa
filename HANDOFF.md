@@ -132,7 +132,18 @@
   folio = id del pedido (antes al azar) y el ticket queda para exportar PDF.
 - #20 issuer 'HEPSA' en el alta TOTP; #23 selector de autenticador con fecha.
 - #22 scripts/demo/datos-demo.sql y borrar-datos-demo.sql (marca
-  [DEMO-BORRAR]). Probados en local; NO cargados en la base hospedada.
+  [DEMO-BORRAR]). CARGADOS en la base hospedada el 2026-11-06 (8 productos,
+  12 ventas, 4 solicitudes; datos reales intactos: 6 productos, 1 pedido).
+- #25 contraseñas: 10+ caracteres con minúscula, mayúscula y número en Auth
+  local; en el hospedado se configura a mano en el panel (PENDIENTE de
+  confirmar por el usuario). #26 (guía para proyecto propio) ABIERTO: el
+  usuario decide si se fusiona.
+- 2026-11-06: proyecto hospedado movido a una organización nueva (sólo el
+  usuario como miembro); integración de GitHub reconectada, "Deploy to
+  production" apagado. Consulta de sólo lectura en 0/0 y `db push` hecho por
+  el usuario: el hospedado tiene las 11 migraciones del repo. Advisor de
+  seguridad: sólo avisos intencionales (ver manual técnico) y rls_auto_enable,
+  que es de Supabase.
 - 2FA del admin (aslopezrivas@gmail.com): su factor del teléfono había sido
   reemplazado por uno de tests/inscribir-2fa.mjs (secreto en tests/.env.local).
   El usuario borró todos los factores y se dio de alta de nuevo: funciona.
@@ -148,9 +159,7 @@
 
 ### Siguientes pasos
 
-1. Usuario: reconectar Supabase (/mcp); luego cargar datos demo en la base
-   hospedada (scripts/demo/datos-demo.sql).
-2. Usuario: consulta de sólo lectura (docs/pagos-en-linea.md, paso 2) y
-   `supabase db push` de las 2 migraciones pendientes.
-3. Siguiente tema pedido por el usuario: panel de administración y permisos
+1. Usuario: regla de contraseñas en el panel de Supabase y encender
+   "Deploy to production" en la integración de GitHub.
+2. Siguiente tema pedido por el usuario: panel de administración y permisos
    (hoy los roles se asignan por SQL; Configuración sólo en memoria, F03).
