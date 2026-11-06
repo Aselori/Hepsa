@@ -94,6 +94,8 @@
         .btn-delete:hover { background: var(--peligro-bg); }
         /* Solo el stock bajo se marca; el normal no necesita color. */
         .stock-low { color: var(--peligro); font-weight: 600; }
+        select.selector-estatus { width: auto; padding: 4px 8px; font-size: 0.9rem; margin-left: 6px; }
+        td > select.selector-estatus:first-child { margin-left: 0; }
         .mensaje-error { color: var(--peligro); }
         /* Una línea arriba de cada tabla con lo que pide atención; si no hay
            nada, no se muestra. */
@@ -173,6 +175,7 @@
                 <div class="form-group"><label for="edit-prod-stock">Stock *</label><input type="number" id="edit-prod-stock" autocomplete="off"></div>
             </div>
             <div class="form-group"><label for="edit-prod-desc">Descripción</label><textarea id="edit-prod-desc" rows="3" autocomplete="off"></textarea></div>
+            <div class="form-group"><label for="edit-prod-img">Foto nueva (vacío conserva la actual)</label><input type="file" accept="image/*" id="edit-prod-img"></div>
             <div class="modal-actions">
                 <button class="btn-cancel" onclick="cerrarModalEdicion()">Cancelar</button>
                 <button class="action-btn" onclick="guardarEdicionProducto()">Guardar cambios</button>
@@ -300,13 +303,14 @@
                                 <th>Cliente</th>
                                 <th>Teléfono</th>
                                 <th class="num">Total</th>
+                                <th>Proyecto</th>
                                 <th>Fecha</th>
                                 <th>Folio</th>
                                 <th>Notas</th>
                             </tr>
                         </thead>
                         <tbody id="history-table-body">
-                            <tr><td colspan="7" style="text-align: center;">Cargando datos…</td></tr>
+                            <tr><td colspan="8" style="text-align: center;">Cargando datos…</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -823,6 +827,16 @@
             }
         }
 
+        // Sube la foto al bucket y devuelve su URL publica, o null si fallo (ya
+        // avisada). La usan el alta y la edicion: antes solo el alta tenia
+        // campo de foto, asi que un producto existente no podia recibir una.
+        async function subirFotoProducto(file) {
+            const fileName = `products/${Date.now()}_${file.name}`;
+            const { error: uploadError } = await window.supabaseClient.storage.from(storageBucket).upload(fileName, file);
+            if (uploadError) { showToast('Error subiendo imagen: ' + uploadError.message, 'error'); return null; }
+            return window.supabaseClient.storage.from(storageBucket).getPublicUrl(fileName).data.publicUrl;
+        }
+
         async function guardarProductoBD() {
             const name = document.getElementById('cat-name').value.trim();
             const price = parseFloat(document.getElementById('cat-price').value);
@@ -834,18 +848,8 @@
             const btn = document.getElementById('btn-guardar-prod');
             btn.disabled = true; btn.textContent = 'Guardando…';
 
-            let image_url = null;
             const fileInput = document.getElementById('cat-img');
-            if (fileInput.files.length > 0) {
-                const file = fileInput.files[0];
-                const fileName = `products/${Date.now()}_${file.name}`;
-                const { data: uploadData, error: uploadError } = await window.supabaseClient.storage.from(storageBucket).upload(fileName, file);
-                if (uploadError) { showToast('Error subiendo imagen: ' + uploadError.message, 'error'); }
-                else {
-                    const { data: urlData } = window.supabaseClient.storage.from(storageBucket).getPublicUrl(fileName);
-                    image_url = urlData.publicUrl;
-                }
-            }
+            const image_url = fileInput.files.length > 0 ? await subirFotoProducto(fileInput.files[0]) : null;
 
             const payload = { name, price, stock, description: desc, is_active: isActive, ...(image_url ? { image_url } : {}) };
             const { error } = await window.supabaseClient.from('products').insert([payload]);
@@ -868,6 +872,7 @@
             document.getElementById('edit-prod-price').value = prod.price;
             document.getElementById('edit-prod-stock').value = prod.stock;
             document.getElementById('edit-prod-desc').value = prod.description || '';
+            document.getElementById('edit-prod-img').value = '';
             document.getElementById('modal-edit-product').classList.add('open');
         }
 
@@ -880,7 +885,14 @@
             const stock = parseInt(document.getElementById('edit-prod-stock').value);
             const description = document.getElementById('edit-prod-desc').value.trim();
             if (!name || isNaN(price) || isNaN(stock)) { showToast('Completa todos los campos', 'error'); return; }
-            const { error } = await window.supabaseClient.from('products').update({ name, price, stock, description }).eq('id', id);
+            const foto = document.getElementById('edit-prod-img').files[0];
+            let image_url = null;
+            if (foto) {
+                image_url = await subirFotoProducto(foto);
+                if (!image_url) return; // el aviso ya salio; el modal sigue abierto
+            }
+            const { error } = await window.supabaseClient.from('products')
+                .update({ name, price, stock, description, ...(image_url ? { image_url } : {}) }).eq('id', id);
             if (error) { showToast('Error al actualizar: ' + error.message, 'error'); }
             else { showToast('Producto actualizado'); cerrarModalEdicion(); cargarInventarioBD(); }
         }
@@ -923,10 +935,10 @@
 
         async function cargarHistorialBD() {
             const tbody = document.getElementById('history-table-body');
-            renderTableMessage(tbody, 7, 'Cargando…');
+            renderTableMessage(tbody, 8, 'Cargando…');
             const { data, error } = await window.supabaseClient.from('orders').select('*').order('created_at', { ascending: false });
-            if (error) { renderTableMessage(tbody, 7, `Error: ${error.message}`, 'mensaje-error'); return; }
-            if (!data || data.length === 0) { pintarResumen('history-resumen', 0); renderTableMessage(tbody, 7, 'No hay ventas registradas.'); return; }
+            if (error) { renderTableMessage(tbody, 8, `Error: ${error.message}`, 'mensaje-error'); return; }
+            if (!data || data.length === 0) { pintarResumen('history-resumen', 0); renderTableMessage(tbody, 8, 'No hay ventas registradas.'); return; }
 
             // Lo que falta cobrar va primero y con su punto de color; lo pagado
             // queda abajo y en silencio.
@@ -944,22 +956,43 @@
                     marca.className = `status-badge ${o.payment_status === 'anticipo' ? 'status-anticipo' : 'status-faltante'}`;
                     marca.textContent = o.payment_status === 'anticipo' ? 'Anticipo' : 'Falta liquidar';
                     pago.appendChild(marca);
-                } else {
-                    pago.textContent = 'Pagado'; pago.className = 'texto-tenue';
                 }
+                // El personal cambia aqui el pago y el estatus del proyecto: el
+                // cliente los ve en su perfil, y antes no habia donde hacerlo.
+                pago.appendChild(selectorEstatus(o.id, 'payment_status', o.payment_status, ESTADOS_PAGO, `Pago del folio #${o.id}`));
+                const proyecto = document.createElement('td');
+                proyecto.appendChild(selectorEstatus(o.id, 'project_status', o.project_status, ESTADOS_PROYECTO, `Proyecto del folio #${o.id}`));
                 const cliente = `${o.client_first_name || ''} ${o.client_last_name || ''}`.trim();
                 const total = celda(dinero(o.total), 'num');
                 if (pendientes.includes(o)) total.style.fontWeight = '600';
                 const notas = celda(o.notes, 'texto-tenue'); notas.style.cssText = 'max-width: 250px; white-space: normal; word-wrap: break-word;';
-                row.append(pago, celda(cliente), celda(o.client_phone), total,
+                row.append(pago, celda(cliente), celda(o.client_phone), total, proyecto,
                     celda(new Date(o.created_at).toLocaleDateString('es-MX'), 'texto-tenue'),
                     celda(`#${String(o.id).substring(0, 8)}`, 'texto-tenue'), notas);
                 return row;
             };
 
             tbody.replaceChildren(...pendientes.map(fila));
-            if (pendientes.length && pagadas.length) tbody.appendChild(filaGrupo('Pagadas', 7));
+            if (pendientes.length && pagadas.length) tbody.appendChild(filaGrupo('Pagadas', 8));
             pagadas.forEach(o => tbody.appendChild(fila(o)));
+        }
+
+        const ESTADOS_PAGO = [['faltante', 'Falta liquidar'], ['anticipo', 'Anticipo'], ['completo', 'Pagado']];
+        const ESTADOS_PROYECTO = [['cotizando', 'Cotizando'], ['en_produccion', 'En producción'], ['instalado', 'Instalado']];
+
+        function selectorEstatus(id, campo, actual, opciones, etiqueta) {
+            const select = document.createElement('select');
+            select.className = 'selector-estatus';
+            select.setAttribute('aria-label', etiqueta);
+            for (const [valor, texto] of opciones) select.add(new Option(texto, valor, false, valor === actual));
+            select.addEventListener('change', async () => {
+                select.disabled = true;
+                const { error } = await window.supabaseClient.from('orders').update({ [campo]: select.value }).eq('id', id);
+                if (error) { showToast('No se pudo actualizar: ' + error.message, 'error'); select.value = actual; select.disabled = false; return; }
+                showToast('Estatus actualizado');
+                cargarHistorialBD(); // un pago liquidado cambia de grupo
+            });
+            return select;
         }
 
         function renderTableMessage(tbody, colspan, message, className = '') {
