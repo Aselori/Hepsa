@@ -1,11 +1,14 @@
 // Cuentas sinteticas y credenciales efimeras, exclusivamente en Supabase local.
 import { execFileSync, spawn } from 'node:child_process';
 import { createServer } from 'node:http';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { build } from 'esbuild';
 import { codigoTOTPFresco } from './totp.mjs';
+import { iniciarStripeSimulado } from './stripe-simulado.mjs';
 
 const estado = JSON.parse(execFileSync('node_modules/.bin/supabase', ['status', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
 const url = new URL(estado.API_URL);
@@ -16,6 +19,12 @@ const sdk = await build({ stdin: { contents: "export { createClient } from '@sup
 const env = { ...process.env, HEPSA_TEST_SUPABASE_URL: url.origin, HEPSA_TEST_SUPABASE_KEY: key };
 const ids = [];
 const clientes = [];
+// Mejora 2: producto propio de la suite de pagos (el pago descuenta stock y no
+// debe tocar el catalogo de ejemplo), Stripe simulado y Edge Functions.
+let productoPagos = null;
+let stripeSimulado = null;
+let funciones = null;
+let carpetaFunciones = null;
 const archivos = new Map([
     ['/index.html', ['index.html', 'text/html']], ['/admin.html', ['admin.html', 'text/html']],
     ['/auth-mfa.js', ['auth-mfa.js', 'text/javascript']], ['/imagen.jpg', ['imagen.jpg', 'image/jpeg']],
@@ -26,7 +35,7 @@ const archivos = new Map([
 const server = createServer(async (req, res) => {
     const ruta = new URL(req.url, 'http://localhost').pathname;
     if (ruta === '/config.js') {
-        res.writeHead(200, { 'Content-Type': 'text/javascript' }).end(`window.HEPSA_CONFIG=${JSON.stringify({ supabaseUrl: url.origin, supabaseKey: key, storageBucket: 'productos' })};`);
+        res.writeHead(200, { 'Content-Type': 'text/javascript' }).end(`window.HEPSA_CONFIG=${JSON.stringify({ supabaseUrl: url.origin, supabaseKey: key, storageBucket: 'productos', pagosEnLinea: true })};`);
         return;
     }
     if (ruta === '/supabase-sdk.js') { res.writeHead(200, { 'Content-Type': 'text/javascript' }).end(sdk.outputFiles[0].text); return; }
@@ -40,7 +49,7 @@ const server = createServer(async (req, res) => {
 });
 
 try {
-    for (const [prefix, role] of [['ADMIN', 'admin'], ['VENDEDOR', 'vendedor'], ['CLIENTE', 'cliente']]) {
+    for (const [prefix, role] of [['ADMIN', 'admin'], ['VENDEDOR', 'vendedor'], ['CLIENTE', 'cliente'], ['CLIENTE2', 'cliente']]) {
         const email = `prueba-${randomUUID()}@example.test`;
         const password = randomBytes(24).toString('base64url');
         const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { first_name: 'Prueba', last_name_p: prefix } });
@@ -129,7 +138,42 @@ try {
     await mkdir(new URL('./screenshots/', import.meta.url), { recursive: true });
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
     env.BASE_URL = `http://127.0.0.1:${server.address().port}`;
-    for (const file of ['rls.spec.mjs', 'mfa-ui.spec.mjs', 'panel.spec.mjs', 'perfil-ausente.spec.mjs', 'rol-nulo.spec.mjs', 'recuperacion.spec.mjs']) {
+
+    {
+        const { data, error } = await admin.from('products')
+            .insert({ name: `Prueba de pagos ${randomUUID().slice(0, 8)}`, price: 1250, stock: 10, is_active: true })
+            .select('id').single();
+        if (error) throw new Error(`No se pudo crear el producto de pagos: ${error.message}`);
+        productoPagos = data.id;
+        env.PAGOS_PRODUCTO_ID = String(data.id);
+    }
+
+    // El simulado corre en la red de Supabase local, junto a las funciones.
+    const proyecto = (await readFile(new URL('../supabase/config.toml', import.meta.url), 'utf8')).match(/^project_id\s*=\s*"([^"]+)"/m)[1];
+    stripeSimulado = await iniciarStripeSimulado(`supabase_network_${proyecto}`);
+    env.STRIPE_SIMULADO_URL = stripeSimulado.urlAnfitrion;
+    env.STRIPE_WEBHOOK_SECRET = `whsec_${randomBytes(24).toString('hex')}`;
+    carpetaFunciones = await mkdtemp(join(tmpdir(), 'hepsa-funciones-'));
+    const archivoEnv = join(carpetaFunciones, 'funciones.env');
+    await writeFile(archivoEnv, [
+        'STRIPE_SECRET_KEY=sk_test_local_hepsa',
+        `STRIPE_WEBHOOK_SECRET=${env.STRIPE_WEBHOOK_SECRET}`,
+        `STRIPE_API_URL=${stripeSimulado.urlInterna}`,
+        `HEPSA_SITIO_URL=${env.BASE_URL}`,
+    ].join('\n') + '\n', { mode: 0o600 });
+    funciones = spawn('node_modules/.bin/supabase', ['functions', 'serve', '--env-file', archivoEnv], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let bitacora = '';
+    funciones.stdout.on('data', (c) => { bitacora += c; });
+    funciones.stderr.on('data', (c) => { bitacora += c; });
+    // Lista cuando crear-pago contesta su propio 401 (no el 503 de la pasarela).
+    const limite = Date.now() + 240_000;
+    for (;;) {
+        const r = await fetch(`${url.origin}/functions/v1/crear-pago`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => null);
+        if (r?.status === 401) break;
+        if (Date.now() > limite || funciones.exitCode !== null) throw new Error(`Las Edge Functions no arrancaron:\n${bitacora.slice(-2000)}`);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+    for (const file of ['rls.spec.mjs', 'mfa-ui.spec.mjs', 'panel.spec.mjs', 'perfil-ausente.spec.mjs', 'rol-nulo.spec.mjs', 'recuperacion.spec.mjs', 'pagos.spec.mjs']) {
         console.log(`Ejecutando ${file} contra Supabase local con cuentas desechables.`);
         const child = spawn(process.execPath, [new URL(file, import.meta.url).pathname], { env, stdio: 'inherit' });
         const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('exit', resolve); });
@@ -137,6 +181,27 @@ try {
     }
 } finally {
     for (const client of clientes) await client.auth.signOut();
+    if (funciones && funciones.exitCode === null) {
+        const fin = new Promise((resolve) => funciones.once('exit', resolve));
+        funciones.kill('SIGINT');
+        await fin;
+    }
+    if (stripeSimulado) await stripeSimulado.cerrar();
+    if (carpetaFunciones) await rm(carpetaFunciones, { recursive: true, force: true });
+    // Pedidos de las cuentas desechables, con sus pagos y renglones, antes de
+    // borrar el producto que referencian.
+    const pedidos = ids.length ? (await admin.from('orders').select('id').in('client_id', ids)).data ?? [] : [];
+    const idsPedidos = pedidos.map((o) => o.id);
+    if (idsPedidos.length) {
+        const pagos = await admin.from('pagos').delete().in('order_id', idsPedidos);
+        const renglones = await admin.from('order_items').delete().in('order_id', idsPedidos);
+        const ordenes = await admin.from('orders').delete().in('id', idsPedidos);
+        if (pagos.error || renglones.error || ordenes.error) { console.error('Fallo la limpieza de los pedidos de prueba.'); process.exitCode = 1; }
+    }
+    if (productoPagos) {
+        const borrado = await admin.from('products').delete().eq('id', productoPagos);
+        if (borrado.error) { console.error(`Fallo la limpieza del producto de pagos: ${borrado.error.message}`); process.exitCode = 1; }
+    }
     for (const id of ids) {
         // El esquema heredado no tiene cascade de auth.users a profiles/carrito.
         const carrito = await admin.from('carrito_items').delete().eq('user_id', id);
