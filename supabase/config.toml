@@ -40,6 +40,10 @@ site_url = "http://127.0.0.1:8000"
 additional_redirect_urls = ["http://localhost:8000"]
 jwt_expiry = 3600
 enable_signup = true
+# La misma regla que el proyecto hospedado (Authentication > Providers >
+# Email): 10 caracteres o más, con minúscula, mayúscula y número.
+minimum_password_length = 10
+password_requirements = "lower_upper_letters_digits"
 
 [auth.email]
 enable_signup = true
