@@ -44,6 +44,15 @@ try {
     await page.locator('#cart-btn').click();
     await page.waitForTimeout(400);
 
+    // El carrito no incluye IVA (lo suma el checkout): llamarlo "Total" hacia
+    // que el pedido saliera 16% mas caro de lo mostrado.
+    const montoCarrito = await page.evaluate(() => ({
+      etiqueta: document.querySelector('.cart-total').textContent.trim(),
+      iva: document.querySelector('.cart-iva')?.textContent ?? '',
+    }));
+    check(`${etiqueta}: el carrito dice subtotal y avisa del IVA`,
+      montoCarrito.etiqueta.startsWith('Subtotal:') && montoCarrito.iva.includes('IVA'), JSON.stringify(montoCarrito));
+
     // Los controles de cada linea se pueden tocar: 24 px es el minimo de WCAG.
     const tamanos = await page.evaluate(() => [...document.querySelectorAll('#cart-items-container button')]
       .map(b => { const c = b.getBoundingClientRect(); return { texto: b.textContent.trim(), alto: Math.round(c.height), ancho: Math.round(c.width) }; }));

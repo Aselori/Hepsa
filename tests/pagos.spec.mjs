@@ -186,6 +186,10 @@ try {
     check('al cancelar en Stripe el portal lo dice y abre el perfil',
       regreso.perfil && regreso.aviso.includes('No se hizo ningún cargo') && regreso.url === '', JSON.stringify(regreso));
 
+    const nota = await page.evaluate(() => document.getElementById('cart-nota-pago').textContent);
+    check('con pagos en linea la nota del carrito ya no dice que no se cobra en linea',
+      nota.includes('pagarlo en línea') && !nota.includes('Todavía no se cobra'), nota.trim());
+
     const filaPagada = await page.locator('#client-history-body tr', { hasText: `#${pedido}` }).textContent();
     check('el pedido pagado se lee "Pagado" y sin botón', filaPagada.includes('Pagado') && !(await page.locator(`[data-pagar-id="${pedido}"]`).count()));
 
