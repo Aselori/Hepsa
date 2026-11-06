@@ -2,7 +2,7 @@
 
 - Objective: next 2FA deliverable. Cloudflare explicitly deferred. User taking over after original developers left.
 - Scope: local staff-session injection fixes, reliable MFA screens, isolated tests and real local Auth/RLS verification. No production changes or broad rewrite.
-- Rama actual: docs/manuales. Mejoras 1, 2 (modo de prueba, sin activar) y 3 fusionadas.
+- Rama actual: main limpio (lo de esta sesión está fusionado). Mejoras 1, 2 (modo de prueba, sin activar) y 3 fusionadas.
 - Repository moved from `/home/aselori/Projects/hepsa` to `/home/aselori/Work/projects/hepsa`. Primary prior Codex thread is `01a08d52-5047-79e2-84de-603b4220c1d7`; resume it from the new checkout with `codex resume 01a08d52-5047-79e2-84de-603b4220c1d7 -C /home/aselori/Work/projects/hepsa`, or discover moved-path sessions with `codex resume --all`.
 - CONTRIBUTING.md remains project convention source. User supplied updated global AGENTS instructions (Arch/Omarchy, mise, explicit restart timing).
 - User preference saved globally: enable best free approach when unavailable or explain exact enabling steps; no purchases. Filesystem inspection authorized, secrets excluded.
@@ -112,32 +112,45 @@
   urgente primero, mostrar excepciones. Con ella se evaluó el sitio y se
   hicieron maquetas: https://claude.ai/artifact/7MWvstUSjYHGPzKy27x94s
   (privadas). El usuario aprobó TODAS.
-- PR #13 (fix/pautas-de-interfaz): pautas de Vercel (etiquetas ligadas,
-  autocompletado, precios es-MX). Abierto, espera fusión.
-- Rama feature/diseno-por-tareas (apilada sobre #13): portal y panel según
-  las maquetas, mayúscula inicial. Pruebas: tests/tareas.spec.mjs (0/18 en
-  main, 19/19 en la rama) y todas las suites locales en verde.
-- Faltan datos del negocio (el usuario aún no los tiene): teléfono,
-  WhatsApp y dirección van en config.js (contacto); vacíos no se muestran.
-- 2026-10-09: PR #13 y #14 FUSIONADOS (main b7e79c5) y verificados en vivo.
-  Catálogo hospedado corregido con permiso del usuario (nombres repetidos,
-  ortografía, medidas): docs/catalogo-correccion-2026-10-09.md tiene el antes
-  y después y 4 dudas de datos para el negocio. Demo local detenida.
-- 2026-10-21: fotos de producto: el usuario decidió dejarlo como está (sin
-  relleno ni fotos de muestra) hasta que el negocio mande fotos reales.
-- 2026-10-21: menú (píldora del carrito, "Cotizar", dos filas en teléfono):
-  FUSIONADO (PR #16, 2026-11-06) y revisado en vivo.
-- 2026-11-06: el proyecto Supabase hospedado está pausado otra vez (la API
-  responde 521). Solo el usuario puede reanudarlo desde el panel.
-- 2026-11-06: Mejora 2 (decisión del usuario: Stripe en modo de prueba, MVP;
-  para el curso basta el diseño justificado, pero se implementó). FUSIONADO
-  (PR #17, main 835914d; en vivo el botón sigue oculto y supabase/ da 404): migración 20261106120000_pagos_en_linea.sql, Edge
-  Functions crear-pago y webhook-stripe, botón "Pagar en línea" en el perfil
-  (oculto con pagosEnLinea: false en config.js), tarjetas de pedido en
-  teléfono y arreglo del desbordamiento del perfil (ya pasaba en main).
-  Probado SOLO en local: tests/pagos.spec.mjs 31/31 con Stripe simulado en un
-  contenedor (ufw del anfitrión bloquea Docker → anfitrión); todas las suites
-  en verde. NO aplicado a la base hospedada ni desplegado: pasos en
-  docs/pagos-en-linea.md (requieren cuenta Stripe y login de Supabase del
-  usuario, y la consulta de sólo lectura del PR #9 antes de db push).
-- Siguiente: manuales (usuario cliente, personal/admin y técnico).
+- PR #13 y #14 (pautas de interfaz, diseño por tareas) FUSIONADOS el
+  2026-10-09 (main b7e79c5) y verificados en vivo. Catálogo hospedado
+  corregido con permiso: docs/catalogo-correccion-2026-10-09.md.
+- Faltan datos del negocio: teléfono, WhatsApp y dirección (config.js) y
+  fotos reales. Decisión del usuario (2026-10-21): sin fotos de muestra.
+
+## Sesión 2026-11-06 (todo fusionado; detalle en cada PR)
+
+- #16 menú: píldora del carrito, "Cotizar", dos filas en teléfono.
+- #17 Mejora 2: Stripe en modo de prueba (decisión del usuario; para el
+  curso basta el diseño). Migración 20261106120000_pagos_en_linea.sql, Edge
+  Functions crear-pago y webhook-stripe, botón oculto con pagosEnLinea:
+  false. Probado SÓLO en local (Stripe simulado en contenedor: ufw bloquea
+  Docker → anfitrión). Activación: docs/pagos-en-linea.md.
+- #18 carrito dice "Subtotal" (el IVA se suma al confirmar); acento del
+  estimado. #21 acentos en la bandeja y limpieza de solicitudes @test.local.
+- #19 panel: selectores de pago y proyecto en Historial, foto al editar,
+  folio = id del pedido (antes al azar) y el ticket queda para exportar PDF.
+- #20 issuer 'HEPSA' en el alta TOTP; #23 selector de autenticador con fecha.
+- #22 scripts/demo/datos-demo.sql y borrar-datos-demo.sql (marca
+  [DEMO-BORRAR]). Probados en local; NO cargados en la base hospedada.
+- 2FA del admin (aslopezrivas@gmail.com): su factor del teléfono había sido
+  reemplazado por uno de tests/inscribir-2fa.mjs (secreto en tests/.env.local).
+  El usuario borró todos los factores y se dio de alta de nuevo: funciona.
+  ADMIN_TOTP de tests/.env.local ya NO sirve. No correr inscribir-2fa.mjs
+  contra el proyecto hospedado.
+- Manuales (Claude Docs, privados, en español):
+  usuario https://claude.ai/artifact/RNiqwCpAMmMbgSm8CmXwqo ·
+  personal https://claude.ai/artifact/Ha76D6Wh2UKiX6XFbdD3iM ·
+  técnico https://claude.ai/artifact/23dGe3gaws1t5xZiu1v7nh.
+  Pregunta abierta en el de usuario: recuperación de contraseña.
+- MCP de Supabase falló al conectar al iniciar la sesión (red lenta); el
+  endpoint sí responde. Se reconecta con /mcp.
+
+### Siguientes pasos
+
+1. Usuario: reconectar Supabase (/mcp); luego cargar datos demo en la base
+   hospedada (scripts/demo/datos-demo.sql).
+2. Usuario: consulta de sólo lectura (docs/pagos-en-linea.md, paso 2) y
+   `supabase db push` de las 2 migraciones pendientes.
+3. Siguiente tema pedido por el usuario: panel de administración y permisos
+   (hoy los roles se asignan por SQL; Configuración sólo en memoria, F03).
