@@ -136,10 +136,12 @@ nunca antes. El personal ya tiene segundo factor, así que de las dos
 condiciones que faltaban queda una: cobrar dinero real sobre la misma base que
 se usa para probar sigue siendo el orden equivocado.
 
-Además, la pasarela no se puede terminar sólo desde este repositorio. El sitio
-es HTML estático hablándole a Supabase desde el navegador, y un cargo real
-necesita una llave secreta que **no puede** viajar al cliente: hace falta una
-Edge Function, y antes que eso una cuenta de comercio en Stripe o MercadoPago.
+La integración ya existe en modo de prueba de Stripe: dos Edge Functions
+guardan la llave secreta, que **no puede** viajar al cliente, y la base sólo
+marca un pedido como pagado con un aviso firmado. Ver
+[pagos-en-linea.md](pagos-en-linea.md). Lo que este punto sigue frenando es
+pasar a llaves reales (`sk_live_…`), no el modo de prueba, que no mueve
+dinero.
 
 ---
 

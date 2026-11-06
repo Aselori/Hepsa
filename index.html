@@ -91,6 +91,24 @@
         footer.pie #btn-admin:hover { color: var(--text-main); }
         @media (max-width: 600px) { .medidas-grid { grid-template-columns: 1fr 1fr; } .medidas-grid > :last-child { grid-column: 1 / -1; } }
         .card-body .action-btn { margin-top: auto; }
+        /* Dentro de la tabla de pedidos el boton se ajusta a su texto. */
+        #client-history-body button.action-btn { width: auto; padding: 6px 12px; font-size: 0.9rem; white-space: nowrap; }
+        /* En telefono cada pedido es una tarjeta: folio e importe arriba, fecha y
+           estatus abajo, y el boton de pago a todo lo ancho. En tabla, la columna
+           de pago quedaba fuera de la pantalla y habia que desplazarse para verla. */
+        @media (max-width: 600px) {
+            #view-profile table thead { display: none; }
+            #client-history-body tr { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "folio total" "fecha estatus" "pago pago"; gap: 4px 12px; padding: 12px 14px; }
+            #client-history-body tr + tr { border-top: 1px solid var(--card-border); }
+            #client-history-body td { padding: 0; border: 0; }
+            #client-history-body td[colspan] { grid-column: 1 / -1; }
+            #client-history-body td:nth-child(1) { grid-area: folio; font-weight: 600; }
+            #client-history-body td:nth-child(2) { grid-area: fecha; color: var(--text-muted); font-size: 0.9rem; }
+            #client-history-body td:nth-child(3) { grid-area: total; text-align: right; font-weight: 600; }
+            #client-history-body td:nth-child(4) { grid-area: estatus; text-align: right; font-size: 0.9rem; }
+            #client-history-body td:nth-child(5) { grid-area: pago; font-size: 0.9rem; color: var(--text-muted); }
+            #client-history-body button.action-btn { width: 100%; padding: 10px 12px; margin-top: 6px; }
+        }
         /* En el catalogo hay un boton por tarjeta: si todos fueran solidos, la
            pagina seria una pared de botones. Van como secundarios. */
         .card-body button.action-btn { background: transparent; color: var(--text-main); border: 1px solid var(--input-border); }
@@ -124,6 +142,10 @@
         .cart-vacio { color: var(--text-muted); text-align: center; }
         .cart-total { font-size: 1.25rem; font-weight: 700; text-align: right; margin: 18px 0; color: var(--text-main); font-variant-numeric: tabular-nums; }
         .profile-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; }
+        /* Sin min-width: 0 la columna crecia hasta el ancho minimo de la tabla de
+           pedidos y en telefono toda la pagina se salia de la pantalla. Asi la
+           tabla se desplaza dentro de su caja (.table-container). */
+        .profile-grid > * { min-width: 0; }
         @media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } }
         .cart-item-price { font-weight: 600; color: var(--text-main); font-variant-numeric: tabular-nums; }
         .btn-peligro { width: 100%; margin-top: 24px; background: transparent; border: 1px solid var(--peligro); color: var(--peligro); padding: 11px; border-radius: var(--radio); cursor: pointer; font: inherit; font-weight: 600; transition: background 0.15s ease; }
@@ -370,8 +392,8 @@
                     <h3 style="margin-top:0; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">Proyectos activos</h3>
                     <div class="table-container">
                         <table>
-                            <thead><tr><th>Folio</th><th>Fecha</th><th>Inversión</th><th>Estatus</th></tr></thead>
-                            <tbody id="client-history-body"><tr><td colspan="4" style="text-align:center;">Cargando…</td></tr></tbody>
+                            <thead><tr><th>Folio</th><th>Fecha</th><th>Inversión</th><th>Estatus</th><th>Pago</th></tr></thead>
+                            <tbody id="client-history-body"><tr><td colspan="5" style="text-align:center;">Cargando…</td></tr></tbody>
                         </table>
                     </div>
                 </div>
@@ -477,7 +499,8 @@
             // el catálogo cargue, vaciaría el carrito.
             cargarReglaSobrePedido()
                 .then(cargarCatalogoPublico)
-                .then(restaurarSesionUI);
+                .then(restaurarSesionUI)
+                .then(avisarRegresoDePago);
         }
 
         // ─── CARRITO ────────────────────────────────────────────────────────
@@ -712,7 +735,9 @@
                 document.getElementById('cart-modal').classList.remove('open');
                 mostrarAviso(
                     `<span>Pedido <strong>#${folio}</strong> registrado.<br>` +
-                    `Te contactamos para acordar el pago y la instalación.</span>`, 'success', 7000);
+                    (window.HEPSA_CONFIG.pagosEnLinea
+                        ? `Puedes pagarlo en línea aquí mismo, o acordar el pago con nosotros.</span>`
+                        : `Te contactamos para acordar el pago y la instalación.</span>`), 'success', 7000);
                 cargarPedidosCliente();
                 showView('profile');
             } catch (e) {
@@ -729,27 +754,73 @@
             const tbody = document.getElementById('client-history-body');
             if (!tbody) return;
             if (!usuarioActual) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Inicia sesión para ver tus proyectos.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Inicia sesión para ver tus proyectos.</td></tr>';
                 return;
             }
             const { data, error } = await window.supabaseClient
                 .from('orders').select('id, created_at, total, project_status, payment_status')
                 .order('created_at', { ascending: false });
             if (error) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No se pudieron cargar tus proyectos.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No se pudieron cargar tus proyectos.</td></tr>';
                 return;
             }
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Todavía no tienes proyectos.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Todavía no tienes proyectos.</td></tr>';
                 return;
             }
             const legible = { cotizando: 'Cotizando', en_produccion: 'En producción', instalado: 'Instalado' };
+            const pago = { completo: 'Pagado', anticipo: 'Con anticipo', faltante: 'Pago pendiente' };
+            // Sin pagos en línea configurados no hay botón: uno que no lleva a
+            // ningún lado es peor que acordar el pago por teléfono.
+            const celdaPago = (o) => o.payment_status !== 'completo' && window.HEPSA_CONFIG.pagosEnLinea
+                ? `<button type="button" class="action-btn" data-pagar-id="${o.id}">Pagar en línea</button>`
+                : esc(pago[o.payment_status] || o.payment_status);
             tbody.innerHTML = data.map((o) => `<tr>
                 <td>#${o.id}</td>
                 <td>${new Date(o.created_at).toLocaleDateString('es-MX')}</td>
                 <td>${Number(o.total).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</td>
                 <td>${esc(legible[o.project_status] || o.project_status)}</td>
+                <td>${celdaPago(o)}</td>
             </tr>`).join('');
+        }
+
+        // ─── PAGO EN LÍNEA (Mejora 2) ───────────────────────────────────────
+        // El navegador sólo pide la sesión de pago para un número de pedido.
+        // El monto lo pone la Edge Function a partir de la base, y quien marca
+        // el pedido como pagado es el aviso firmado de Stripe, no este código:
+        // volver a la página de éxito no prueba que se haya cobrado.
+        async function pagarEnLinea(id, btn) {
+            btn.disabled = true;
+            btn.textContent = 'Abriendo pago…';
+            const { data, error } = await window.supabaseClient.functions.invoke('crear-pago', { body: { pedido: id } });
+            if (error || !data?.url) {
+                let motivo = 'No se pudo iniciar el pago. Intenta de nuevo.';
+                try { motivo = (await error.context.json()).error || motivo; } catch { /* respuesta sin cuerpo */ }
+                mostrarAviso(`<span>${esc(motivo)}</span>`, 'error', 7000);
+                btn.disabled = false;
+                btn.textContent = 'Pagar en línea';
+                return;
+            }
+            location.assign(data.url);
+        }
+
+        // Stripe regresa a ?pago=exito o ?pago=cancelado. El aviso de Stripe
+        // puede llegar unos segundos después que el cliente, así que la tabla
+        // se vuelve a leer en vez de suponer el resultado.
+        function avisarRegresoDePago() {
+            const params = new URLSearchParams(location.search);
+            const resultado = params.get('pago');
+            if (!resultado) return;
+            const pedido = Number(params.get('pedido'));
+            history.replaceState(null, '', location.pathname);
+            const folio = Number.isSafeInteger(pedido) && pedido > 0 ? ` del pedido <strong>#${pedido}</strong>` : '';
+            if (resultado === 'exito') {
+                mostrarAviso(`<span>Recibimos tu pago${folio}. En unos segundos aparece como pagado.</span>`, 'success', 8000);
+                setTimeout(cargarPedidosCliente, 4000);
+            } else {
+                mostrarAviso(`<span>No se hizo ningún cargo${folio}. Puedes pagar cuando quieras desde esta página.</span>`, 'info', 8000);
+            }
+            showView('profile');
         }
 
         function quitarDelCart(id) {
@@ -839,6 +910,8 @@
             if (qty) return cambiarCantidad(Number(qty.dataset.qtyId), Number(qty.dataset.delta));
             const quitar = ev.target.closest('[data-remove-id]');
             if (quitar) return quitarDelCart(Number(quitar.dataset.removeId));
+            const pagar = ev.target.closest('[data-pagar-id]');
+            if (pagar) return pagarEnLinea(Number(pagar.dataset.pagarId), pagar);
             if (ev.target.closest('[data-ir-cotizador]')) {
                 ev.preventDefault();
                 document.getElementById('cart-modal').classList.remove('open');
