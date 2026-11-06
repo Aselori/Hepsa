@@ -9,7 +9,8 @@
 // Lee la llave de servicio de `supabase status`, igual que tests/local.mjs, y
 // se niega a correr fuera del stack local.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { randomUUID, randomBytes } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { contrasenaDePrueba } from './contrasena.mjs';
 import { createClient } from '@supabase/supabase-js';
 import { codigoTOTPFresco } from './totp.mjs';
 
@@ -43,7 +44,7 @@ function script(...args) {
 const ids = [];
 async function empleadoConFactor(rol = 'vendedor') {
   const email = `recuperacion-${randomUUID()}@example.test`;
-  const pass = randomBytes(24).toString('base64url');
+  const pass = contrasenaDePrueba();
   const { data, error } = await admin.auth.admin.createUser({ email, password: pass, email_confirm: true });
   if (error) throw error;
   ids.push(data.user.id);

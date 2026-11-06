@@ -142,6 +142,7 @@
         .cart-vacio { color: var(--text-muted); text-align: center; }
         .cart-total { font-size: 1.25rem; font-weight: 700; text-align: right; margin: 18px 0 2px; color: var(--text-main); font-variant-numeric: tabular-nums; }
         .cart-iva { font-size: 0.85rem; color: var(--text-muted); text-align: right; margin: 0 0 16px; }
+        .ayuda-campo { margin: 6px 0 0; font-size: 0.85rem; color: var(--text-muted); }
         .profile-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; }
         /* Sin min-width: 0 la columna crecia hasta el ancho minimo de la tabla de
            pedidos y en telefono toda la pagina se salia de la pantalla. Asi la
@@ -372,7 +373,7 @@
                     <div class="form-group" style="margin-bottom: 0;"><label for="reg-email">Correo *</label><input type="email" id="reg-email" name="email" autocomplete="email" spellcheck="false" autocapitalize="none"></div>
                 </div>
                 <div class="name-grid" style="margin-top: 15px;">
-                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-pass">Contraseña *</label><input type="password" id="reg-pass" name="new-password" autocomplete="new-password"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label for="reg-pass">Contraseña *</label><input type="password" id="reg-pass" name="new-password" autocomplete="new-password" minlength="10" aria-describedby="reg-pass-regla"><p id="reg-pass-regla" class="ayuda-campo">10 caracteres o más, con mayúscula, minúscula y número.</p></div>
                     <div class="form-group" style="margin-bottom: 0;"><label for="reg-pass2">Confirmar *</label><input type="password" id="reg-pass2" name="new-password-confirm" autocomplete="new-password"></div>
                 </div>
                 <button class="action-btn" style="margin-top: 25px;" onclick="registrarUsuarioBD()">Crear cuenta</button>
@@ -1157,13 +1158,27 @@
             const pass2 = document.getElementById('reg-pass2').value;
             if (!n1 || !p || !m || !email || !pass) return alert("Completa todos los campos obligatorios.");
             if (pass !== pass2) return alert("Las contraseñas no coinciden.");
+            // La regla la impone Auth (minimum_password_length y
+            // password_requirements); aquí sólo se avisa antes de enviar.
+            const falta = faltaEnContrasena(pass);
+            if (falta.length) return alert(`La contraseña necesita ${falta.join(', ')}.`);
             const { error } = await window.supabaseClient.auth.signUp({
                 email, password: pass,
                 // Sin 'role': lo asigna handle_new_user() en el servidor.
                 options: { data: { first_name: n1, middle_name: document.getElementById('reg-n2').value, last_name_p: p, last_name_m: m, phone: document.getElementById('reg-tel').value } }
             });
-            if (error) alert("Error: " + error.message);
+            if (error?.code === 'weak_password') alert('La contraseña es demasiado débil: usa 10 caracteres o más, con mayúscula, minúscula y número.');
+            else if (error) alert("Error: " + error.message);
             else { alert("Cuenta creada. Revisa tu correo para verificarla."); showView('login'); }
+        }
+
+        function faltaEnContrasena(pass) {
+            return [
+                pass.length < 10 && 'al menos 10 caracteres',
+                !/[a-z]/.test(pass) && 'una minúscula',
+                !/[A-Z]/.test(pass) && 'una mayúscula',
+                !/[0-9]/.test(pass) && 'un número',
+            ].filter(Boolean);
         }
 
         async function restaurarSesionUI() {

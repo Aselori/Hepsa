@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import { build } from 'esbuild';
 import { codigoTOTPFresco } from './totp.mjs';
 import { iniciarStripeSimulado } from './stripe-simulado.mjs';
+import { contrasenaDePrueba } from './contrasena.mjs';
 
 const estado = JSON.parse(execFileSync('node_modules/.bin/supabase', ['status', '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
 const url = new URL(estado.API_URL);
@@ -51,7 +52,7 @@ const server = createServer(async (req, res) => {
 try {
     for (const [prefix, role] of [['ADMIN', 'admin'], ['VENDEDOR', 'vendedor'], ['CLIENTE', 'cliente'], ['CLIENTE2', 'cliente']]) {
         const email = `prueba-${randomUUID()}@example.test`;
-        const password = randomBytes(24).toString('base64url');
+        const password = contrasenaDePrueba();
         const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { first_name: 'Prueba', last_name_p: prefix } });
         if (error) throw new Error(`No se pudo crear fixture ${prefix}: ${error.message}`);
         ids.push(data.user.id);
@@ -79,7 +80,7 @@ try {
     // AAL1, false AND NULL ya valia false.
     {
         const email = `huerfano-${randomUUID()}@example.test`;
-        const password = randomBytes(24).toString('base64url');
+        const password = contrasenaDePrueba();
         const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { first_name: 'Prueba', last_name_p: 'HUERFANO' } });
         if (error) throw new Error(`No se pudo crear el fixture sin perfil: ${error.message}`);
         ids.push(data.user.id);
@@ -113,7 +114,7 @@ try {
     // intentaria la escalada de verdad.
     {
         const email = `rolnulo-${randomUUID()}@example.test`;
-        const password = randomBytes(24).toString('base64url');
+        const password = contrasenaDePrueba();
         const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { first_name: 'Prueba', last_name_p: 'ROLNULO' } });
         if (error) throw new Error(`No se pudo crear el fixture de role NULL: ${error.message}`);
         ids.push(data.user.id);
@@ -173,7 +174,7 @@ try {
         if (Date.now() > limite || funciones.exitCode !== null) throw new Error(`Las Edge Functions no arrancaron:\n${bitacora.slice(-2000)}`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
     }
-    for (const file of ['rls.spec.mjs', 'mfa-ui.spec.mjs', 'panel.spec.mjs', 'perfil-ausente.spec.mjs', 'rol-nulo.spec.mjs', 'recuperacion.spec.mjs', 'pagos.spec.mjs']) {
+    for (const file of ['rls.spec.mjs', 'mfa-ui.spec.mjs', 'panel.spec.mjs', 'perfil-ausente.spec.mjs', 'rol-nulo.spec.mjs', 'recuperacion.spec.mjs', 'pagos.spec.mjs', 'contrasenas.spec.mjs']) {
         console.log(`Ejecutando ${file} contra Supabase local con cuentas desechables.`);
         const child = spawn(process.execPath, [new URL(file, import.meta.url).pathname], { env, stdio: 'inherit' });
         const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('exit', resolve); });
@@ -202,6 +203,13 @@ try {
     // lo pone el servidor; el anonimo no puede borrarla, asi que se borra aqui.
     // Sin esto se acumulaban en la bandeja del panel local.
     const solicitudes = await admin.from('custom_requests').delete().like('email', '%@test.local');
+    // contrasenas.spec.mjs se registra por el portal, sin pasar por ids[].
+    const registradas = (await admin.auth.admin.listUsers({ perPage: 1000 })).data?.users ?? [];
+    for (const u of registradas.filter((x) => x.email?.endsWith('@contrasena.test'))) {
+        await admin.from('profiles').delete().eq('id', u.id);
+        const borrado = await admin.auth.admin.deleteUser(u.id);
+        if (borrado.error) { console.error(`Fallo la limpieza de ${u.email}: ${borrado.error.message}`); process.exitCode = 1; }
+    }
     if (solicitudes.error) { console.error(`Fallo la limpieza de las solicitudes de prueba: ${solicitudes.error.message}`); process.exitCode = 1; }
     if (productoPagos) {
         const borrado = await admin.from('products').delete().eq('id', productoPagos);
