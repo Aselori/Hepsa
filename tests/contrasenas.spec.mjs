@@ -65,6 +65,16 @@ try {
   // Un solo campo de contraseña, con "Mostrar": se ve lo escrito y se puede
   // copiar, que en un type="password" el navegador no permite.
   const campos = await page.evaluate(() => document.querySelectorAll('#form-registro input[type="password"]').length);
+  // El botón no puede quedar sobre el campo: ese borde es del gestor de
+  // contraseñas, y con el botón encima Bitwarden dejaba de sugerir una.
+  const geometria = await page.evaluate(() => {
+    const c = document.getElementById('reg-pass').getBoundingClientRect();
+    const b = document.querySelector('#form-registro .btn-mostrar').getBoundingClientRect();
+    return { encima: b.left < c.right && b.right > c.left && b.top < c.bottom && b.bottom > c.top,
+             reglas: document.getElementById('reg-pass').getAttribute('passwordrules') };
+  });
+  check('"Mostrar" queda fuera del campo y el campo declara la regla para el gestor',
+    !geometria.encima && /minlength: 10/.test(geometria.reglas ?? ''), JSON.stringify(geometria));
   await page.click('#form-registro .btn-mostrar');
   const visible = await page.evaluate(() => ({ tipo: document.getElementById('reg-pass').type, boton: document.querySelector('#form-registro .btn-mostrar').textContent, pulsado: document.querySelector('#form-registro .btn-mostrar').getAttribute('aria-pressed') }));
   await page.click('#form-registro .btn-mostrar');
