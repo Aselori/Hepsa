@@ -94,6 +94,7 @@
         .btn-delete:hover { background: var(--peligro-bg); }
         /* Solo el stock bajo se marca; el normal no necesita color. */
         .stock-low { color: var(--peligro); font-weight: 600; }
+        .nota-campo { margin: 0 0 12px; font-size: 0.85rem; color: var(--text-muted); }
         select.selector-estatus { width: auto; padding: 4px 8px; font-size: 0.9rem; margin-left: 6px; }
         td > select.selector-estatus:first-child { margin-left: 0; }
         /* El punto de pendiente va junto al selector, no encima. */
@@ -171,6 +172,7 @@
         <div class="modal-box">
             <h3>Editar producto</h3>
             <input type="hidden" id="edit-prod-id">
+            <p id="edit-prod-nota" class="nota-campo" hidden>Sólo un administrador cambia el nombre y el precio.</p>
             <div class="form-group"><label for="edit-prod-name">Nombre *</label><input type="text" id="edit-prod-name" autocomplete="off"></div>
             <div class="form-grid">
                 <div class="form-group"><label for="edit-prod-price">Precio base ($) *</label><input type="number" id="edit-prod-price" autocomplete="off"></div>
@@ -445,6 +447,7 @@
                 .from('profiles').select('role').eq('id', session.user.id).single();
             if (error || !perfil) throw new Error("No se pudo verificar tu rol. Reintenta.");
             const userRole = perfil?.role || 'cliente';
+            rolActual = userRole;
             if (userRole !== 'vendedor' && userRole !== 'admin') { alert("ACCESO DENEGADO."); window.location.href = 'index.html'; return; }
 
             // MEJORA 3: el rol ya no basta. Las políticas RLS exigen que el
@@ -468,6 +471,9 @@
                 document.getElementById('nav-config').style.display = 'none';
                 document.getElementById('nav-users').style.display = 'none';
             }
+            // Alta de productos sólo para el admin (products_insert_admin).
+            document.getElementById('btn-abrir-alta').hidden = userRole !== 'admin';
+            await cargarParametros();
             cargarInventarioBD();
             initTicket();
             window.supabaseClient.auth.onAuthStateChange((event) => {
@@ -534,6 +540,28 @@
 
         let posCart = [];
         let configIVA = 0.16;
+        let rolActual = null;
+
+        // IVA y pie del ticket viven en parametros_cotizacion: son los mismos
+        // que usa registrar_venta() en el servidor. Antes vivían sólo en esta
+        // pestaña y se perdían al recargar.
+        async function cargarParametros() {
+            const { data, error } = await window.supabaseClient
+                .from('parametros_cotizacion').select('clave, valor, texto').in('clave', ['iva', 'mensaje_ticket']);
+            if (error || !data) return;
+            const iva = data.find((r) => r.clave === 'iva');
+            const mensaje = data.find((r) => r.clave === 'mensaje_ticket');
+            if (iva) {
+                configIVA = Number(iva.valor);
+                const porcentaje = Math.round(configIVA * 10000) / 100;
+                document.getElementById('disp-iva-perc').textContent = porcentaje;
+                document.getElementById('cfg-iva').value = porcentaje;
+            }
+            if (mensaje?.texto) {
+                document.getElementById('config-footer-msg').textContent = mensaje.texto;
+                document.getElementById('cfg-msg').value = mensaje.texto;
+            }
+        }
         let posSubtotal = 0;
         let productosInventario = [];
         const formatMoney = (num) => num.toLocaleString('en-US', {minimumFractionDigits: 2});
@@ -649,47 +677,34 @@
             const btn = document.getElementById('btn-registrar-venta');
             btn.disabled = true; btn.textContent = 'Registrando…';
 
-            const iva = posSubtotal * configIVA;
-            const total = posSubtotal + iva;
-            const paymentStatus = document.getElementById('payment-type').value;
-            const notes = document.getElementById('ticket-notes') ? document.getElementById('ticket-notes').value.trim() : null;
-
-            const orderPayload = {
-                client_first_name: document.getElementById('cli-nom1').value || null,
-                client_last_name: document.getElementById('cli-ap-pat').value || null,
-                client_phone: document.getElementById('cli-tel').value || null,
-                client_email: document.getElementById('cli-email').value || null,
-                subtotal: posSubtotal.toFixed(2),
-                tax: iva.toFixed(2),
-                total: total.toFixed(2),
-                payment_status: paymentStatus,
-                notes: notes 
+            // Los importes los calcula registrar_venta() con los precios del
+            // catálogo y el IVA de la base; lo que se muestra aquí es la vista
+            // previa. El vendedor queda registrado con la sesión.
+            const v = (id) => document.getElementById(id)?.value.trim() || '';
+            const cliente = {
+                nombre: [v('cli-nom1'), v('cli-nom2')].filter(Boolean).join(' '),
+                apellidos: [v('cli-ap-pat'), v('cli-ap-mat')].filter(Boolean).join(' '),
+                telefono: v('cli-tel'), correo: v('cli-email'),
             };
-
-            const { data: newOrder, error: orderError } = await window.supabaseClient
-                .from('orders')
-                .insert([orderPayload])
-                .select();
-
-            if (orderError) { 
-                showToast('Error al crear orden: ' + orderError.message, 'error');
+            const conceptos = posCart.map((c) => c.product_id
+                ? { producto_id: Number(c.product_id), cantidad: 1 }
+                : { concepto: c.item, precio: c.price, cantidad: 1 });
+            const { data: orderId, error: orderError } = await window.supabaseClient.rpc('registrar_venta', {
+                p_cliente: cliente, p_conceptos: conceptos,
+                p_pago: document.getElementById('payment-type').value, p_notas: v('ticket-notes') || null,
+            });
+            if (orderError) {
+                showToast('No se pudo registrar la venta: ' + orderError.message, 'error');
                 btn.disabled = false; btn.textContent = 'Registrar ticket';
-                return; 
+                return;
             }
-
-            const orderId = newOrder[0].id;
-
-            const itemsPayload = posCart.map(cartItem => ({
-                order_id: orderId,
-                custom_label: cartItem.item,
-                unit_price: cartItem.price,
-                quantity: 1,
-                product_id: cartItem.product_id ? parseInt(cartItem.product_id) : null
-            }));
-
-            const { error: itemsError } = await window.supabaseClient
-                .from('order_items')
-                .insert(itemsPayload);
+            // El ticket muestra lo que quedó guardado, no la cuenta del navegador.
+            const { data: guardada } = await window.supabaseClient.from('orders').select('subtotal, tax, total').eq('id', orderId).single();
+            if (guardada) {
+                document.getElementById('tkt-sub').textContent = formatMoney(Number(guardada.subtotal));
+                document.getElementById('tkt-iva').textContent = formatMoney(Number(guardada.tax));
+                document.getElementById('tkt-total').textContent = formatMoney(Number(guardada.total));
+            }
 
             // El ticket se queda en pantalla con su folio real para exportar el
             // PDF; "Limpiar venta" empieza la siguiente. Antes se limpiaba aquí y
@@ -698,11 +713,7 @@
             document.getElementById('ticket-folio').textContent = `#${orderId}`;
             btn.textContent = 'Venta registrada';
             cargarHistorialBD();
-            if (itemsError) {
-                showToast('Orden creada, pero fallaron items: ' + itemsError.message, 'error');
-            } else {
-                showToast(`Venta #${orderId} registrada. Exporta el PDF o limpia la venta para empezar otra.`);
-            }
+            showToast(`Venta #${orderId} registrada. Exporta el PDF o limpia la venta para empezar otra.`);
         }
 
         function imprimirTicketPDF() {
@@ -833,7 +844,7 @@
                     const remove = document.createElement('button');
                     remove.className = 'btn-delete'; remove.type = 'button'; remove.textContent = 'Eliminar';
                     remove.addEventListener('click', () => eliminarProducto(p.id, p.name));
-                    botones.append(edit, toggle, remove); actions.appendChild(botones);
+                    botones.append(edit, toggle, ...(rolActual === 'admin' ? [remove] : [])); actions.appendChild(botones);
                     row.append(nameCell, stock, price, actions);
                     tbody.appendChild(row);
                 });
@@ -897,6 +908,11 @@
             document.getElementById('edit-prod-stock').value = prod.stock;
             document.getElementById('edit-prod-desc').value = prod.description || '';
             document.getElementById('edit-prod-img').value = '';
+            // Nombre y precio son del admin (tr_proteger_producto en la base).
+            const soloAdmin = rolActual !== 'admin';
+            document.getElementById('edit-prod-name').disabled = soloAdmin;
+            document.getElementById('edit-prod-price').disabled = soloAdmin;
+            document.getElementById('edit-prod-nota').hidden = !soloAdmin;
             document.getElementById('modal-edit-product').classList.add('open');
         }
 
@@ -1125,12 +1141,17 @@
             }
         }
 
-        function saveConfig() {
+        async function saveConfig() {
             const iva = parseFloat(document.getElementById('cfg-iva').value);
-            const msg = document.getElementById('cfg-msg').value;
-            if (!isNaN(iva)) { configIVA = iva / 100; document.getElementById('disp-iva-perc').textContent = iva; renderPOSTicket(); }
-            document.getElementById('config-footer-msg').textContent = msg;
-            showToast('Configuración aplicada');
+            const msg = document.getElementById('cfg-msg').value.trim();
+            if (isNaN(iva) || iva < 0 || iva > 100) { showToast('El IVA debe ser un porcentaje entre 0 y 100', 'error'); return; }
+            const r1 = await window.supabaseClient.from('parametros_cotizacion').update({ valor: Math.round(iva * 100) / 10000 }).eq('clave', 'iva').select('clave');
+            const r2 = await window.supabaseClient.from('parametros_cotizacion').update({ texto: msg }).eq('clave', 'mensaje_ticket').select('clave');
+            const error = r1.error || r2.error || (!r1.data?.length || !r2.data?.length ? { message: 'no se guardó (¿falta permiso de administrador?)' } : null);
+            if (error) { showToast('No se pudo guardar: ' + error.message, 'error'); return; }
+            await cargarParametros();
+            renderPOSTicket();
+            showToast('Configuración guardada');
         }
 
         document.getElementById('modal-edit-product').addEventListener('click', function(e) {
