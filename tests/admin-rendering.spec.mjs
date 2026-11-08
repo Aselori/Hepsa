@@ -38,6 +38,7 @@ try {
         };
         return query;
       },
+      rpc() { return Promise.resolve({ data: window.__adminQueryData.sinFactor || [], error: null }); },
     };
   });
 
@@ -48,7 +49,8 @@ try {
     window.__adminQueryData.products = [{ id: 'p-1', name: window.__productNameForTest, description: payload, price: 1250, stock: 2, is_active: true }];
     window.__adminQueryData.orders = [{ id: 'o-1', created_at: '2026-09-10T12:00:00Z', client_first_name: payload, client_last_name: payload, client_phone: payload, subtotal: 10, tax: 1.6, total: 11.6, payment_status: 'completo', notes: payload }];
     window.__adminQueryData.custom_requests = [{ id: 'r-1', first_name: payload, last_name_p: payload, phone: payload, email: payload, largo_mm: 1000, alto_mm: 500, profundidad_mm: 200, material: payload, acabado: payload, specifications: payload, precio_estimado: 100, status: 'Contactado', created_at: '2026-09-10T12:00:00Z' }];
-    window.__adminQueryData.profiles = [{ first_name: payload, last_name_p: payload, phone: payload, role: payload, created_at: '2026-09-10T12:00:00Z' }];
+    window.__adminQueryData.profiles = [{ id: 'u-1', first_name: payload, last_name_p: payload, email: payload, phone: payload, role: payload, created_at: '2026-09-10T12:00:00Z' }];
+    window.__adminQueryData.sinFactor = [{ id: 'u-1', email: payload, first_name: payload, last_name_p: payload, role: 'vendedor' }];
   }, payload);
   await page.evaluate((productName) => { window.__productNameForTest = productName; window.__adminQueryData.products[0].name = productName; }, productName);
 

@@ -157,6 +157,28 @@ try {
       await page.screenshot({ path: `tests/screenshots/inicio-${rol}-telefono.png` });
       await page.setViewportSize({ width: 1280, height: 800 });
 
+      // Equipo: el admin cambia roles desde el panel. Sólo contra el stack
+      // local, porque promueve y regresa a una cuenta desechable.
+      if (rol === 'admin' && env.CLIENTE2_EMAIL && env.HEPSA_TEST_SUPABASE_URL?.startsWith('http://127.0.0.1:')) {
+        await page.click('#nav-users');
+        await page.waitForSelector('#users-table-body select');
+        const propio = page.locator('#users-table-body tr', { hasText: '(tú)' }).locator('select');
+        check('admin: su propio rol no se puede cambiar desde Equipo', await propio.isDisabled());
+        check('admin: Equipo marca a quien no tiene segundo factor', await page.locator('#users-table-body .status-peligro').count() > 0);
+        await page.fill('#buscar-cliente', env.CLIENTE2_EMAIL);
+        const filaCliente = page.locator('#clientes-table-body tr', { hasText: env.CLIENTE2_EMAIL });
+        page.once('dialog', (d) => d.accept());
+        await filaCliente.locator('select').selectOption('taller');
+        const filaTaller = page.locator('#users-table-body tr', { hasText: env.CLIENTE2_EMAIL });
+        await filaTaller.waitFor({ timeout: 5000 }).catch(() => {});
+        check('admin: da el rol de taller a un cliente desde Equipo', await filaTaller.locator('select').inputValue().catch(() => null) === 'taller');
+        page.once('dialog', (d) => d.accept());
+        await filaTaller.locator('select').selectOption('cliente');
+        await filaTaller.waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
+        check('admin: y se lo quita, regresándolo a cliente', await filaTaller.count() === 0);
+        await page.screenshot({ path: 'tests/screenshots/equipo-admin.png', fullPage: true });
+      }
+
       // El panel abre en "Inicio"; las solicitudes estan en otra vista.
       await page.click('#nav-projects');
       await page.waitForTimeout(1500);
