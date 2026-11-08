@@ -50,7 +50,7 @@ const server = createServer(async (req, res) => {
 });
 
 try {
-    for (const [prefix, role] of [['ADMIN', 'admin'], ['VENDEDOR', 'vendedor'], ['CLIENTE', 'cliente'], ['CLIENTE2', 'cliente']]) {
+    for (const [prefix, role] of [['ADMIN', 'admin'], ['VENDEDOR', 'vendedor'], ['TALLER', 'taller'], ['CLIENTE', 'cliente'], ['CLIENTE2', 'cliente']]) {
         const email = `prueba-${randomUUID()}@example.test`;
         const password = contrasenaDePrueba();
         const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { first_name: 'Prueba', last_name_p: prefix } });
@@ -174,7 +174,7 @@ try {
         if (Date.now() > limite || funciones.exitCode !== null) throw new Error(`Las Edge Functions no arrancaron:\n${bitacora.slice(-2000)}`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
     }
-    for (const file of ['rls.spec.mjs', 'mfa-ui.spec.mjs', 'panel.spec.mjs', 'perfil-ausente.spec.mjs', 'rol-nulo.spec.mjs', 'recuperacion.spec.mjs', 'pagos.spec.mjs', 'contrasenas.spec.mjs']) {
+    for (const file of ['rls.spec.mjs', 'mfa-ui.spec.mjs', 'panel.spec.mjs', 'perfil-ausente.spec.mjs', 'rol-nulo.spec.mjs', 'recuperacion.spec.mjs', 'pagos.spec.mjs', 'contrasenas.spec.mjs', 'roles.spec.mjs']) {
         console.log(`Ejecutando ${file} contra Supabase local con cuentas desechables.`);
         const child = spawn(process.execPath, [new URL(file, import.meta.url).pathname], { env, stdio: 'inherit' });
         const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('exit', resolve); });
@@ -219,7 +219,11 @@ try {
     if (carpetaFunciones) await rm(carpetaFunciones, { recursive: true, force: true });
     // Pedidos de las cuentas desechables, con sus pagos y renglones, antes de
     // borrar el producto que referencian.
-    const pedidos = ids.length ? (await admin.from('orders').select('id').in('client_id', ids)).data ?? [] : [];
+    // Pedidos del portal (client_id) y ventas del punto de venta (seller_id).
+    const pedidos = ids.length ? [
+        ...((await admin.from('orders').select('id').in('client_id', ids)).data ?? []),
+        ...((await admin.from('orders').select('id').in('seller_id', ids)).data ?? []),
+    ] : [];
     const idsPedidos = pedidos.map((o) => o.id);
     if (idsPedidos.length) {
         const pagos = await admin.from('pagos').delete().in('order_id', idsPedidos);

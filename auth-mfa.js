@@ -3,7 +3,7 @@ let mfaFactorId = null;
 let mfaOcupado = false;
 let mfaSesion = null;
 let mfaFactores = [];
-const esPersonal = (rol) => rol === 'vendedor' || rol === 'admin';
+const esPersonal = (rol) => rol === 'taller' || rol === 'vendedor' || rol === 'admin';
 
 function limpiarSecretoMfa() {
     mfaFactorId = null;
@@ -42,7 +42,7 @@ async function rolDelUsuario(userId) {
     const { data, error } = await window.supabaseClient
         .from('profiles').select('role').eq('id', userId).single();
     // Una consulta fallida no convierte al personal en cliente.
-    if (error || !data || !['cliente', 'vendedor', 'admin'].includes(data.role)) {
+    if (error || !data || !['cliente', 'taller', 'vendedor', 'admin'].includes(data.role)) {
         throw new Error('No se pudo comprobar tu acceso. Reintenta o cierra la sesión.');
     }
     return data.role;
