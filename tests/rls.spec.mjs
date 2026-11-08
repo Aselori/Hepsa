@@ -145,7 +145,19 @@ try {
       const mostrado = await page.locator('#user-role-display').innerText().catch(() => '');
       check(`${rol} ve su rol en pantalla`, mostrado.toLowerCase().includes(rol), `"${mostrado}"`);
 
-      // El panel abre en "Punto de Venta"; las solicitudes estan en otra vista.
+      const menu = await page.locator('.sidebar-nav button:visible').allInnerTexts();
+      const deAdmin = ['Equipo', 'Configuración'].every((v) => menu.includes(v));
+      check(`${rol} ve ${rol === 'admin' ? 'las' : 'sin las'} secciones de administración`,
+        rol === 'admin' ? deAdmin : !menu.includes('Equipo'), JSON.stringify(menu));
+      await page.waitForSelector('#inicio-pendientes .pendiente-cargando', { state: 'detached' });
+      const inicio = await page.locator('#inicio-pendientes').innerText();
+      check(`${rol}: Inicio revisa todo sin errores`, !/No se pudo/.test(inicio), inicio.replace(/\n/g, ' | '));
+      await page.screenshot({ path: `tests/screenshots/inicio-${rol}.png` });
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.screenshot({ path: `tests/screenshots/inicio-${rol}-telefono.png` });
+      await page.setViewportSize({ width: 1280, height: 800 });
+
+      // El panel abre en "Inicio"; las solicitudes estan en otra vista.
       await page.click('#nav-projects');
       await page.waitForTimeout(1500);
       const cuerpo = await page.locator('#view-projects').innerText();
