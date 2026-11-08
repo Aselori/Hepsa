@@ -55,6 +55,8 @@ try {
   const scriptsBefore = await page.locator('script').count();
 
   await page.evaluate(async () => {
+    // El simulado entra como admin: "Eliminar" sólo se dibuja para ese rol.
+    rolActual = 'admin';
     await cargarInventarioBD();
     await cargarHistorialBD();
     await cargarProyectosBD();
