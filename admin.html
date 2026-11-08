@@ -42,6 +42,14 @@
         .sidebar-nav button { width: 100%; text-align: left; padding: 10px 12px; background: transparent; border: none; border-radius: var(--radio); color: var(--text-muted); font: inherit; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
         .sidebar-nav button:hover { background: var(--table-row-hover); color: var(--text-main); }
         .sidebar-nav button.active { background: var(--activo-bg); color: var(--text-main); font-weight: 600; }
+        .nav-grupo { margin: 14px 12px 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+        .pendientes { list-style: none; margin: 0; padding: 0; max-width: 640px; display: flex; flex-direction: column; gap: 8px; }
+        .pendientes button { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); color: var(--text-main); font: inherit; cursor: pointer; }
+        .pendientes button:hover { background: var(--table-row-hover); }
+        .pendientes button::after { content: "Ver"; flex-shrink: 0; color: var(--text-muted); font-size: 0.9rem; }
+        .pendientes .detalle { color: var(--text-muted); }
+        .pendiente-cargando, .pendiente-al-dia { color: var(--text-muted); padding: 4px 0; }
+        .pendiente-error { color: var(--peligro); padding: 4px 0; }
         .sidebar-footer { padding: 14px 12px; border-top: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
         .btn-return { color: var(--text-main); border: 1px solid var(--card-border); padding: 9px 12px; border-radius: var(--radio); text-decoration: none; font-size: 0.9rem; font-weight: 500; }
         .btn-return:hover { border-color: var(--text-muted); }
@@ -141,6 +149,7 @@
             #user-role-display { margin: 0; font-size: 0.75rem; font-weight: 500; color: var(--text-muted); }
             .sidebar-footer { padding: 10px 16px; border-top: none; }
             .sidebar-nav { order: 3; flex: 1 0 100%; box-sizing: border-box; flex-direction: row; gap: 4px; padding: 0 12px 8px; overflow-x: auto; scrollbar-width: thin; }
+            .nav-grupo { display: none; }
             .sidebar-nav button { width: auto; flex-shrink: 0; white-space: nowrap; padding: 8px 12px; }
             main { padding: 20px 16px 32px; }
             h2 { font-size: 1.35rem; }
@@ -193,14 +202,18 @@
             <img src="assets/logo-dark.svg" width="306" height="100" alt="HEPSA" class="logo-img solo-tema-oscuro">
             <p id="user-role-display">Validando…</p>
         </div>
-        <div class="sidebar-nav">
-            <button onclick="showAdminView('pos')" id="nav-pos" class="active">Punto de venta</button>
-            <button onclick="showAdminView('history')" id="nav-history">Historial de ventas</button>
-            <button onclick="showAdminView('catalog')" id="nav-catalog">Inventario</button>
-            <button onclick="showAdminView('projects')" id="nav-projects">Proyectos a medida</button>
-            <button onclick="showAdminView('users')" id="nav-users">Usuarios y equipo</button>
-            <button onclick="showAdminView('config')" id="nav-config">Configuración</button>
-        </div>
+        <!-- Cada botón dice qué roles lo ven. Esconderlo es orientación, no
+             defensa: lo que un rol no puede hacer lo niega la base. -->
+        <nav class="sidebar-nav" aria-label="Secciones del panel">
+            <button onclick="showAdminView('inicio')" id="nav-inicio" data-roles="vendedor admin" class="active">Inicio</button>
+            <button onclick="showAdminView('pos')" id="nav-pos" data-roles="vendedor admin">Nueva venta</button>
+            <button onclick="showAdminView('history')" id="nav-history" data-roles="vendedor admin">Ventas</button>
+            <button onclick="showAdminView('projects')" id="nav-projects" data-roles="vendedor admin">Solicitudes</button>
+            <button onclick="showAdminView('catalog')" id="nav-catalog" data-roles="vendedor admin">Catálogo</button>
+            <p class="nav-grupo" data-roles="admin">Administración</p>
+            <button onclick="showAdminView('users')" id="nav-users" data-roles="admin">Equipo</button>
+            <button onclick="showAdminView('config')" id="nav-config" data-roles="admin">Configuración</button>
+        </nav>
         <div class="sidebar-footer">
             <a href="index.html" class="btn-return">Tienda web</a>
             <button id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema" aria-label="Cambiar tema"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
@@ -208,8 +221,14 @@
     </aside>
 
     <main>
-        <section id="view-pos" class="view-section active">
-            <h2>Punto de venta</h2>
+        <section id="view-inicio" class="view-section active">
+            <h2>Inicio</h2>
+            <!-- Sólo lo que pide atención; lo que está al día no aparece. -->
+            <ul id="inicio-pendientes" class="pendientes" aria-live="polite"><li class="pendiente-cargando">Revisando pendientes…</li></ul>
+        </section>
+
+        <section id="view-pos" class="view-section">
+            <h2>Nueva venta</h2>
             <div class="pos-container">
                 <div>
                     <!-- Primero lo que se vende y después para quién: así se arma una
@@ -294,7 +313,7 @@
 
         <section id="view-history" class="view-section">
             <div class="encabezado-vista">
-                <h2>Historial de ventas</h2>
+                <h2>Ventas</h2>
                 <button class="btn-secundario" onclick="cargarHistorialBD()">Actualizar</button>
             </div>
             <p id="history-resumen" class="resumen" hidden></p>
@@ -323,7 +342,7 @@
 
         <section id="view-catalog" class="view-section">
             <div class="encabezado-vista">
-                <h2>Inventario y catálogo</h2>
+                <h2>Catálogo</h2>
                 <button id="btn-abrir-alta" class="action-btn" aria-expanded="false" aria-controls="panel-alta-producto" onclick="alternarAltaProducto()">+ Agregar producto</button>
             </div>
             <p id="inventory-resumen" class="resumen alerta" hidden></p>
@@ -370,7 +389,7 @@
 
         <section id="view-projects" class="view-section">
             <div class="encabezado-vista">
-                <h2>Bandeja de proyectos a medida</h2>
+                <h2>Solicitudes de proyectos a medida</h2>
                 <button class="btn-secundario" onclick="cargarProyectosBD()">Refrescar bandeja</button>
             </div>
             <p id="projects-resumen" class="resumen" hidden></p>
@@ -386,7 +405,7 @@
 
         <section id="view-users" class="view-section">
             <div class="encabezado-vista">
-                <h2>Directorio de usuarios y permisos</h2>
+                <h2>Equipo y usuarios</h2>
                 <button class="btn-secundario" onclick="cargarUsuariosBD()">Refrescar directorio</button>
             </div>
             <div class="panel">
@@ -467,14 +486,14 @@
 
             document.body.style.display = 'flex';
             document.getElementById('user-role-display').textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
-            if (userRole === 'vendedor') {
-                document.getElementById('nav-config').style.display = 'none';
-                document.getElementById('nav-users').style.display = 'none';
-            }
+            document.querySelectorAll('.sidebar-nav [data-roles]').forEach((el) => {
+                el.hidden = !el.dataset.roles.split(' ').includes(userRole);
+            });
             // Alta de productos sólo para el admin (products_insert_admin).
             document.getElementById('btn-abrir-alta').hidden = userRole !== 'admin';
             await cargarParametros();
             cargarInventarioBD();
+            cargarInicioBD();
             initTicket();
             window.supabaseClient.auth.onAuthStateChange((event) => {
                 if (event === 'SIGNED_OUT') {
@@ -532,6 +551,7 @@
             // se mantiene a la vista, y cada vista abre desde arriba.
             boton.scrollIntoView({ block: 'nearest', inline: 'nearest' });
             document.querySelector('main').scrollTop = 0;
+            if(viewId === 'inicio') cargarInicioBD();
             if(viewId === 'history') cargarHistorialBD();
             if(viewId === 'catalog' || viewId === 'pos') cargarInventarioBD();
             if(viewId === 'projects') cargarProyectosBD();
@@ -1049,6 +1069,85 @@
         const sinResponder = (req) => !req.status || req.status === 'Pendiente de Revisión';
         const diasDesde = (fecha) => Math.max(0, Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000));
         const textoEspera = (dias) => dias === 0 ? 'hoy' : dias === 1 ? '1 día' : `${dias} días`;
+
+        // Inicio: una línea por cada cosa que pide atención, y cada línea abre la
+        // vista donde se resuelve. Una consulta que falla se dice; callarla
+        // se leería como "todo al día".
+        async function cargarInicioBD() {
+            const lista = document.getElementById('inicio-pendientes');
+            const sb = window.supabaseClient;
+            const [solicitudes, ventas, productos, sinFactor] = await Promise.all([
+                sb.from('custom_requests').select('status, created_at'),
+                sb.from('orders').select('payment_status').in('payment_status', ['anticipo', 'faltante']),
+                sb.from('products').select('stock').lt('stock', STOCK_BAJO),
+                rolActual === 'admin' ? sb.rpc('empleados_sin_segundo_factor') : Promise.resolve({ data: [] }),
+            ]);
+            const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+            const lineas = [];
+            const errores = [];
+            const linea = (vista, principal, detalle = '') => lineas.push({ vista, principal, detalle });
+
+            if (solicitudes.error) errores.push('las solicitudes');
+            else {
+                const pendientes = solicitudes.data.filter(sinResponder);
+                if (pendientes.length) {
+                    const espera = Math.max(...pendientes.map((r) => diasDesde(r.created_at)));
+                    linea('projects', plural(pendientes.length, 'solicitud sin responder', 'solicitudes sin responder'),
+                        espera === 0 ? 'llegó hoy' : `la más antigua, ${textoEspera(espera)}`);
+                }
+            }
+            if (ventas.error) errores.push('las ventas');
+            else if (ventas.data.length) {
+                const faltantes = ventas.data.filter((o) => o.payment_status === 'faltante').length;
+                linea('history', plural(ventas.data.length, 'venta con pago pendiente', 'ventas con pago pendiente'),
+                    faltantes ? `${faltantes} con faltante` : '');
+            }
+            if (productos.error) errores.push('el catálogo');
+            else if (productos.data.length) {
+                const agotados = productos.data.filter((p) => p.stock <= 0).length;
+                linea('catalog', plural(productos.data.length, 'producto por agotarse', 'productos por agotarse'),
+                    agotados ? `${agotados} sin existencias` : '');
+            }
+            if (sinFactor.error) errores.push('el equipo');
+            else if (sinFactor.data?.length) {
+                linea('users', plural(sinFactor.data.length, 'empleado sin segundo factor', 'empleados sin segundo factor'),
+                    sinFactor.data.length === 1 ? 'no puede entrar al panel' : 'no pueden entrar al panel');
+            }
+
+            lista.replaceChildren();
+            for (const { vista, principal, detalle } of lineas) {
+                const li = document.createElement('li');
+                const boton = document.createElement('button');
+                boton.type = 'button';
+                const texto = document.createElement('span');
+                const fuerte = document.createElement('strong');
+                fuerte.textContent = principal;
+                texto.append(fuerte);
+                if (detalle) {
+                    const resto = document.createElement('span');
+                    resto.className = 'detalle';
+                    resto.textContent = ` · ${detalle}`;
+                    texto.append(resto);
+                }
+                boton.append(texto);
+                boton.addEventListener('click', () => showAdminView(vista));
+                li.append(boton);
+                lista.append(li);
+            }
+            if (errores.length) {
+                const li = document.createElement('li');
+                li.className = 'pendiente-error';
+                li.setAttribute('role', 'alert');
+                li.textContent = `No se pudo revisar ${errores.join(', ')}. Recarga la página para reintentar.`;
+                lista.append(li);
+            }
+            if (!lineas.length && !errores.length) {
+                const li = document.createElement('li');
+                li.className = 'pendiente-al-dia';
+                li.textContent = 'Todo al día: no hay nada pendiente.';
+                lista.append(li);
+            }
+        }
 
         async function cargarProyectosBD() {
             const tbody = document.getElementById('projects-table-body');

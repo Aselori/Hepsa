@@ -54,6 +54,17 @@ try {
   await page.waitForTimeout(2500);
   check('el vendedor con 2FA entra al panel', page.url().endsWith('/admin.html'), page.url().replace(BASE, ''));
 
+  // ── Menú por rol e Inicio ────────────────────────────────────────────────
+  const menu = await page.locator('.sidebar-nav button:visible').allInnerTexts();
+  check('el vendedor ve el menú de ventas, sin Equipo ni Configuración',
+    JSON.stringify(menu) === JSON.stringify(['Inicio', 'Nueva venta', 'Ventas', 'Solicitudes', 'Catálogo']), JSON.stringify(menu));
+  check('el panel abre en Inicio', await page.locator('#view-inicio').isVisible());
+  const pendientes = await page.locator('#inicio-pendientes').innerText();
+  check('Inicio avisa de las solicitudes sin responder', /solicitud(es)? sin responder/.test(pendientes), pendientes);
+  check('al vendedor Inicio no le habla del segundo factor del equipo', !/segundo factor|No se pudo/.test(pendientes), pendientes);
+  await page.locator('#inicio-pendientes button', { hasText: 'sin responder' }).click();
+  check('la línea de Inicio abre la vista donde se atiende', await page.locator('#view-projects').isVisible());
+
   // ── Inventario: si is_staff() se hubiera roto, el desplegable del POS
   //    llegaria vacio y no se podria cobrar nada.
   await page.waitForTimeout(1500);
