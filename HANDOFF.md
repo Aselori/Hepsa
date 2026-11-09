@@ -130,6 +130,15 @@
   venta real y 3 solicitudes. Verificado en vivo con Playwright.
 - Riesgo a confirmar con HEPSA: varias fotos de la página parecen de
   inspiración y no obra propia; las de la casa 514 sí son suyas.
+- #41 Negocio, #42 fotos a 800 px + caché de un día (vercel.json), #43
+  Pagos en línea (sólo si config.pagosEnLinea), #44 solicitud a venta,
+  ficha de producto (dialog). Plan del panel COMPLETO (pasos 1 a 8).
+- Decisión 2026-11-08: manuales en .docx + PDF (no LaTeX). Base de formato:
+  ~/Downloads/Manual_de_Usuario_HEPSA_v2.docx (sólo formato; contenido se
+  rehace). Estructura aprobada: intro con 4 roles; I portal; II acceso e
+  Inicio; III ventas; IV taller; V administración; VI apariencia; anexos
+  (botones, mapa, FAQ y limitaciones, diccionario, ER real). Conclusiones
+  personales se copian tal cual. También Manual Técnico en el mismo formato.
 - Manuales al final: rehacerlos con el formato y estructura de las
   referencias en ~/Downloads/manual_reference (KarinPOS y Fundamental2,
   usuario y técnico), con capturas hechas con Playwright.
@@ -139,6 +148,6 @@
 1. Usuario: regla de contraseñas en el panel de Supabase (CONFIRMAR).
 2. HEPSA: precios de los 13 productos nuevos (el admin los pone y los
    activa en Catálogo) y confirmar que las fotos son obra propia.
-3. Pasos restantes del plan: 6 Negocio (ventas del mes, por cobrar, por
-   vendedor), 7 Pagos en línea (sólo si se activan), 8 cotización a venta.
-4. Manuales de usuario, personal y técnico con el formato de referencia.
+3. Manual de Usuario v3 (.docx + PDF) con capturas de Playwright del stack
+   local con datos de ejemplo; luego Manual Técnico. deliverable-check antes
+   de darlos por listos.
