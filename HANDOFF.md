@@ -139,15 +139,22 @@
   Inicio; III ventas; IV taller; V administración; VI apariencia; anexos
   (botones, mapa, FAQ y limitaciones, diccionario, ER real). Conclusiones
   personales se copian tal cual. También Manual Técnico en el mismo formato.
-- Manuales al final: rehacerlos con el formato y estructura de las
-  referencias en ~/Downloads/manual_reference (KarinPOS y Fundamental2,
-  usuario y técnico), con capturas hechas con Playwright.
+- 2026-11-08 manuales ENTREGADOS en ~/Downloads/manuales_hepsa/ (fuera del
+  repo): Manual_de_Usuario_HEPSA_v3 (40 p.) y Manual_Tecnico_HEPSA (26 p.),
+  .docx + PDF, formato de v2 (portada, encabezado, pie), capturas reales del
+  stack local con datos de ejemplo, diagramas Graphviz, índices con páginas
+  verificadas en dos pasadas. deliverable-check limpio (sólo "Node.js",
+  justificado). El técnico NO cita el repo (decisión del usuario).
+  Generador en el scratchpad de la sesión (no versionado).
+- Hallazgos para decidir: seed.sql tiene los nombres viejos del catálogo
+  (sin acentos) y no coincide con el hospedado (es archivo de base: pedir
+  permiso); Nueva venta marca Nombre y Apellido con * pero no son
+  obligatorios (sin nombre queda "Público general"); "Puerta principal gris"
+  y "Puerta principal reforzada" dicen 5.00 × 2.00 m (confirmar con HEPSA).
 
 ### Siguientes pasos
 
 1. Usuario: regla de contraseñas en el panel de Supabase (CONFIRMAR).
 2. HEPSA: precios de los 13 productos nuevos (el admin los pone y los
    activa en Catálogo) y confirmar que las fotos son obra propia.
-3. Manual de Usuario v3 (.docx + PDF) con capturas de Playwright del stack
-   local con datos de ejemplo; luego Manual Técnico. deliverable-check antes
-   de darlos por listos.
+3. Usuario: revisar los manuales; decidir los hallazgos de arriba.
