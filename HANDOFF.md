@@ -136,11 +136,12 @@
   verificadas en dos pasadas. deliverable-check limpio (sólo "Node.js",
   justificado). El técnico NO cita el repo (decisión del usuario).
   Generador en el scratchpad de la sesión (no versionado).
+- #48 ficha de producto rehecha (fondo, Esc, Atrás, deslizar, #producto-N,
+  flechas, especificaciones, cantidad) y logo al catálogo; manuales al día.
 - Hallazgos resueltos (#47): seed.sql con el catálogo vigente y sus fotos;
   sin asteriscos en Nombre/Apellido de Nueva venta (no son obligatorios).
   Pendiente de HEPSA: "Puerta principal gris" y "reforzada" dicen 5.00 × 2.00 m.
-- Tras `supabase db reset` local, Storage puede fallar con 42P10 (índice de
-  storage.objects): reiniciar el stack local (stop y start) lo arregla.
+- Tras un reset local, Storage puede fallar con 42P10: reiniciar el stack.
 
 ### Siguientes pasos
 
