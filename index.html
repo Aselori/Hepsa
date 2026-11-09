@@ -62,6 +62,25 @@
         .card-img { aspect-ratio: 4 / 3; background-color: var(--table-header-bg); background-size: cover; background-position: center; }
         .card-body { padding: 16px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
         .product-title { margin: 0; font-size: 1.05rem; font-weight: 600; }
+        /* El título y la foto abren la ficha; el botón no se ve como botón. */
+        .product-title button { all: unset; cursor: pointer; }
+        .product-title button:hover { text-decoration: underline; }
+        .product-title button:focus-visible { outline: 2px solid var(--text-main); outline-offset: 2px; }
+        .card-img[data-detalle-id] { cursor: zoom-in; }
+        #ficha-producto { width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--card-border); border-radius: var(--radio); background: var(--card-bg); color: var(--text-main); }
+        #ficha-producto::backdrop { background: rgb(0 0 0 / 0.55); }
+        .ficha { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+        .ficha img { width: 100%; height: 100%; max-height: 70dvh; object-fit: cover; display: block; background: var(--table-header-bg); }
+        .ficha-cuerpo { padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+        .ficha-cuerpo h2 { margin: 0; padding-right: 32px; font-size: 1.35rem; }
+        .ficha-descripcion { margin: 0; white-space: pre-line; color: var(--text-muted); line-height: 1.5; }
+        .ficha-cuerpo .action-btn { margin-top: auto; }
+        .ficha-cuerpo a { color: var(--text-main); font-size: 0.95rem; }
+        .ficha-cerrar { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-main); font-size: 1.2rem; cursor: pointer; }
+        @media (max-width: 640px) {
+            .ficha { grid-template-columns: 1fr; }
+            .ficha img { max-height: 45dvh; }
+        }
         .price { color: var(--text-main); font-size: 1.35rem; font-weight: 700; display: block; margin: 4px 0 10px; font-variant-numeric: tabular-nums; }
         .price-moneda { font-size: 0.85rem; font-weight: 500; color: var(--text-muted); }
         /* Solo aparece cuando quedan pocas piezas: es la excepción, no la regla. */
@@ -213,6 +232,23 @@
     </header>
 
     <div id="toast-container" aria-live="polite"></div>
+
+    <!-- Ficha de producto: <dialog> nativo, así el foco, Esc y el fondo
+         los resuelve el navegador. Se llena con textContent. -->
+    <dialog id="ficha-producto" aria-labelledby="ficha-nombre">
+        <button type="button" class="ficha-cerrar" aria-label="Cerrar" onclick="document.getElementById('ficha-producto').close()">×</button>
+        <div class="ficha">
+            <img id="ficha-foto" alt="" hidden>
+            <div class="ficha-cuerpo">
+                <h2 id="ficha-nombre"></h2>
+                <span class="price"><span id="ficha-precio"></span> <span class="price-moneda">MXN</span></span>
+                <p id="ficha-descripcion" class="ficha-descripcion"></p>
+                <p class="nota-existencias" id="ficha-existencias"></p>
+                <button class="action-btn" id="ficha-agregar">Añadir al carrito</button>
+                <a href="#" data-ir-cotizador>¿Lo necesitas a otra medida? Cotízalo</a>
+            </div>
+        </div>
+    </dialog>
 
     <div id="cart-modal">
         <div class="cart-header">
@@ -869,14 +905,12 @@
                 btn.classList.toggle('agotado', lleno);
                 btn.textContent = lleno ? 'Sin más existencias' : 'Añadir al carrito';
 
-                const nota = document.querySelector(`[data-stock-nota="${id}"]`);
-                if (!nota) return;
+                // La de la tarjeta y, si está abierta, la de la ficha.
                 // Singular y plural: con una sola pieza decía "Quedan 1 disponibles".
                 const quedan = tope - enCarrito;
-                if (lleno) nota.textContent = tope === 1 ? 'Tienes en tu carrito la única disponible' : `Tienes en tu carrito las ${tope} disponibles`;
-                else if (Number.isFinite(tope) && quedan <= 3) {
-                    nota.textContent = quedan === 1 ? 'Queda 1 disponible' : `Quedan ${quedan} disponibles`;
-                } else nota.textContent = '';
+                const texto = lleno ? (tope === 1 ? 'Tienes en tu carrito la única disponible' : `Tienes en tu carrito las ${tope} disponibles`)
+                    : Number.isFinite(tope) && quedan <= 3 ? (quedan === 1 ? 'Queda 1 disponible' : `Quedan ${quedan} disponibles`) : '';
+                document.querySelectorAll(`[data-stock-nota="${id}"]`).forEach((nota) => { nota.textContent = texto; });
             });
         }
 
@@ -939,14 +973,37 @@
             if (qty) return cambiarCantidad(Number(qty.dataset.qtyId), Number(qty.dataset.delta));
             const quitar = ev.target.closest('[data-remove-id]');
             if (quitar) return quitarDelCart(Number(quitar.dataset.removeId));
+            const detalle = ev.target.closest('[data-detalle-id]');
+            if (detalle) return abrirFicha(Number(detalle.dataset.detalleId));
             const pagar = ev.target.closest('[data-pagar-id]');
             if (pagar) return pagarEnLinea(Number(pagar.dataset.pagarId), pagar);
             if (ev.target.closest('[data-ir-cotizador]')) {
                 ev.preventDefault();
                 document.getElementById('cart-modal').classList.remove('open');
+                document.getElementById('ficha-producto').close();
                 showView('quote');
             }
         });
+        // La ficha muestra lo que la tarjeta no cabe: la foto grande y la
+        // descripción (medidas, material). Su botón usa data-add-id, así que
+        // actualizarBotonesCatalogo() también le pone el tope de existencias.
+        function abrirFicha(id) {
+            const p = catalogo[id];
+            if (!p) return;
+            const foto = document.getElementById('ficha-foto');
+            const href = urlImagenSegura(p.image_url);
+            foto.hidden = !href;
+            if (href) { foto.src = href; foto.alt = p.name; }
+            document.getElementById('ficha-nombre').textContent = p.name;
+            document.getElementById('ficha-precio').textContent = `$${p.price.toLocaleString('es-MX')}`;
+            document.getElementById('ficha-descripcion').textContent = p.description || '';
+            const agregar = document.getElementById('ficha-agregar');
+            agregar.dataset.addId = String(id);
+            document.getElementById('ficha-existencias').dataset.stockNota = String(id);
+            actualizarBotonesCatalogo();
+            document.getElementById('ficha-producto').showModal();
+        }
+
         function toggleCart() { document.getElementById('cart-modal').classList.toggle('open'); }
         // Escape cierra el carrito, como cualquier panel lateral.
         document.addEventListener('keydown', (ev) => {
@@ -999,12 +1056,11 @@
             const grid = document.getElementById('public-catalog-grid');
             const vacio = (msg) => { grid.innerHTML = `<p style="color: var(--text-muted); grid-column: 1/-1; text-align:center; padding: 40px;">${msg}</p>`; };
 
-            // Sólo las columnas que la tarjeta usa: description, stock y
-            // created_at se traían sin ocuparse. El filtro is_active es
+            // Sólo las columnas que usan la tarjeta y su ficha. El filtro is_active es
             // necesario aunque RLS también lo aplique, porque el staff sí ve
             // los inactivos y aquí no deben salir.
             const { data, error } = await window.supabaseClient
-                .from('products').select('id, name, price, image_url, stock')
+                .from('products').select('id, name, description, price, image_url, stock')
                 .eq('is_active', true).order('id');
 
             // Antes el error se descartaba y la página decía "no hay productos"
@@ -1017,9 +1073,9 @@
 
             grid.innerHTML = data.map((p) => `
                     <div class="product-card">
-                        ${urlImagenSegura(p.image_url) ? `<div class="card-img" data-img-id="${p.id}"></div>` : ''}
+                        ${urlImagenSegura(p.image_url) ? `<div class="card-img" data-img-id="${p.id}" data-detalle-id="${p.id}"></div>` : ''}
                         <div class="card-body">
-                            <h3 class="product-title">${esc(p.name)}</h3>
+                            <h3 class="product-title"><button type="button" data-detalle-id="${p.id}">${esc(p.name)}</button></h3>
                             <span class="price">$${p.price.toLocaleString('es-MX')} <span class="price-moneda">MXN</span></span>
                             <p class="nota-existencias" data-stock-nota="${p.id}"></p>
                             <button class="action-btn" data-add-id="${p.id}">Añadir al carrito</button>
