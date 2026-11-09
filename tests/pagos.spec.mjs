@@ -13,6 +13,7 @@
 import { createHmac, randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import { chromium } from 'playwright';
+import { codigoTOTPFresco } from './totp.mjs';
 
 const URL_SB = process.env.HEPSA_TEST_SUPABASE_URL;
 const LLAVE = process.env.HEPSA_TEST_SUPABASE_KEY;
@@ -207,6 +208,31 @@ try {
     await page.locator(`[data-pagar-id="${pendiente}"]`).click();
     await page.waitForURL(/checkout\.stripe\.com/, { timeout: 15000 });
     check('el botón lleva a la sesión de Stripe', page.url().startsWith('https://checkout.stripe.com/c/pay/cs_test_'), page.url());
+
+    // ─── Panel: el admin ve los pagos y el duplicado por reembolsar ─────────
+    if (process.env.ADMIN_TOTP) {
+      // Contexto propio: la sesión del cliente vive en el otro.
+      const contextoAdmin = await navegador.newContext();
+      await contextoAdmin.route('**/*', (ruta) => new URL(ruta.request().url()).hostname === '127.0.0.1' ? ruta.continue() : ruta.abort());
+      const admin = await contextoAdmin.newPage();
+      await admin.goto(`${BASE_URL}/index.html`);
+      await admin.waitForFunction(() => window.supabaseClient);
+      const codigo = await codigoTOTPFresco(process.env.ADMIN_TOTP);
+      await admin.evaluate(async ([e, p, c]) => {
+        await window.supabaseClient.auth.signInWithPassword({ email: e, password: p });
+        const { data } = await window.supabaseClient.auth.mfa.listFactors();
+        await window.supabaseClient.auth.mfa.challengeAndVerify({ factorId: data.totp[0].id, code: c });
+      }, [process.env.ADMIN_EMAIL, process.env.ADMIN_PASS, codigo]);
+      await admin.goto(`${BASE_URL}/admin.html`);
+      await admin.locator('#nav-pagos').click({ timeout: 15000 });
+      const filas = admin.locator('#pagos-table-body tr', { hasText: String(pedido) });
+      await filas.first().waitFor({ timeout: 10000 }).catch(() => {});
+      const textos = await filas.allInnerTexts();
+      check('el panel del admin lista los dos cobros del pedido', textos.length === 2, textos.join(' | '));
+      check('el duplicado va primero y marcado para reembolsar', /Duplicado: reembolsar/.test(textos[0] ?? ''), textos[0] ?? '');
+      check('el resumen avisa del cobro duplicado', /cobros? duplicados?/.test(await admin.locator('#pagos-duplicados').innerText()));
+      await admin.screenshot({ path: 'tests/screenshots/pagos-admin.png', fullPage: true });
+    }
   } finally {
     await navegador.close();
   }
