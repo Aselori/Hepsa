@@ -50,6 +50,8 @@ async function abrirPanel(browser, ancho, alto) {
           in() { return consulta; },
           lt() { return consulta; },
           or() { return consulta; },
+          gte() { return consulta; },
+          neq() { return consulta; },
           order() { return Promise.resolve({ data: datos[tabla] || [], error: null }); },
           then(ok, mal) { return Promise.resolve({ data: datos[tabla] || [], error: null }).then(ok, mal); },
         };
@@ -109,7 +111,7 @@ try {
     // Cada vista se alcanza desde el menu, se muestra al tocarla y no se sale
     // de la pantalla. Las tablas anchas (inventario, ventas) deben deslizarse
     // dentro de su caja, no ensanchar la vista entera.
-    const vistas = ['inicio', 'pos', 'history', 'catalog', 'projects', 'users', 'config'];
+    const vistas = ['inicio', 'pos', 'history', 'catalog', 'projects', 'negocio', 'users', 'config'];
     const malas = [];
     for (const vista of vistas) {
       if (!(await recibeToque(page, `#nav-${vista}`))) { malas.push(`${vista} sin toque`); continue; }
@@ -120,7 +122,7 @@ try {
       const medida = await desborde(page);
       check(`${etiqueta}: la vista ${vista} no se sale a lo ancho`, medida.ok, medida.detalle);
     }
-    check(`${etiqueta}: las siete vistas se alcanzan y se abren`, malas.length === 0, malas.join(', '));
+    check(`${etiqueta}: las ocho vistas se alcanzan y se abren`, malas.length === 0, malas.join(', '));
 
     await page.locator('#nav-pos').click();
     check(`${etiqueta}: Registrar Ticket recibe el toque`, await recibeToque(page, '#btn-registrar-venta'));

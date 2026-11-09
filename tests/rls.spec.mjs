@@ -146,7 +146,7 @@ try {
       check(`${rol} ve su rol en pantalla`, mostrado.toLowerCase().includes(rol), `"${mostrado}"`);
 
       const menu = await page.locator('.sidebar-nav button:visible').allInnerTexts();
-      const deAdmin = ['Equipo', 'Precios'].every((v) => menu.includes(v));
+      const deAdmin = ['Negocio', 'Equipo', 'Precios'].every((v) => menu.includes(v));
       check(`${rol} ve ${rol === 'admin' ? 'las' : 'sin las'} secciones de administración`,
         rol === 'admin' ? deAdmin : !menu.includes('Equipo'), JSON.stringify(menu));
       await page.waitForSelector('#inicio-pendientes .pendiente-cargando', { state: 'detached' });
@@ -197,6 +197,29 @@ try {
         check('admin: un producto oculto no cuenta como por agotarse', porAgotarse(conOculto) === porAgotarse(antesInicio),
           `${porAgotarse(antesInicio)} -> ${porAgotarse(conOculto)}`);
         await page.evaluate(async (id) => window.supabaseClient.from('products').delete().eq('id', id), oculto);
+
+        // Negocio: una venta nueva sube el total del mes y aparece a nombre de
+        // quien la registró.
+        const totalMes = () => page.evaluate(() => Number(document.getElementById('negocio-mes').querySelector('strong')?.textContent.replace(/[^\d]/g, '') ?? -1));
+        await page.click('#nav-negocio');
+        await page.waitForSelector('#negocio-mes strong');
+        const antesMes = await totalMes();
+        const ventaNegocio = await page.evaluate(async () => (await window.supabaseClient.rpc('registrar_venta', {
+          p_cliente: { nombre: 'Prueba', apellidos: 'Negocio' }, p_conceptos: [{ concepto: 'Prueba negocio', precio: 1000 }], p_pago: 'anticipo' })).data);
+        await page.evaluate(() => cargarNegocioBD());
+        const despuesMes = await totalMes();
+        check('admin: Negocio suma la venta nueva al total del mes (1,160 con IVA)', despuesMes - antesMes === 1160, `${antesMes} -> ${despuesMes}`);
+        const vendedores = await page.locator('#negocio-vendedores').innerText();
+        check('admin: Negocio la pone a nombre de quien la registró', /Prueba ADMIN/.test(vendedores), vendedores.replace(/\n/g, ' | '));
+        check('admin: Negocio dice lo que falta cobrar', /con pago pendiente/.test(await page.locator('#negocio-cobrar').innerText()));
+        await page.screenshot({ path: 'tests/screenshots/negocio-admin.png', fullPage: true });
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.screenshot({ path: 'tests/screenshots/negocio-admin-telefono.png', fullPage: true });
+        await page.setViewportSize({ width: 1280, height: 800 });
+        await page.evaluate(async (id) => {
+          await window.supabaseClient.from('order_items').delete().eq('order_id', id);
+          await window.supabaseClient.from('orders').delete().eq('id', id);
+        }, ventaNegocio);
 
         // Precios: el admin cambia una tarifa desde el panel y la base la guarda.
         await page.click('#nav-config');
