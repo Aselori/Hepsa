@@ -65,6 +65,35 @@ try {
   await page.locator('#inicio-pendientes button', { hasText: 'sin responder' }).click();
   check('la línea de Inicio abre la vista donde se atiende', await page.locator('#view-projects').isVisible());
 
+  // ── Solicitud a venta ────────────────────────────────────────────────────
+  const solicitud = await page.evaluate(async () => (await window.supabaseClient.from('custom_requests')
+    .select('id, email, status, precio_estimado, first_name').not('precio_estimado', 'is', null).neq('status', 'Finalizado').limit(1)).data?.[0]);
+  if (solicitud) {
+    await page.waitForSelector('#projects-table-body .btn-convertir');
+    await page.locator('#projects-table-body tr', { hasText: solicitud.email }).locator('.btn-convertir').click();
+    const venta = await page.evaluate(() => ({
+      visible: document.getElementById('view-pos').classList.contains('active'),
+      nombre: document.getElementById('cli-nom1').value,
+      correo: document.getElementById('cli-email').value,
+      ticket: document.getElementById('ticket-list').innerText,
+    }));
+    check('"Convertir en venta" llena Nueva venta con el contacto y la pieza',
+      venta.visible && venta.nombre === solicitud.first_name && venta.correo === solicitud.email && /Pieza a medida/.test(venta.ticket),
+      JSON.stringify(venta));
+    await page.click('#btn-registrar-venta');
+    await page.waitForFunction(() => document.getElementById('ticket-folio').textContent.startsWith('#'), null, { timeout: 10000 }).catch(() => {});
+    // El folio aparece antes de que termine el cambio de estatus: se sondea.
+    const leerEstatus = () => page.evaluate(async (id) => (await window.supabaseClient.from('custom_requests').select('status').eq('id', id).single()).data?.status, solicitud.id);
+    let estatus = await leerEstatus();
+    for (let i = 0; i < 20 && estatus !== 'En Progreso'; i++) { await page.waitForTimeout(250); estatus = await leerEstatus(); }
+    const avisos = await page.locator('.toast').allInnerTexts();
+    check('al registrarla, la solicitud pasa a "En Progreso"', estatus === 'En Progreso', `${estatus} · ${avisos.join(' | ')}`);
+    await page.evaluate(async ([id, antes]) => window.supabaseClient.from('custom_requests').update({ status: antes }).eq('id', id), [solicitud.id, solicitud.status]);
+    await page.evaluate(() => clearPOS());
+  } else {
+    check('hay una solicitud con estimado para convertir en venta', false, 'el fixture no trae ninguna');
+  }
+
   // ── Inventario: si is_staff() se hubiera roto, el desplegable del POS
   //    llegaria vacio y no se podria cobrar nada.
   await page.waitForTimeout(1500);

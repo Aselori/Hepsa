@@ -71,6 +71,7 @@
         .barras .valor { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
         .barras .valor small { color: var(--text-muted); margin-left: 6px; }
         .barras .actual { font-weight: 600; }
+        .btn-convertir { display: block; width: auto; margin-top: 8px; padding: 6px 12px; font-size: 0.85rem; }
         .nav-grupo { margin: 14px 12px 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
         .pendientes { list-style: none; margin: 0; padding: 0; max-width: 640px; display: flex; flex-direction: column; gap: 8px; }
         .pendientes button { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); color: var(--text-main); font: inherit; cursor: pointer; }
@@ -796,6 +797,7 @@
 
         function clearPOS() {
             posCart = [];
+            solicitudOrigen = null;
             posSubtotal = 0;
             ['cli-nom1','cli-nom2','cli-ap-pat','cli-ap-mat','cli-tel','cli-email', 'ticket-notes'].forEach(id => {
                 if(document.getElementById(id)) document.getElementById(id).value = '';
@@ -851,6 +853,11 @@
             // el PDF de una venta registrada ya no se podía sacar.
             folioRegistrado = orderId;
             document.getElementById('ticket-folio').textContent = `#${orderId}`;
+            if (solicitudOrigen) {
+                const { error } = await window.supabaseClient.from('custom_requests').update({ status: 'En Progreso' }).eq('id', solicitudOrigen);
+                if (error) showToast('La venta quedó registrada, pero la solicitud no cambió de estatus: ' + error.message, 'error');
+                solicitudOrigen = null;
+            }
             btn.textContent = 'Venta registrada';
             cargarHistorialBD();
             showToast(`Venta #${orderId} registrada. Exporta el PDF o limpia la venta para empezar otra.`);
@@ -1546,6 +1553,14 @@
                 const select = document.createElement('select'); estados.forEach(est => { const option = document.createElement('option'); option.value = est; option.textContent = est; option.selected = req.status === est; select.appendChild(option); }); select.addEventListener('change', () => actualizarEstatusProyecto(req.id, select.value));
                 select.setAttribute('aria-label', `Estatus de ${name || 'la solicitud'}`);
                 const status = document.createElement('td'); status.appendChild(select);
+                if (req.status !== 'Finalizado') {
+                    const convertir = document.createElement('button');
+                    convertir.type = 'button';
+                    convertir.className = 'btn-secundario btn-convertir';
+                    convertir.textContent = 'Convertir en venta';
+                    convertir.addEventListener('click', () => ventaDesdeSolicitud(req));
+                    status.appendChild(convertir);
+                }
                 row.append(espera, client, piece, estimate, status);
                 return row;
             };
@@ -1553,6 +1568,38 @@
             tbody.replaceChildren(...pendientes.map(fila));
             if (pendientes.length && atendidas.length) tbody.appendChild(filaGrupo('Atendidas', 5));
             atendidas.forEach(r => tbody.appendChild(fila(r)));
+        }
+
+        // Una solicitud aceptada se vuelve venta sin volver a capturar nada: se
+        // llena Nueva venta con el contacto y la pieza al precio estimado (sin
+        // IVA; registrar_venta lo suma). El vendedor revisa y registra; al
+        // registrarse, la solicitud pasa a "En Progreso".
+        let solicitudOrigen = null;
+
+        function ventaDesdeSolicitud(req) {
+            if (posCart.length && !folioRegistrado
+                && !confirm('Hay una venta en curso sin registrar. ¿Reemplazarla con esta solicitud?')) return;
+            clearPOS();
+            const poner = (id, valor) => { document.getElementById(id).value = valor || ''; };
+            poner('cli-nom1', req.first_name); poner('cli-nom2', req.middle_name);
+            poner('cli-ap-pat', req.last_name_p); poner('cli-ap-mat', req.last_name_m);
+            poner('cli-tel', req.phone); poner('cli-email', req.email);
+            poner('ticket-notes', req.specifications);
+            updateTicketClient();
+            const nombre = (v) => NOMBRES_PIEZA[v] || String(v || '').replace(/_/g, ' ');
+            const medidas = `${req.largo_mm} × ${req.alto_mm}${req.profundidad_mm ? ' × ' + req.profundidad_mm : ''} mm`;
+            const precio = Number(req.precio_estimado);
+            if (precio > 0) {
+                posCart.push({ item: `Pieza a medida: ${nombre(req.material)}, ${nombre(req.acabado)}, ${medidas}`, price: precio, product_id: null });
+            } else {
+                // Sin estimado (medidas fuera del cotizador): el concepto se
+                // deja escrito y el precio lo pone el vendedor.
+                poner('ticket-item', `Pieza a medida: ${nombre(req.material)}, ${nombre(req.acabado)}, ${medidas}`);
+            }
+            renderPOSTicket();
+            solicitudOrigen = req.id;
+            showAdminView('pos');
+            showToast(precio > 0 ? 'Revisa el precio: es el estimado del cotizador, antes de IVA.' : 'Escribe el precio de la pieza y agrégala al ticket.');
         }
 
         async function actualizarEstatusProyecto(id, nuevoEstado) {
