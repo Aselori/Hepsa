@@ -164,7 +164,6 @@ try {
         await page.waitForSelector('#users-table-body select');
         const propio = page.locator('#users-table-body tr', { hasText: '(tú)' }).locator('select');
         check('admin: su propio rol no se puede cambiar desde Equipo', await propio.isDisabled());
-        check('admin: Equipo marca a quien no tiene segundo factor', await page.locator('#users-table-body .status-peligro').count() > 0);
         await page.fill('#buscar-cliente', env.CLIENTE2_EMAIL);
         const filaCliente = page.locator('#clientes-table-body tr', { hasText: env.CLIENTE2_EMAIL });
         page.once('dialog', (d) => d.accept());
@@ -172,6 +171,9 @@ try {
         const filaTaller = page.locator('#users-table-body tr', { hasText: env.CLIENTE2_EMAIL });
         await filaTaller.waitFor({ timeout: 5000 }).catch(() => {});
         check('admin: da el rol de taller a un cliente desde Equipo', await filaTaller.locator('select').inputValue().catch(() => null) === 'taller');
+        // La cuenta recién promovida no tiene segundo factor: debe salir marcada.
+        check('admin: Equipo marca a quien no tiene segundo factor',
+          (await filaTaller.locator('.status-peligro').innerText().catch(() => '')) === 'Pendiente');
         page.once('dialog', (d) => d.accept());
         await filaTaller.locator('select').selectOption('cliente');
         await filaTaller.waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
