@@ -398,11 +398,15 @@ try {
 
     const leerCart = () => page.evaluate(() => cart.map(({ id, qty }) => ({ id, qty })));
 
-    // Dos productos distintos comparten el nombre "Puerta de madera de abeto"
-    // (ids 7 y 8, a $14,000 y $20,000). Con el carrito viejo eran la misma
-    // linea; ahora deben quedar separados.
-    const ids = await page.evaluate(() =>
-      Object.values(catalogo).filter((p) => p.name === 'Puerta de madera de abeto').map((p) => p.id).sort());
+    // El carrito viejo agrupaba por nombre y mezclaba dos productos distintos
+    // con el mismo nombre. El catálogo ya no tiene homónimos, así que se
+    // reproduce la condición en la página: las dos puertas de madera (ids 7
+    // y 8, a $14,000 y $20,000) toman el mismo nombre y deben seguir separadas.
+    const ids = await page.evaluate(() => {
+      const madera = Object.values(catalogo).filter((p) => p.name.startsWith('Puerta de madera de abeto')).map((p) => p.id).sort();
+      for (const id of madera) catalogo[id].name = 'Puerta de madera de abeto';
+      return madera;
+    });
     check('el catalogo tiene dos productos homonimos', ids.length === 2, `ids=${ids}`);
 
     await page.click(`[data-add-id="${ids[0]}"]`);

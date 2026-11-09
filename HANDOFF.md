@@ -14,17 +14,7 @@
 - Pruebas: `npm test` (aisladas, simuladas) y `npm run test:local` (stack
   local en 55321 con cuentas desechables, Stripe simulado en contenedor,
   limpia al final). CI corre ambas. Ninguna toca el proyecto hospedado.
-- El stack local guarda llaves desechables en /tmp/hepsa-supabase-start.log:
-  no copiarlas a documentos. Entrega del 2FA: docs/entrega-2fa.md.
-- Capturas de presentaciones: output/ (ignorado); evidencia en la carpeta
-  del curso.
-
-## Conexiones MCP (resumido)
-
-- 2026-09-11: se reparó el acceso de Codex a Supabase, Vercel y Resend y se
-  verificó con llamadas de solo lectura. No se envió correo ni se cambió nada.
-- El MCP de Supabase de Claude Code apunta al proyecto hospedado (estuvo
-  pausado del 2026-10-05 al 2026-10-07; ya responde).
+- Llaves locales desechables en /tmp/hepsa-supabase-start.log: no copiarlas.
 
 ## Septiembre y octubre de 2026 (todo fusionado; detalle en cada PR)
 
@@ -146,15 +136,15 @@
   verificadas en dos pasadas. deliverable-check limpio (sólo "Node.js",
   justificado). El técnico NO cita el repo (decisión del usuario).
   Generador en el scratchpad de la sesión (no versionado).
-- Hallazgos para decidir: seed.sql tiene los nombres viejos del catálogo
-  (sin acentos) y no coincide con el hospedado (es archivo de base: pedir
-  permiso); Nueva venta marca Nombre y Apellido con * pero no son
-  obligatorios (sin nombre queda "Público general"); "Puerta principal gris"
-  y "Puerta principal reforzada" dicen 5.00 × 2.00 m (confirmar con HEPSA).
+- Hallazgos resueltos (#47): seed.sql con el catálogo vigente y sus fotos;
+  sin asteriscos en Nombre/Apellido de Nueva venta (no son obligatorios).
+  Pendiente de HEPSA: "Puerta principal gris" y "reforzada" dicen 5.00 × 2.00 m.
+- Tras `supabase db reset` local, Storage puede fallar con 42P10 (índice de
+  storage.objects): reiniciar el stack local (stop y start) lo arregla.
 
 ### Siguientes pasos
 
 1. Usuario: regla de contraseñas en el panel de Supabase (CONFIRMAR).
 2. HEPSA: precios de los 13 productos nuevos (el admin los pone y los
    activa en Catálogo) y confirmar que las fotos son obra propia.
-3. Usuario: revisar los manuales; decidir los hallazgos de arriba.
+3. Usuario: revisar los manuales (ya incluyen ER plano y normalizado y Gantt).
