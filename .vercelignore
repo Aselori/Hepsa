@@ -17,3 +17,6 @@
 !auth-mfa.js
 !config.js
 !assets/
+# Configuración de Vercel (cabeceras de caché de las fotos); Vercel la lee,
+# no la sirve como archivo.
+!vercel.json
