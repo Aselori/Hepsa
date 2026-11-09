@@ -56,7 +56,7 @@ try {
 
   // ── Menú por rol e Inicio ────────────────────────────────────────────────
   const menu = await page.locator('.sidebar-nav button:visible').allInnerTexts();
-  check('el vendedor ve el menú de ventas, sin Equipo ni Configuración',
+  check('el vendedor ve el menú de ventas, sin Equipo ni Precios',
     JSON.stringify(menu) === JSON.stringify(['Inicio', 'Nueva venta', 'Ventas', 'Solicitudes', 'Catálogo']), JSON.stringify(menu));
   check('el panel abre en Inicio', await page.locator('#view-inicio').isVisible());
   const pendientes = await page.locator('#inicio-pendientes').innerText();

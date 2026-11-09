@@ -42,6 +42,13 @@
         .sidebar-nav button { width: 100%; text-align: left; padding: 10px 12px; background: transparent; border: none; border-radius: var(--radio); color: var(--text-muted); font: inherit; font-size: 0.95rem; font-weight: 500; cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
         .sidebar-nav button:hover { background: var(--table-row-hover); color: var(--text-main); }
         .sidebar-nav button.active { background: var(--activo-bg); color: var(--text-main); font-weight: 600; }
+        .precios { max-width: 640px; }
+        .precios-grupos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 8px; }
+        .precios fieldset { border: none; margin: 0; padding: 0; }
+        .precios legend { padding: 0; font-weight: 600; margin-bottom: 8px; }
+        .precios .form-group input { max-width: 200px; }
+        .casilla { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+        .casilla input { width: auto; margin-top: 3px; }
         .nav-grupo { margin: 14px 12px 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
         .pendientes { list-style: none; margin: 0; padding: 0; max-width: 640px; display: flex; flex-direction: column; gap: 8px; }
         .pendientes button { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); color: var(--text-main); font: inherit; cursor: pointer; }
@@ -212,7 +219,7 @@
             <button onclick="showAdminView('catalog')" id="nav-catalog" data-roles="vendedor admin">Catálogo</button>
             <p class="nav-grupo" data-roles="admin">Administración</p>
             <button onclick="showAdminView('users')" id="nav-users" data-roles="admin">Equipo</button>
-            <button onclick="showAdminView('config')" id="nav-config" data-roles="admin">Configuración</button>
+            <button onclick="showAdminView('config')" id="nav-config" data-roles="admin">Precios</button>
         </nav>
         <div class="sidebar-footer">
             <a href="index.html" class="btn-return">Tienda web</a>
@@ -379,11 +386,24 @@
         </section>
 
         <section id="view-config" class="view-section">
-            <h2>Configuración</h2>
-            <div class="panel" style="max-width: 600px;">
-                <div class="form-group"><label for="cfg-iva">IVA (%)</label><input type="number" id="cfg-iva" value="16" autocomplete="off"></div>
-                <div class="form-group"><label for="cfg-msg">Mensaje en el ticket</label><textarea id="cfg-msg" rows="3" autocomplete="off">Este documento ampara su pedido. Garantía HEPSA.</textarea></div>
-                <button class="action-btn" onclick="saveConfig()">Aplicar cambios</button>
+            <div class="encabezado-vista">
+                <h2>Precios</h2>
+                <button id="btn-guardar-precios" class="action-btn" onclick="guardarPrecios()">Guardar cambios</button>
+            </div>
+            <div class="panel precios">
+                <h3 class="panel-titulo">Cotizador en línea</h3>
+                <p class="nota-campo">El precio de una pieza es su área en m² por el precio del material, por el factor del acabado. Nunca baja del mínimo.</p>
+                <div class="precios-grupos">
+                    <fieldset><legend>Material, por m²</legend><div id="precios-material"></div></fieldset>
+                    <fieldset><legend>Acabado, factor</legend><div id="precios-acabado"></div></fieldset>
+                </div>
+                <div class="form-group"><label for="cfg-minimo">Cobro mínimo por pieza ($)</label><input type="number" id="cfg-minimo" min="0" step="50" autocomplete="off"></div>
+            </div>
+            <div class="panel precios">
+                <h3 class="panel-titulo">Ventas</h3>
+                <div class="form-group"><label for="cfg-iva">IVA (%)</label><input type="number" id="cfg-iva" min="0" max="100" step="0.01" autocomplete="off"></div>
+                <div class="form-group"><label for="cfg-msg">Mensaje en el ticket</label><textarea id="cfg-msg" rows="3" autocomplete="off"></textarea></div>
+                <label class="casilla"><input type="checkbox" id="cfg-sobre-pedido"> Aceptar pedidos en línea aunque no haya existencias (sobre pedido)</label>
             </div>
         </section>
 
@@ -568,6 +588,7 @@
             if(viewId === 'catalog' || viewId === 'pos') cargarInventarioBD();
             if(viewId === 'projects') cargarProyectosBD();
             if(viewId === 'users') cargarUsuariosBD();
+            if(viewId === 'config') cargarPrecios();
         }
 
         let posCart = [];
@@ -1078,6 +1099,11 @@
             row.appendChild(cell); tbody.appendChild(row);
         }
 
+        // Nombres fijos y no derivados del valor: de 'pintura_electrostatica'
+        // no se recupera el acento. Mismos textos que el cotizador del portal.
+        const NOMBRES_PIEZA = { acero: 'Acero', hierro_forjado: 'Hierro forjado', aluminio: 'Aluminio',
+            pintura_electrostatica: 'Pintura electrostática', pavonado: 'Pavonado', cromado: 'Cromado' };
+
         // Una solicitud sin estatus o "Pendiente de Revisión" sigue sin respuesta.
         const sinResponder = (req) => !req.status || req.status === 'Pendiente de Revisión';
         const diasDesde = (fecha) => Math.max(0, Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000));
@@ -1176,10 +1202,6 @@
             pintarResumen('projects-resumen', pendientes.length, 'solicitud', 'solicitudes',
                 ` sin responder; la más antigua espera desde ${mayorEspera === 0 ? 'hoy' : `hace ${textoEspera(mayorEspera)}`}.`);
 
-            // Nombres fijos y no derivados del valor: de 'pintura_electrostatica'
-            // no se recupera el acento. Mismos textos que el cotizador del portal.
-            const NOMBRES_PIEZA = { acero: 'Acero', hierro_forjado: 'Hierro forjado', aluminio: 'Aluminio',
-                pintura_electrostatica: 'Pintura electrostática', pavonado: 'Pavonado', cromado: 'Cromado' };
             const legible = (v) => NOMBRES_PIEZA[v] || (v || '').replace(/_/g, ' ');
             const textCell = (value, tag = 'td') => { const el = document.createElement(tag); el.textContent = value || ''; return el; };
             const fila = (req) => {
@@ -1338,17 +1360,92 @@
             }
         }
 
-        async function saveConfig() {
-            const iva = parseFloat(document.getElementById('cfg-iva').value);
-            const msg = document.getElementById('cfg-msg').value.trim();
-            if (isNaN(iva) || iva < 0 || iva > 100) { showToast('El IVA debe ser un porcentaje entre 0 y 100', 'error'); return; }
-            const r1 = await window.supabaseClient.from('parametros_cotizacion').update({ valor: Math.round(iva * 100) / 10000 }).eq('clave', 'iva').select('clave');
-            const r2 = await window.supabaseClient.from('parametros_cotizacion').update({ texto: msg }).eq('clave', 'mensaje_ticket').select('clave');
-            const error = r1.error || r2.error || (!r1.data?.length || !r2.data?.length ? { message: 'no se guardó (¿falta permiso de administrador?)' } : null);
-            if (error) { showToast('No se pudo guardar: ' + error.message, 'error'); return; }
+        // Precios: lo que se guardó la última vez, para escribir sólo lo que
+        // cambió. Escribir es sólo del admin (políticas *_write_admin).
+        let preciosCargados = null;
+
+        function campoPrecio(id, etiqueta, valor, paso) {
+            const grupo = document.createElement('div');
+            grupo.className = 'form-group';
+            const label = document.createElement('label');
+            label.htmlFor = id; label.textContent = etiqueta;
+            const input = document.createElement('input');
+            Object.assign(input, { type: 'number', id, min: '0', step: paso, value: valor, autocomplete: 'off' });
+            grupo.append(label, input);
+            return grupo;
+        }
+
+        async function cargarPrecios() {
+            const sb = window.supabaseClient;
+            const [materiales, acabados, parametros] = await Promise.all([
+                sb.from('tarifas_material').select('material, precio_m2').order('precio_m2'),
+                sb.from('tarifas_acabado').select('acabado, factor').order('factor'),
+                sb.from('parametros_cotizacion').select('clave, valor, texto'),
+            ]);
+            const error = materiales.error || acabados.error || parametros.error;
+            if (error) { showToast('No se pudieron cargar los precios: ' + error.message, 'error'); return; }
+            const param = (clave) => parametros.data.find((r) => r.clave === clave);
+            preciosCargados = {
+                material: Object.fromEntries(materiales.data.map((m) => [m.material, Number(m.precio_m2)])),
+                acabado: Object.fromEntries(acabados.data.map((a) => [a.acabado, Number(a.factor)])),
+                minimo: Number(param('precio_minimo')?.valor ?? 0),
+                iva: Math.round(Number(param('iva')?.valor ?? 0.16) * 10000) / 100,
+                mensaje: param('mensaje_ticket')?.texto ?? '',
+                sobrePedido: Number(param('permitir_sobre_pedido')?.valor ?? 0) === 1,
+            };
+            document.getElementById('precios-material').replaceChildren(...materiales.data.map((m) =>
+                campoPrecio(`precio-material-${m.material}`, NOMBRES_PIEZA[m.material] || m.material, m.precio_m2, '50')));
+            document.getElementById('precios-acabado').replaceChildren(...acabados.data.map((a) =>
+                campoPrecio(`precio-acabado-${a.acabado}`, NOMBRES_PIEZA[a.acabado] || a.acabado, a.factor, '0.05')));
+            document.getElementById('cfg-minimo').value = preciosCargados.minimo;
+            document.getElementById('cfg-iva').value = preciosCargados.iva;
+            document.getElementById('cfg-msg').value = preciosCargados.mensaje;
+            document.getElementById('cfg-sobre-pedido').checked = preciosCargados.sobrePedido;
+        }
+
+        async function guardarPrecios() {
+            if (!preciosCargados) return;
+            const sb = window.supabaseClient;
+            const leer = (id) => Number(document.getElementById(id).value);
+            const nombre = (v) => NOMBRES_PIEZA[v] || v;
+            const ahora = new Date().toISOString();
+            const cambios = [];
+            const errores = [];
+            for (const [material, antes] of Object.entries(preciosCargados.material)) {
+                const v = leer(`precio-material-${material}`);
+                if (!(v > 0)) errores.push(`el precio de ${nombre(material)} debe ser mayor que 0`);
+                else if (v !== antes) cambios.push(sb.from('tarifas_material').update({ precio_m2: v, actualizado: ahora }).eq('material', material).select('material'));
+            }
+            for (const [acabado, antes] of Object.entries(preciosCargados.acabado)) {
+                const v = leer(`precio-acabado-${acabado}`);
+                if (!(v > 0)) errores.push(`el factor de ${nombre(acabado)} debe ser mayor que 0`);
+                else if (v !== antes) cambios.push(sb.from('tarifas_acabado').update({ factor: v, actualizado: ahora }).eq('acabado', acabado).select('acabado'));
+            }
+            const parametro = (clave, campos) => sb.from('parametros_cotizacion').update(campos).eq('clave', clave).select('clave');
+            const minimo = leer('cfg-minimo');
+            if (!(minimo >= 0)) errores.push('el cobro mínimo no puede ser negativo');
+            else if (minimo !== preciosCargados.minimo) cambios.push(parametro('precio_minimo', { valor: minimo }));
+            const iva = leer('cfg-iva');
+            if (!(iva >= 0 && iva <= 100)) errores.push('el IVA debe ser un porcentaje entre 0 y 100');
+            else if (iva !== preciosCargados.iva) cambios.push(parametro('iva', { valor: Math.round(iva * 100) / 10000 }));
+            const mensaje = document.getElementById('cfg-msg').value.trim();
+            if (mensaje !== preciosCargados.mensaje) cambios.push(parametro('mensaje_ticket', { texto: mensaje }));
+            const sobrePedido = document.getElementById('cfg-sobre-pedido').checked;
+            if (sobrePedido !== preciosCargados.sobrePedido) cambios.push(parametro('permitir_sobre_pedido', { valor: sobrePedido ? 1 : 0 }));
+
+            if (errores.length) { showToast(`Revisa: ${errores.join('; ')}.`, 'error'); return; }
+            if (!cambios.length) { showToast('No hay cambios que guardar'); return; }
+            const boton = document.getElementById('btn-guardar-precios');
+            boton.disabled = true;
+            const resultados = await Promise.all(cambios);
+            boton.disabled = false;
+            // RLS no da error al que no es admin: devuelve 0 filas actualizadas.
+            const fallo = resultados.find((r) => r.error || !r.data?.length);
+            await cargarPrecios();
             await cargarParametros();
             renderPOSTicket();
-            showToast('Configuración guardada');
+            if (fallo) { showToast('No se guardó todo: ' + (fallo.error?.message ?? 'sin permiso de administrador'), 'error'); return; }
+            showToast(cambios.length === 1 ? 'Se guardó 1 cambio' : `Se guardaron ${cambios.length} cambios`);
         }
 
         document.getElementById('modal-edit-product').addEventListener('click', function(e) {

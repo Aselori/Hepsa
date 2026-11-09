@@ -146,7 +146,7 @@ try {
       check(`${rol} ve su rol en pantalla`, mostrado.toLowerCase().includes(rol), `"${mostrado}"`);
 
       const menu = await page.locator('.sidebar-nav button:visible').allInnerTexts();
-      const deAdmin = ['Equipo', 'Configuración'].every((v) => menu.includes(v));
+      const deAdmin = ['Equipo', 'Precios'].every((v) => menu.includes(v));
       check(`${rol} ve ${rol === 'admin' ? 'las' : 'sin las'} secciones de administración`,
         rol === 'admin' ? deAdmin : !menu.includes('Equipo'), JSON.stringify(menu));
       await page.waitForSelector('#inicio-pendientes .pendiente-cargando', { state: 'detached' });
@@ -179,6 +179,28 @@ try {
         await filaTaller.waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
         check('admin: y se lo quita, regresándolo a cliente', await filaTaller.count() === 0);
         await page.screenshot({ path: 'tests/screenshots/equipo-admin.png', fullPage: true });
+
+        // Precios: el admin cambia una tarifa desde el panel y la base la guarda.
+        await page.click('#nav-config');
+        const campoAcero = page.locator('#precio-material-acero');
+        await campoAcero.waitFor();
+        const aceroAntes = await campoAcero.inputValue();
+        const leerAcero = () => page.evaluate(async () => (await window.supabaseClient
+          .from('tarifas_material').select('precio_m2').eq('material', 'acero').single()).data?.precio_m2);
+        await campoAcero.fill('2750');
+        await page.click('#btn-guardar-precios');
+        // waitForFunction no espera promesas: se sondea desde aquí.
+        const esperarAcero = async (valor) => {
+          for (let i = 0; i < 25 && Number(await leerAcero()) !== Number(valor); i++) await page.waitForTimeout(200);
+        };
+        await esperarAcero(2750);
+        check('admin: cambia el precio por m² del acero desde Precios', Number(await leerAcero()) === 2750,
+          `${await leerAcero()} · ${(await page.locator('.toast').allInnerTexts()).join(' | ')}`);
+        await page.screenshot({ path: 'tests/screenshots/precios-admin.png', fullPage: true });
+        await page.locator('#precio-material-acero').fill(aceroAntes);
+        await page.click('#btn-guardar-precios');
+        await esperarAcero(aceroAntes);
+        check('admin: y lo regresa a su valor', Number(await leerAcero()) === Number(aceroAntes));
       }
 
       // El panel abre en "Inicio"; las solicitudes estan en otra vista.
