@@ -18,32 +18,31 @@
 
 -- ─── Catálogo ───────────────────────────────────────────────────────────────
 
--- is_active = true a propósito. En producción los 6 productos están en false,
--- por eso el catálogo público se ve vacío y parece que la página está rota.
--- En desarrollo queremos verlos.
---
--- image_url va en NULL: las imágenes viven en el Storage del proyecto viejo y
--- desde uno nuevo darían 404. Se vuelven a subir desde el panel de admin.
+-- El catálogo real, igual al del proyecto hospedado (corrección del
+-- 2026-10-09 y fotos del 2026-11-08). Las fotos viven en assets/productos/ y
+-- se publican con el sitio, así que también cargan en desarrollo. Los 13
+-- productos ocultos "por confirmar precio" se agregan aparte con
+-- scripts/catalogo/fotos-y-productos-2026-11-08.sql.
 
 INSERT INTO public.products (id, name, description, price, image_url, is_active, stock) VALUES
-  (3, 'Puerta Principal dos puertas',
-      E'Altura: 2.1 m\nAncho: 1.3 m\nTipo de apertura: Derecha\nMaterial: Acero\nEspesor: 4 cm\nAcabado: Barnizado\nEs apta para interiores.\nEs apta para exteriores.',
-      9000.00, NULL, true, 5),
-  (4, 'Puerta Principal',
-      'color: gris medidas: 5 * 2',
-      5000.00, NULL, true, 10),
-  (5, 'Porton Residencial para cochera',
-      'Porton residencial con doble puerta para mejor ingreso de vehiculos, ideal para su cochera, el precio base incluye una medida estandar para cochera de un solo vehiculo 3.00 M * 2.40 M',
-      15000.00, NULL, true, 3),
-  (6, 'Puerta principal',
-      'Puerta reforzada para entrada principal, color negro/chocolate 5*2 M',
-      7500.00, NULL, true, 1),
-  (7, 'Puerta de madera de abeto',
-      'Puerta de 2.5x1.7',
-      14000.00, NULL, true, 10),
-  (8, 'Puerta de madera de abeto',
-      '2.4m x 1.5m',
-      20000.00, NULL, true, 10);
+  (3, 'Puerta principal de dos hojas',
+      E'Altura: 2.10 m\nAncho: 1.30 m\nTipo de apertura: derecha\nMaterial: acero\nEspesor: 4 cm\nAcabado: barnizado\nApta para interiores y exteriores.',
+      9000.00, 'assets/productos/puerta-dos-hojas.jpg', true, 5),
+  (4, 'Puerta principal gris',
+      'Color gris. Medidas: 5.00 × 2.00 m.',
+      5000.00, 'assets/productos/puerta-principal-gris.jpg', true, 10),
+  (5, 'Portón residencial para cochera',
+      'Portón residencial de doble hoja para facilitar la entrada de vehículos; ideal para la cochera. El precio base incluye la medida estándar para una cochera de un solo vehículo: 3.00 × 2.40 m.',
+      15000.00, 'assets/productos/porton-cochera.jpg', true, 3),
+  (6, 'Puerta principal reforzada',
+      'Puerta reforzada para entrada principal, color negro/chocolate. Medidas: 5.00 × 2.00 m.',
+      7500.00, 'assets/productos/puerta-reforzada.jpg', true, 1),
+  (7, 'Puerta de madera de abeto de 2.50 × 1.70 m',
+      'Puerta de madera de abeto. Medidas: 2.50 × 1.70 m.',
+      14000.00, 'assets/productos/puerta-madera-250x170.jpg', true, 10),
+  (8, 'Puerta de madera de abeto de 2.40 × 1.50 m',
+      'Puerta de madera de abeto. Medidas: 2.40 × 1.50 m.',
+      20000.00, 'assets/productos/puerta-madera-240x150.jpg', true, 10);
 
 -- Los ids se insertaron explícitos; sin esto la secuencia sigue en 1 y el
 -- siguiente alta de producto choca con una llave duplicada.
