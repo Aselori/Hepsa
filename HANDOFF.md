@@ -7,58 +7,17 @@
 - CONTRIBUTING.md remains project convention source. User supplied updated global AGENTS instructions (Arch/Omarchy, mise, explicit restart timing).
 - User preference saved globally: enable best free approach when unavailable or explain exact enabling steps; no purchases. Filesystem inspection authorized, secrets excluded.
 
-## Verified platform and restart status
+## Base técnica (septiembre, resumido)
 
-- Host account is in docker group, inherited agent groups remain stale. Docker service and socket active.
-- `newgrp docker -c 'docker info ...'` succeeds. No relogin or restart required for this work. This supersedes all earlier restart instructions.
-- Use host escalation plus newgrp for Docker commands. Existing unrelated e-commerce containers were left alone.
-- Supabase CLI 2.117.0 installed as pinned devDependency. Ambient Node 25.8.0; repository requires >=22 and CI uses 22. Global defaults unchanged.
-
-## Implemented
-
-- admin.html: safe DOM/text rendering of public request data, products, orders, profiles, POS and toasts; generated action listeners; startup access errors visible; signout redirects.
-- auth-mfa.js extracted from index.html: explicit error/retry, fail-closed role lookup, selected TOTP factor, incomplete enrollment cleanup, duplicate-submit guard, cancellation/error handling and secret clearing. index.html has accessible error/selector controls.
-- package.json/lockfile: pinned Playwright, Supabase CLI, SDK and esbuild for reproducible local tests.
-- Tests: isolated admin rendering and 8 mocked-MFA browser scenarios; runner serves only app files. Legacy RLS/MFA/panel suites now require loopback test target and block external browser requests.
-- tests/local.mjs creates temporary accounts/factors on local stack, serves locally bundled SDK/config, runs original suites and cleans accounts. No credentials written to repo.
-- supabase/config.toml now configures dedicated local stack on ports 55321/55322, TOTP enabled; project_id is local identifier, not remote link. Seed compatible with final schema.
-- CI now runs isolated and real local suites without shared secrets; prior conditional skip removed.
-- Review retained in docs/revision-integral.md and linked in README. Luna contributed safe rendering, regressions and harness repair; primary verified isolated tests.
-
-## Verification / processes
-
-- 2FA work (merged): all migrations, npm test and the real local suites passed; CI runs both. No production Auth/RLS verification by the agent.
-- Stack startup log /tmp/hepsa-supabase-start.log contains disposable local keys; do not print/copy into docs.
-
-## Deliverable and exact next steps
-
-- docs/entrega-2fa.md documents normal flows, manual recovery/replacement, JWT caveats and pending production acceptance. Setup/tests docs updated; obsolete direct SQL MFA deletion advice removed.
-- Completed local implementation milestone. No production deployment, live project configuration audit or GitHub Actions execution of new workflow performed. No purchases. No restart required.
-- Next release work: review current patch, confirm shared project migration/Auth parity and account ownership, then controlled deployment and smoke test with real staff. Do not claim production-ready solely from local tests.
-- Device-management UI and audited recovery automation remain future work. Current recovery procedure requires an authorized operator and supported admin MFA APIs.
-- New files to checkpoint: HANDOFF.md, auth-mfa.js, package.json, package-lock.json, docs/revision-integral.md, docs/entrega-2fa.md, tests/admin-rendering.spec.mjs, tests/aisladas.mjs, tests/mfa-aislado.spec.mjs, tests/entorno-local.mjs, tests/local.mjs.
-
-## Demo local (resumido)
-
-- tests/demo-local.mjs sirve la app en http://127.0.0.1:8000 con SDK y config
-  locales, y reutiliza las cuentas del archivo privado /tmp/hepsa-demo-access.json
-  (modo 600, nunca servido por HTTP, no copiar su contenido aqui). Solo crea
-  cuentas nuevas si el archivo falta, asi preserva los factores inscritos.
-- Corria como servicio transitorio de usuario hepsa-demo.service. Al 2026-09-28
-  estaba INACTIVO; el stack de Supabase si seguia arriba.
-- Levantar: newgrp docker -c 'npx supabase start' y luego
-  newgrp docker -c 'npm run demo:local'.
-- Probado en su momento con Chromium real: alta con QR, cancelar, cerrar sesion
-  y login de cliente sin MFA. No se inscribio ningun autenticador del usuario.
-
-## Capturas de presentaciones (resumido)
-
-- PNG y ZIP de Avance 1 y 2 y del carrito persistente viven en output/, que
-  desde 2026-09-27 esta ignorado por git: la evidencia del curso va en la
-  carpeta del curso.
-- El catalogo de hepsa.vercel.app se quedo cargando en el navegador de captura
-  y no se investigo: no se afirma que el despliegue este sano.
-- El intento a 430 px expuso el fallo del encabezado, corregido el 2026-09-27.
+- Docker: el usuario está en el grupo docker; si la sesión del agente no lo
+  hereda, usar `newgrp docker -c '...'`. Supabase CLI fijada en devDependencies.
+- Pruebas: `npm test` (aisladas, simuladas) y `npm run test:local` (stack
+  local en 55321 con cuentas desechables, Stripe simulado en contenedor,
+  limpia al final). CI corre ambas. Ninguna toca el proyecto hospedado.
+- El stack local guarda llaves desechables en /tmp/hepsa-supabase-start.log:
+  no copiarlas a documentos. Entrega del 2FA: docs/entrega-2fa.md.
+- Capturas de presentaciones: output/ (ignorado); evidencia en la carpeta
+  del curso.
 
 ## Conexiones MCP (resumido)
 
@@ -143,10 +102,38 @@
   (FIME). Probado: un registro con un correo ajeno a la organización recibió
   la confirmación.
 
+## Sesión 2026-11-07/08: rediseño del panel por rol (todo fusionado)
+
+- Plan aprobado ("yes, go"): roles cliente, taller (nuevo), vendedor, admin;
+  cada "no puede" lo niega la base. Pasos 1 a 5 hechos:
+  - #34 migraciones 20261107000001 (rol taller) y 20261107000002 (permisos):
+    precio y nombre sólo admin, alta de productos sólo admin, ventas sólo por
+    registrar_venta() con precios del catálogo (cierra F03), pedidos_de_taller()
+    sin precios, avanzar_proyecto(), no quitarse el rol ni dejar 0 admins,
+    mensaje del ticket en parametros_cotizacion. APLICADAS al hospedado
+    (13 migraciones), advisor sin avisos nuevos inesperados.
+  - #35 menú por rol (data-roles) e Inicio (sólo pendientes).
+  - #36 Equipo: cambiar roles y ver segundo factor desde el panel.
+  - #37 Precios: tarifas del cotizador, mínimo, IVA, ticket, sobre pedido.
+  - #38 Producción: vista del taller (tarjetas, tel:, marcar instalado).
+- Decisión 2026-11-08: NO cuenta de admin compartida. Cada integrante del
+  equipo se registra y el admin lo promueve en Equipo (cada quien su 2FA).
+- No verificado en vivo: venta como vendedor ni la vista del taller (no hay
+  cuentas de vendedor/taller con 2FA en el hospedado; no inscribir desde
+  scripts). Todo probado en el stack local y en CI.
+- En curso: fotos reales de Facebook (página HEPSAHERRERIA). 6 ya en
+  ~/Downloads/hepsa_photos (fachada y casa 514); descarga del resto con un
+  Chromium visible donde el usuario inicia sesión. Si alcanzan, se quitan
+  los productos [DEMO-BORRAR] (scripts/demo/borrar-datos-demo.sql).
+- Manuales al final: rehacerlos con el formato y estructura de las
+  referencias en ~/Downloads/manual_reference (KarinPOS y Fundamental2,
+  usuario y técnico), con capturas hechas con Playwright.
+
 ### Siguientes pasos
 
-1. Usuario: regla de contraseñas en el panel de Supabase.
-   Tras la próxima fusión a main: comprobar que se desplegaron crear-pago y
-   webhook-stripe y que responden 503 sin secretos.
-2. Siguiente tema pedido por el usuario: panel de administración y permisos
-   (hoy los roles se asignan por SQL; Configuración sólo en memoria, F03).
+1. Usuario: regla de contraseñas en el panel de Supabase (CONFIRMAR).
+2. Fotos: asignar a productos reales, subir a Storage (productos/), decidir
+   si se borran los demo.
+3. Pasos restantes del plan: 6 Negocio (ventas del mes, por cobrar, por
+   vendedor), 7 Pagos en línea (sólo si se activan), 8 cotización a venta.
+4. Manuales de usuario, personal y técnico con el formato de referencia.
