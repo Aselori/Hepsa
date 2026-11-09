@@ -49,6 +49,18 @@
         .precios .form-group input { max-width: 200px; }
         .casilla { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
         .casilla input { width: auto; margin-top: 3px; }
+        .pedidos-taller { display: flex; flex-direction: column; gap: 12px; max-width: 720px; }
+        .pedido-taller { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); padding: 16px 18px; }
+        .pedido-taller header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+        .pedido-taller h3 { margin: 0; font-size: 1.05rem; }
+        .pedido-taller .espera { color: var(--text-muted); font-size: 0.9rem; }
+        .pedido-taller ul { margin: 10px 0; padding-left: 20px; }
+        .pedido-taller .notas { margin: 0 0 10px; color: var(--text-muted); white-space: pre-line; }
+        .pedido-taller footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .pedido-taller footer button { width: auto; padding: 9px 16px; }
+        .pedido-taller footer a { color: inherit; font-weight: 600; }
+        .instalados { margin-top: 28px; max-width: 720px; }
+        .instalados summary { cursor: pointer; font-weight: 600; margin-bottom: 12px; }
         .nav-grupo { margin: 14px 12px 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
         .pendientes { list-style: none; margin: 0; padding: 0; max-width: 640px; display: flex; flex-direction: column; gap: 8px; }
         .pendientes button { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); color: var(--text-main); font: inherit; cursor: pointer; }
@@ -212,6 +224,7 @@
         <!-- Cada botón dice qué roles lo ven. Esconderlo es orientación, no
              defensa: lo que un rol no puede hacer lo niega la base. -->
         <nav class="sidebar-nav" aria-label="Secciones del panel">
+            <button onclick="showAdminView('produccion')" id="nav-produccion" data-roles="taller">Producción</button>
             <button onclick="showAdminView('inicio')" id="nav-inicio" data-roles="vendedor admin" class="active">Inicio</button>
             <button onclick="showAdminView('pos')" id="nav-pos" data-roles="vendedor admin">Nueva venta</button>
             <button onclick="showAdminView('history')" id="nav-history" data-roles="vendedor admin">Ventas</button>
@@ -232,6 +245,19 @@
             <h2>Inicio</h2>
             <!-- Sólo lo que pide atención; lo que está al día no aparece. -->
             <ul id="inicio-pendientes" class="pendientes" aria-live="polite"><li class="pendiente-cargando">Revisando pendientes…</li></ul>
+        </section>
+
+        <section id="view-produccion" class="view-section">
+            <div class="encabezado-vista">
+                <h2>Producción</h2>
+                <button class="btn-secundario" onclick="cargarProduccionBD()">Actualizar</button>
+            </div>
+            <p id="produccion-resumen" class="resumen" hidden></p>
+            <div id="produccion-lista" class="pedidos-taller"></div>
+            <details class="instalados">
+                <summary>Instalados recientemente</summary>
+                <div id="instalados-lista" class="pedidos-taller"></div>
+            </details>
         </section>
 
         <section id="view-pos" class="view-section">
@@ -499,7 +525,7 @@
             const userRole = perfil?.role || 'cliente';
             rolActual = userRole;
             idActual = session.user.id;
-            if (userRole !== 'vendedor' && userRole !== 'admin') { alert("ACCESO DENEGADO."); window.location.href = 'index.html'; return; }
+            if (!['taller', 'vendedor', 'admin'].includes(userRole)) { alert("ACCESO DENEGADO."); window.location.href = 'index.html'; return; }
 
             // MEJORA 3: el rol ya no basta. Las políticas RLS exigen que el
             // token traiga aal2, así que una sesión de vendedor sin segundo
@@ -523,10 +549,16 @@
             });
             // Alta de productos sólo para el admin (products_insert_admin).
             document.getElementById('btn-abrir-alta').hidden = userRole !== 'admin';
-            await cargarParametros();
-            cargarInventarioBD();
-            cargarInicioBD();
-            initTicket();
+            // El taller sólo tiene Producción: no carga ventas, catálogo ni
+            // precios, que de todos modos la base no le entrega.
+            if (userRole === 'taller') {
+                showAdminView('produccion');
+            } else {
+                await cargarParametros();
+                cargarInventarioBD();
+                cargarInicioBD();
+                initTicket();
+            }
             window.supabaseClient.auth.onAuthStateChange((event) => {
                 if (event === 'SIGNED_OUT') {
                     document.body.style.display = 'none';
@@ -584,6 +616,7 @@
             boton.scrollIntoView({ block: 'nearest', inline: 'nearest' });
             document.querySelector('main').scrollTop = 0;
             if(viewId === 'inicio') cargarInicioBD();
+            if(viewId === 'produccion') cargarProduccionBD();
             if(viewId === 'history') cargarHistorialBD();
             if(viewId === 'catalog' || viewId === 'pos') cargarInventarioBD();
             if(viewId === 'projects') cargarProyectosBD();
@@ -1108,6 +1141,80 @@
         const sinResponder = (req) => !req.status || req.status === 'Pendiente de Revisión';
         const diasDesde = (fecha) => Math.max(0, Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000));
         const textoEspera = (dias) => dias === 0 ? 'hoy' : dias === 1 ? '1 día' : `${dias} días`;
+
+        // Producción: lo que el taller tiene que fabricar o instalar, el más
+        // antiguo arriba. pedidos_de_taller() no trae precios ni cobros, y
+        // avanzar_proyecto() sólo deja moverlo entre producción e instalado.
+        async function cargarProduccionBD() {
+            const lista = document.getElementById('produccion-lista');
+            const instalados = document.getElementById('instalados-lista');
+            const { data, error } = await window.supabaseClient.rpc('pedidos_de_taller');
+            if (error) {
+                const p = document.createElement('p');
+                p.className = 'mensaje-error'; p.setAttribute('role', 'alert');
+                p.textContent = 'No se pudieron cargar los pedidos: ' + error.message;
+                lista.replaceChildren(p); return;
+            }
+            const enProduccion = data.filter((o) => o.estado === 'en_produccion');
+            const mayorEspera = enProduccion.length ? Math.max(...enProduccion.map((o) => diasDesde(o.creado))) : 0;
+            pintarResumen('produccion-resumen', enProduccion.length, 'pedido en producción', 'pedidos en producción',
+                enProduccion.length ? `; el más antiguo, de hace ${textoEspera(mayorEspera)}.` : '');
+            lista.replaceChildren(...enProduccion.map((o) => tarjetaTaller(o, 'instalado', 'Marcar instalado')));
+            if (!enProduccion.length) {
+                const p = document.createElement('p');
+                p.className = 'pendiente-al-dia';
+                p.textContent = 'No hay pedidos en producción.';
+                lista.append(p);
+            }
+            const hechos = data.filter((o) => o.estado === 'instalado');
+            instalados.replaceChildren(...hechos.map((o) => tarjetaTaller(o, 'en_produccion', 'Regresar a producción')));
+            instalados.parentElement.hidden = !hechos.length;
+        }
+
+        function tarjetaTaller(o, siguiente, accion) {
+            const tarjeta = document.createElement('article');
+            tarjeta.className = 'pedido-taller';
+            const cabeza = document.createElement('header');
+            const titulo = document.createElement('h3');
+            titulo.textContent = `Pedido ${o.id} · ${o.cliente || 'Público general'}`;
+            const espera = document.createElement('span');
+            espera.className = 'espera';
+            const dias = diasDesde(o.creado);
+            espera.textContent = dias === 0 ? 'de hoy' : `de hace ${textoEspera(dias)}`;
+            cabeza.append(titulo, espera);
+            const conceptos = document.createElement('ul');
+            for (const c of o.conceptos) {
+                const li = document.createElement('li');
+                li.textContent = `${c.cantidad} × ${c.concepto || 'Concepto sin nombre'}`;
+                conceptos.append(li);
+            }
+            tarjeta.append(cabeza, conceptos);
+            if (o.notas) {
+                const notas = document.createElement('p');
+                notas.className = 'notas';
+                notas.textContent = o.notas;
+                tarjeta.append(notas);
+            }
+            const pie = document.createElement('footer');
+            // Para coordinar la instalación, el teléfono se marca desde aquí.
+            const contacto = document.createElement(o.telefono ? 'a' : 'span');
+            if (o.telefono) { contacto.href = `tel:${o.telefono.replace(/[^\d+]/g, '')}`; contacto.textContent = o.telefono; }
+            else contacto.textContent = 'Sin teléfono';
+            const boton = document.createElement('button');
+            boton.type = 'button';
+            boton.className = siguiente === 'instalado' ? 'action-btn' : 'btn-secundario';
+            boton.textContent = accion;
+            boton.addEventListener('click', async () => {
+                boton.disabled = true;
+                const { error } = await window.supabaseClient.rpc('avanzar_proyecto', { p_pedido: o.id, p_estado: siguiente });
+                if (error) { showToast('No se pudo actualizar: ' + error.message, 'error'); boton.disabled = false; return; }
+                showToast(siguiente === 'instalado' ? `Pedido ${o.id} instalado` : `Pedido ${o.id} de regreso en producción`);
+                cargarProduccionBD();
+            });
+            pie.append(contacto, boton);
+            tarjeta.append(pie);
+            return tarjeta;
+        }
 
         // Inicio: una línea por cada cosa que pide atención, y cada línea abre la
         // vista donde se resuelve. Una consulta que falla se dice; callarla

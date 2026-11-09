@@ -174,7 +174,7 @@ try {
         if (Date.now() > limite || funciones.exitCode !== null) throw new Error(`Las Edge Functions no arrancaron:\n${bitacora.slice(-2000)}`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
     }
-    for (const file of ['rls.spec.mjs', 'mfa-ui.spec.mjs', 'panel.spec.mjs', 'perfil-ausente.spec.mjs', 'rol-nulo.spec.mjs', 'recuperacion.spec.mjs', 'pagos.spec.mjs', 'contrasenas.spec.mjs', 'roles.spec.mjs']) {
+    for (const file of ['rls.spec.mjs', 'mfa-ui.spec.mjs', 'panel.spec.mjs', 'perfil-ausente.spec.mjs', 'rol-nulo.spec.mjs', 'recuperacion.spec.mjs', 'pagos.spec.mjs', 'contrasenas.spec.mjs', 'roles.spec.mjs', 'produccion.spec.mjs']) {
         console.log(`Ejecutando ${file} contra Supabase local con cuentas desechables.`);
         const child = spawn(process.execPath, [new URL(file, import.meta.url).pathname], { env, stdio: 'inherit' });
         const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('exit', resolve); });
