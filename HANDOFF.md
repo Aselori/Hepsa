@@ -121,10 +121,15 @@
 - No verificado en vivo: venta como vendedor ni la vista del taller (no hay
   cuentas de vendedor/taller con 2FA en el hospedado; no inscribir desde
   scripts). Todo probado en el stack local y en CI.
-- En curso: fotos reales de Facebook (página HEPSAHERRERIA). 6 ya en
-  ~/Downloads/hepsa_photos (fachada y casa 514); descarga del resto con un
-  Chromium visible donde el usuario inicia sesión. Si alcanzan, se quitan
-  los productos [DEMO-BORRAR] (scripts/demo/borrar-datos-demo.sql).
+- #39 fotos reales (Facebook, 410 revisadas por hojas de contacto): 19 en
+  assets/productos/ sin metadatos. En el hospedado, 2026-11-08: corrido
+  borrar-datos-demo.sql (decisión: productos y ventas demo) y
+  scripts/catalogo/fotos-y-productos-2026-11-08.sql. Quedan 19 productos:
+  6 reales activos con foto y 13 nuevos OCULTOS con precio 0 y marca
+  [PRECIO POR CONFIRMAR] (decisión: ocultos hasta tener precio). Quedan 1
+  venta real y 3 solicitudes. Verificado en vivo con Playwright.
+- Riesgo a confirmar con HEPSA: varias fotos de la página parecen de
+  inspiración y no obra propia; las de la casa 514 sí son suyas.
 - Manuales al final: rehacerlos con el formato y estructura de las
   referencias en ~/Downloads/manual_reference (KarinPOS y Fundamental2,
   usuario y técnico), con capturas hechas con Playwright.
@@ -132,8 +137,8 @@
 ### Siguientes pasos
 
 1. Usuario: regla de contraseñas en el panel de Supabase (CONFIRMAR).
-2. Fotos: asignar a productos reales, subir a Storage (productos/), decidir
-   si se borran los demo.
+2. HEPSA: precios de los 13 productos nuevos (el admin los pone y los
+   activa en Catálogo) y confirmar que las fotos son obra propia.
 3. Pasos restantes del plan: 6 Negocio (ventas del mes, por cobrar, por
    vendedor), 7 Pagos en línea (sólo si se activan), 8 cotización a venta.
 4. Manuales de usuario, personal y técnico con el formato de referencia.
