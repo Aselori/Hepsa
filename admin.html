@@ -242,6 +242,7 @@
             <button onclick="showAdminView('catalog')" id="nav-catalog" data-roles="vendedor admin">Catálogo</button>
             <p class="nav-grupo" data-roles="admin">Administración</p>
             <button onclick="showAdminView('negocio')" id="nav-negocio" data-roles="admin">Negocio</button>
+            <button onclick="showAdminView('pagos')" id="nav-pagos" data-roles="admin" data-requiere="pagosEnLinea">Pagos en línea</button>
             <button onclick="showAdminView('users')" id="nav-users" data-roles="admin">Equipo</button>
             <button onclick="showAdminView('config')" id="nav-config" data-roles="admin">Precios</button>
         </nav>
@@ -480,6 +481,23 @@
             <p class="nota-campo">Montos con IVA, de las ventas registradas en el panel y en la tienda en línea.</p>
         </section>
 
+        <section id="view-pagos" class="view-section">
+            <div class="encabezado-vista">
+                <h2>Pagos en línea</h2>
+                <button class="btn-secundario" onclick="cargarPagosBD()">Actualizar</button>
+            </div>
+            <p id="pagos-duplicados" class="resumen alerta" hidden></p>
+            <p id="pagos-mes" class="resumen"></p>
+            <div class="panel">
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Fecha</th><th>Pedido</th><th>Cliente</th><th class="num">Monto</th><th>Estado</th></tr></thead>
+                        <tbody id="pagos-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
         <section id="view-users" class="view-section">
             <div class="encabezado-vista">
                 <h2>Equipo</h2>
@@ -576,7 +594,9 @@
             document.body.style.display = 'flex';
             document.getElementById('user-role-display').textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
             document.querySelectorAll('.sidebar-nav [data-roles]').forEach((el) => {
-                el.hidden = !el.dataset.roles.split(' ').includes(userRole);
+                // data-requiere: la sección sólo existe si config.js la enciende.
+                el.hidden = !el.dataset.roles.split(' ').includes(userRole)
+                    || (el.dataset.requiere && !window.HEPSA_CONFIG[el.dataset.requiere]);
             });
             // Alta de productos sólo para el admin (products_insert_admin).
             document.getElementById('btn-abrir-alta').hidden = userRole !== 'admin';
@@ -653,6 +673,7 @@
             if(viewId === 'projects') cargarProyectosBD();
             if(viewId === 'users') cargarUsuariosBD();
             if(viewId === 'negocio') cargarNegocioBD();
+            if(viewId === 'pagos') cargarPagosBD();
             if(viewId === 'config') cargarPrecios();
         }
 
@@ -1267,6 +1288,42 @@
             if (vendedores.length) pintarBarras(cajaVendedores, vendedores);
             else { const p = document.createElement('p'); p.className = 'pendiente-al-dia'; p.textContent = 'Aún no hay ventas este mes.'; cajaVendedores.replaceChildren(p); }
             pintarBarras(document.getElementById('negocio-meses'), meses, (f) => f === actual);
+        }
+
+        // Pagos en línea: los registra el webhook de Stripe, nadie desde aquí.
+        // Lo que pide acción es un cobro duplicado (dos pestañas pagando el
+        // mismo pedido): va arriba y se reembolsa desde el panel de Stripe.
+        async function cargarPagosBD() {
+            const tbody = document.getElementById('pagos-table-body');
+            renderTableMessage(tbody, 5, 'Cargando…');
+            const { data, error } = await window.supabaseClient.from('pagos')
+                .select('id, order_id, monto, moneda, duplicado, creado, orders(client_first_name, client_last_name)')
+                .order('creado', { ascending: false }).limit(200);
+            if (error) { renderTableMessage(tbody, 5, `Error: ${error.message}`, 'mensaje-error'); return; }
+            const duplicados = data.filter((p) => p.duplicado);
+            pintarResumen('pagos-duplicados', duplicados.length, 'cobro duplicado', 'cobros duplicados',
+                ' por reembolsar desde el panel de Stripe.');
+            const hoy = new Date();
+            const delMes = data.filter((p) => { const d = new Date(p.creado); return d.getMonth() === hoy.getMonth() && d.getFullYear() === hoy.getFullYear() && !p.duplicado; });
+            const mes = document.getElementById('pagos-mes');
+            const cifra = document.createElement('strong');
+            cifra.textContent = pesos(delMes.reduce((t, p) => t + Number(p.monto), 0));
+            mes.replaceChildren(cifra, document.createTextNode(` cobrados en línea este mes en ${delMes.length === 1 ? '1 pago' : `${delMes.length} pagos`}.`));
+            if (!data.length) { renderTableMessage(tbody, 5, 'Aún no hay pagos en línea.'); return; }
+            tbody.replaceChildren();
+            for (const p of [...duplicados, ...data.filter((x) => !x.duplicado)]) {
+                const row = document.createElement('tr');
+                const celda = (valor, clase = '') => { const td = document.createElement('td'); td.textContent = valor; if (clase) td.className = clase; return td; };
+                const estado = document.createElement('td');
+                const marca = document.createElement('span');
+                marca.className = `status-badge ${p.duplicado ? 'status-peligro' : 'status-ok'}`;
+                marca.textContent = p.duplicado ? 'Duplicado: reembolsar' : 'Cobrado';
+                estado.append(marca);
+                const cliente = `${p.orders?.client_first_name || ''} ${p.orders?.client_last_name || ''}`.trim() || '—';
+                row.append(celda(new Date(p.creado).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })),
+                    celda(String(p.order_id)), celda(cliente), celda(pesos(Number(p.monto)), 'num'), estado);
+                tbody.append(row);
+            }
         }
 
         // Producción: lo que el taller tiene que fabricar o instalar, el más
