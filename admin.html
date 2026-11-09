@@ -889,7 +889,7 @@
                 tbody.replaceChildren();
                 // Lo que está por agotarse va primero y se cuenta arriba. "Oculto"
                 // solo aparece en lo oculto: que todo diga "Visible: Sí" no aporta.
-                const porAgotarse = (p) => Number.isFinite(p.stock) && p.stock < STOCK_BAJO;
+                const porAgotarse = (p) => p.is_active !== false && Number.isFinite(p.stock) && p.stock < STOCK_BAJO;
                 const bajos = data.filter(porAgotarse).sort((a, b) => a.stock - b.stock);
                 pintarResumen('inventory-resumen', bajos.length, 'producto', 'productos', bajos.length === 1 ? ' está por agotarse.' : ' están por agotarse.');
                 [...bajos, ...data.filter(p => !porAgotarse(p))].forEach(p => {
@@ -1225,7 +1225,7 @@
             const [solicitudes, ventas, productos, sinFactor] = await Promise.all([
                 sb.from('custom_requests').select('status, created_at'),
                 sb.from('orders').select('payment_status').in('payment_status', ['anticipo', 'faltante']),
-                sb.from('products').select('stock').lt('stock', STOCK_BAJO),
+                sb.from('products').select('stock, price, is_active').or(`stock.lt.${STOCK_BAJO},price.lte.0`),
                 rolActual === 'admin' ? sb.rpc('empleados_sin_segundo_factor') : Promise.resolve({ data: [] }),
             ]);
             const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
@@ -1249,10 +1249,16 @@
                     faltantes ? `${faltantes} con faltante` : '');
             }
             if (productos.error) errores.push('el catálogo');
-            else if (productos.data.length) {
-                const agotados = productos.data.filter((p) => p.stock <= 0).length;
-                linea('catalog', plural(productos.data.length, 'producto por agotarse', 'productos por agotarse'),
+            else {
+                // Uno oculto no se vende: su existencia no es urgente.
+                const bajos = productos.data.filter((p) => p.is_active && Number.isFinite(p.stock) && p.stock < STOCK_BAJO);
+                const agotados = bajos.filter((p) => p.stock <= 0).length;
+                if (bajos.length) linea('catalog', plural(bajos.length, 'producto por agotarse', 'productos por agotarse'),
                     agotados ? `${agotados} sin existencias` : '');
+                // Sólo el admin fija precios: al vendedor no le sirve el aviso.
+                const sinPrecio = productos.data.filter((p) => !(Number(p.price) > 0)).length;
+                if (sinPrecio && rolActual === 'admin') linea('catalog', plural(sinPrecio, 'producto sin precio', 'productos sin precio'),
+                    'ocultos hasta que se les ponga precio');
             }
             if (sinFactor.error) errores.push('el equipo');
             else if (sinFactor.data?.length) {

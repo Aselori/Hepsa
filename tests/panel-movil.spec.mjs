@@ -49,6 +49,7 @@ async function abrirPanel(browser, ancho, alto) {
           select() { return consulta; },
           in() { return consulta; },
           lt() { return consulta; },
+          or() { return consulta; },
           order() { return Promise.resolve({ data: datos[tabla] || [], error: null }); },
           then(ok, mal) { return Promise.resolve({ data: datos[tabla] || [], error: null }).then(ok, mal); },
         };

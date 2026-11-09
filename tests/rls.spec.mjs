@@ -180,6 +180,24 @@ try {
         check('admin: y se lo quita, regresándolo a cliente', await filaTaller.count() === 0);
         await page.screenshot({ path: 'tests/screenshots/equipo-admin.png', fullPage: true });
 
+        // Inicio: un producto oculto y sin precio se avisa al admin como "sin
+        // precio", no como "por agotarse" (oculto no se vende).
+        const antesInicio = await page.evaluate(async () => {
+          await cargarInicioBD();
+          return document.getElementById('inicio-pendientes').innerText;
+        });
+        const oculto = await page.evaluate(async () => (await window.supabaseClient.from('products')
+          .insert({ name: 'Prueba sin precio', price: 0, stock: 0, is_active: false }).select('id').single()).data?.id);
+        const conOculto = await page.evaluate(async () => {
+          await cargarInicioBD();
+          return document.getElementById('inicio-pendientes').innerText;
+        });
+        const porAgotarse = (t) => Number(t.match(/(\d+) productos? por agotarse/)?.[1] ?? 0);
+        check('admin: Inicio avisa de productos sin precio', /\d+ productos? sin precio/.test(conOculto), conOculto.replace(/\n/g, ' | '));
+        check('admin: un producto oculto no cuenta como por agotarse', porAgotarse(conOculto) === porAgotarse(antesInicio),
+          `${porAgotarse(antesInicio)} -> ${porAgotarse(conOculto)}`);
+        await page.evaluate(async (id) => window.supabaseClient.from('products').delete().eq('id', id), oculto);
+
         // Precios: el admin cambia una tarifa desde el panel y la base la guarda.
         await page.click('#nav-config');
         const campoAcero = page.locator('#precio-material-acero');
