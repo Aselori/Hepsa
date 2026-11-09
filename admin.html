@@ -405,15 +405,26 @@
 
         <section id="view-users" class="view-section">
             <div class="encabezado-vista">
-                <h2>Equipo y usuarios</h2>
-                <button class="btn-secundario" onclick="cargarUsuariosBD()">Refrescar directorio</button>
+                <h2>Equipo</h2>
+                <button class="btn-secundario" onclick="cargarUsuariosBD()">Actualizar</button>
             </div>
+            <p id="users-resumen" class="resumen alerta" hidden></p>
             <div class="panel">
-                <p style="color: var(--text-muted); margin-top: 0;">Para ascender a un cliente a vendedor o admin, cambia profiles.role directamente en el SQL de Supabase.</p>
+                <h3 class="panel-titulo">Con acceso al panel</h3>
                 <div class="table-container">
                     <table>
-                        <thead><tr><th>Nombre completo</th><th>Teléfono</th><th>Fecha de registro</th><th>Rol de sistema</th></tr></thead>
-                        <tbody id="users-table-body"><tr><td colspan="4" style="text-align: center;">Cargando directorio…</td></tr></tbody>
+                        <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Segundo factor</th></tr></thead>
+                        <tbody id="users-table-body"><tr><td colspan="4" style="text-align: center;">Cargando equipo…</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="panel">
+                <h3 class="panel-titulo">Dar acceso a un cliente</h3>
+                <div class="form-group"><label for="buscar-cliente">Buscar por nombre o correo</label><input type="search" id="buscar-cliente" autocomplete="off" oninput="pintarClientes()"></div>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th></tr></thead>
+                        <tbody id="clientes-table-body"></tbody>
                     </table>
                 </div>
             </div>
@@ -467,6 +478,7 @@
             if (error || !perfil) throw new Error("No se pudo verificar tu rol. Reintenta.");
             const userRole = perfil?.role || 'cliente';
             rolActual = userRole;
+            idActual = session.user.id;
             if (userRole !== 'vendedor' && userRole !== 'admin') { alert("ACCESO DENEGADO."); window.location.href = 'index.html'; return; }
 
             // MEJORA 3: el rol ya no basta. Las políticas RLS exigen que el
@@ -561,6 +573,7 @@
         let posCart = [];
         let configIVA = 0.16;
         let rolActual = null;
+        let idActual = null;
 
         // IVA y pie del ticket viven en parametros_cotizacion: son los mismos
         // que usa registrar_venta() en el servidor. Antes vivían sólo en esta
@@ -1228,15 +1241,100 @@
             if(!error) showToast("Estatus actualizado exitosamente.");
         }
 
+        // Qué gana o pierde cada rol, para que el cambio se confirme sabiendo
+        // lo que implica. Lo hace valer la base (permisos_por_rol), no esto.
+        const ROLES = [
+            ['cliente', 'Cliente', 'perderá el acceso al panel'],
+            ['taller', 'Taller', 'verá los pedidos en producción, sin precios ni cobros'],
+            ['vendedor', 'Vendedor', 'podrá vender, cobrar, atender solicitudes y ajustar existencias'],
+            ['admin', 'Admin', 'tendrá acceso completo: precios, equipo y configuración'],
+        ];
+        let perfilesEquipo = [];
+
+        const nombrePerfil = (p) => `${p.first_name || ''} ${p.last_name_p || ''}`.trim() || '(sin nombre)';
+
+        function selectorRol(perfil) {
+            const select = document.createElement('select');
+            select.className = 'selector-estatus';
+            select.setAttribute('aria-label', `Rol de ${nombrePerfil(perfil)}`);
+            const actual = perfil.role || 'cliente';
+            for (const [valor, texto] of ROLES) select.add(new Option(texto, valor, false, valor === actual));
+            if (perfil.id === idActual) {
+                // La base tampoco lo permite: el admin no se quita su propio rol.
+                select.disabled = true;
+                select.title = 'No puedes cambiar tu propio rol';
+                return select;
+            }
+            select.addEventListener('change', async () => {
+                const [, texto, efecto] = ROLES.find(([v]) => v === select.value);
+                const aviso = select.value === 'cliente' ? '' : '\n\nSi aún no tiene segundo factor, el portal se lo pedirá al entrar.';
+                if (!confirm(`¿Dar a ${nombrePerfil(perfil)} el rol de ${texto}? ${efecto[0].toUpperCase() + efecto.slice(1)}.${aviso}`)) {
+                    select.value = actual; return;
+                }
+                select.disabled = true;
+                const { data, error } = await window.supabaseClient.from('profiles').update({ role: select.value }).eq('id', perfil.id).select('role');
+                if (error || !data?.length) {
+                    showToast('No se pudo cambiar el rol: ' + (error?.message ?? 'sin permiso'), 'error');
+                    select.value = actual; select.disabled = false; return;
+                }
+                showToast(`${nombrePerfil(perfil)} ahora es ${texto.toLowerCase()}`);
+                cargarUsuariosBD();
+            });
+            return select;
+        }
+
         async function cargarUsuariosBD() {
-            const { data } = await window.supabaseClient.from('profiles').select('*');
-            if (data) {
-                const tbody = document.getElementById('users-table-body'); tbody.replaceChildren();
-                data.forEach(p => { const row = document.createElement('tr');
-                    [ `${p.first_name||''} ${p.last_name_p||''}`, p.phone || '—', new Date(p.created_at).toLocaleDateString('es-MX'), p.role || 'cliente' ]
-                        .forEach(value => { const cell = document.createElement('td'); cell.textContent = value; row.appendChild(cell); });
-                    tbody.appendChild(row);
-                });
+            const tbody = document.getElementById('users-table-body');
+            const [perfiles, sinFactor] = await Promise.all([
+                window.supabaseClient.from('profiles').select('id, first_name, last_name_p, email, role').order('first_name'),
+                window.supabaseClient.rpc('empleados_sin_segundo_factor'),
+            ]);
+            if (perfiles.error) { renderTableMessage(tbody, 4, `Error: ${perfiles.error.message}`, 'mensaje-error'); return; }
+            perfilesEquipo = perfiles.data;
+            const pendientes = new Set((sinFactor.data || []).map((e) => e.id));
+
+            // Quien no tiene segundo factor no puede entrar: va primero y marcado.
+            const equipo = perfiles.data.filter((p) => p.role && p.role !== 'cliente')
+                .sort((a, b) => pendientes.has(b.id) - pendientes.has(a.id));
+            pintarResumen('users-resumen', pendientes.size, 'persona del equipo', 'personas del equipo',
+                pendientes.size === 1 ? ' no tiene segundo factor y no puede entrar al panel.' : ' no tienen segundo factor y no pueden entrar al panel.');
+
+            tbody.replaceChildren();
+            for (const p of equipo) {
+                const row = document.createElement('tr');
+                const celda = (valor) => { const td = document.createElement('td'); td.textContent = valor; return td; };
+                const rol = document.createElement('td'); rol.append(selectorRol(p));
+                const factor = document.createElement('td');
+                if (sinFactor.error) factor.textContent = '—';
+                else if (pendientes.has(p.id)) {
+                    const marca = document.createElement('span');
+                    marca.className = 'status-badge status-peligro';
+                    marca.textContent = 'Pendiente';
+                    factor.append(marca);
+                } else factor.textContent = 'Activo';
+                row.append(celda(nombrePerfil(p) + (p.id === idActual ? ' (tú)' : '')), celda(p.email || '—'), rol, factor);
+                tbody.append(row);
+            }
+            if (!equipo.length) renderTableMessage(tbody, 4, 'Nadie más tiene acceso al panel.');
+            pintarClientes();
+        }
+
+        // Los clientes pueden ser muchos: se busca, no se lista todo.
+        function pintarClientes() {
+            const tbody = document.getElementById('clientes-table-body');
+            const termino = document.getElementById('buscar-cliente').value.trim().toLowerCase();
+            if (termino.length < 2) { renderTableMessage(tbody, 3, 'Escribe al menos dos letras del nombre o del correo.'); return; }
+            const hallados = perfilesEquipo.filter((p) => (!p.role || p.role === 'cliente')
+                && `${nombrePerfil(p)} ${p.email || ''}`.toLowerCase().includes(termino)).slice(0, 20);
+            if (!hallados.length) { renderTableMessage(tbody, 3, 'Ningún cliente coincide.'); return; }
+            tbody.replaceChildren();
+            for (const p of hallados) {
+                const row = document.createElement('tr');
+                const nombre = document.createElement('td'); nombre.textContent = nombrePerfil(p);
+                const correo = document.createElement('td'); correo.textContent = p.email || '—';
+                const rol = document.createElement('td'); rol.append(selectorRol(p));
+                row.append(nombre, correo, rol);
+                tbody.append(row);
             }
         }
 
