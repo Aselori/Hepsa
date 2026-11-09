@@ -61,6 +61,16 @@
         .pedido-taller footer a { color: inherit; font-weight: 600; }
         .instalados { margin-top: 28px; max-width: 720px; }
         .instalados summary { cursor: pointer; font-weight: 600; margin-bottom: 12px; }
+        .negocio-cobrar { margin: -8px 0 24px; }
+        .negocio-cobrar button { width: auto; padding: 0; background: none; border: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+        .negocio-graficas { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 24px; }
+        .barras { display: grid; grid-template-columns: minmax(0, max-content) 1fr auto; gap: 10px 12px; align-items: center; }
+        .barras .etiqueta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+        .barras .pista { height: 12px; }
+        .barras .barra { height: 100%; min-width: 2px; background: var(--text-main); border-radius: 0 4px 4px 0; }
+        .barras .valor { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+        .barras .valor small { color: var(--text-muted); margin-left: 6px; }
+        .barras .actual { font-weight: 600; }
         .nav-grupo { margin: 14px 12px 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
         .pendientes { list-style: none; margin: 0; padding: 0; max-width: 640px; display: flex; flex-direction: column; gap: 8px; }
         .pendientes button { width: 100%; text-align: left; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 16px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); color: var(--text-main); font: inherit; cursor: pointer; }
@@ -231,6 +241,7 @@
             <button onclick="showAdminView('projects')" id="nav-projects" data-roles="vendedor admin">Solicitudes</button>
             <button onclick="showAdminView('catalog')" id="nav-catalog" data-roles="vendedor admin">Catálogo</button>
             <p class="nav-grupo" data-roles="admin">Administración</p>
+            <button onclick="showAdminView('negocio')" id="nav-negocio" data-roles="admin">Negocio</button>
             <button onclick="showAdminView('users')" id="nav-users" data-roles="admin">Equipo</button>
             <button onclick="showAdminView('config')" id="nav-config" data-roles="admin">Precios</button>
         </nav>
@@ -449,6 +460,26 @@
             </div>
         </section>
 
+        <section id="view-negocio" class="view-section">
+            <div class="encabezado-vista">
+                <h2>Negocio</h2>
+                <button class="btn-secundario" onclick="cargarNegocioBD()">Actualizar</button>
+            </div>
+            <p id="negocio-mes" class="resumen"></p>
+            <p id="negocio-cobrar" class="negocio-cobrar" hidden></p>
+            <div class="negocio-graficas">
+                <div class="panel">
+                    <h3 class="panel-titulo">Por vendedor, este mes</h3>
+                    <div id="negocio-vendedores" class="barras"></div>
+                </div>
+                <div class="panel">
+                    <h3 class="panel-titulo">Últimos 6 meses</h3>
+                    <div id="negocio-meses" class="barras"></div>
+                </div>
+            </div>
+            <p class="nota-campo">Montos con IVA, de las ventas registradas en el panel y en la tienda en línea.</p>
+        </section>
+
         <section id="view-users" class="view-section">
             <div class="encabezado-vista">
                 <h2>Equipo</h2>
@@ -621,6 +652,7 @@
             if(viewId === 'catalog' || viewId === 'pos') cargarInventarioBD();
             if(viewId === 'projects') cargarProyectosBD();
             if(viewId === 'users') cargarUsuariosBD();
+            if(viewId === 'negocio') cargarNegocioBD();
             if(viewId === 'config') cargarPrecios();
         }
 
@@ -1141,6 +1173,101 @@
         const sinResponder = (req) => !req.status || req.status === 'Pendiente de Revisión';
         const diasDesde = (fecha) => Math.max(0, Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000));
         const textoEspera = (dias) => dias === 0 ? 'hoy' : dias === 1 ? '1 día' : `${dias} días`;
+
+        // Negocio: lo que el admin pregunta primero (cuánto se vendió este mes y
+        // si va mejor que el anterior), luego lo que falta cobrar, luego quién
+        // vende y la tendencia. Se agrega en el navegador: son pocas ventas.
+        const pesos = (n) => '$' + Math.round(n).toLocaleString('es-MX');
+        const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+        function pintarBarras(contenedor, filas, destacar = () => false) {
+            const maximo = Math.max(1, ...filas.map((f) => f.monto));
+            contenedor.replaceChildren();
+            for (const f of filas) {
+                const etiqueta = document.createElement('span');
+                etiqueta.className = 'etiqueta' + (destacar(f) ? ' actual' : '');
+                etiqueta.textContent = f.etiqueta;
+                etiqueta.title = f.etiqueta;
+                const pista = document.createElement('div');
+                pista.className = 'pista';
+                const barra = document.createElement('div');
+                barra.className = 'barra';
+                barra.style.width = `${(f.monto / maximo) * 100}%`;
+                if (!f.monto) barra.style.minWidth = '0';
+                pista.append(barra);
+                const valor = document.createElement('span');
+                valor.className = 'valor' + (destacar(f) ? ' actual' : '');
+                valor.textContent = pesos(f.monto);
+                const cuenta = document.createElement('small');
+                cuenta.textContent = f.ventas === 1 ? '1 venta' : `${f.ventas} ventas`;
+                valor.append(cuenta);
+                contenedor.append(etiqueta, pista, valor);
+            }
+        }
+
+        async function cargarNegocioBD() {
+            const hoy = new Date();
+            const desde = new Date(hoy.getFullYear(), hoy.getMonth() - 5, 1);
+            const [ventas, porCobrar, perfiles] = await Promise.all([
+                window.supabaseClient.from('orders').select('total, seller_id, created_at').gte('created_at', desde.toISOString()),
+                // Sin límite de fecha: una venta vieja sin liquidar sigue pendiente.
+                window.supabaseClient.from('orders').select('total').in('payment_status', ['anticipo', 'faltante']),
+                window.supabaseClient.from('profiles').select('id, first_name, last_name_p').neq('role', 'cliente'),
+            ]);
+            const mes = document.getElementById('negocio-mes');
+            if (ventas.error) { mes.textContent = 'No se pudieron cargar las ventas: ' + ventas.error.message; mes.className = 'resumen mensaje-error'; return; }
+            mes.className = 'resumen';
+            const clave = (d) => `${d.getFullYear()}-${d.getMonth()}`;
+            const porMes = new Map();
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+                porMes.set(clave(d), { etiqueta: `${MESES[d.getMonth()]} ${d.getFullYear()}`, monto: 0, ventas: 0, clave: clave(d) });
+            }
+            for (const o of ventas.data) {
+                const m = porMes.get(clave(new Date(o.created_at)));
+                if (m) { m.monto += Number(o.total); m.ventas += 1; }
+            }
+            const meses = [...porMes.values()];
+            const actual = meses[5];
+            const anterior = meses[4];
+
+            const cifra = document.createElement('strong');
+            cifra.textContent = pesos(actual.monto);
+            const comparacion = anterior.monto
+                ? ` · ${actual.monto >= anterior.monto ? 'más' : 'menos'} que el mes pasado (${pesos(anterior.monto)})`
+                : '';
+            mes.replaceChildren(cifra, document.createTextNode(
+                ` vendidos este mes en ${actual.ventas === 1 ? '1 venta' : `${actual.ventas} ventas`}${comparacion}.`));
+
+            // Por cobrar: no se guarda cuánto se dio de anticipo, así que se
+            // dice el valor total de esas ventas y no se presume un saldo.
+            const pendientes = porCobrar.data || [];
+            const cobrar = document.getElementById('negocio-cobrar');
+            cobrar.hidden = !pendientes.length;
+            if (pendientes.length) {
+                const ir = document.createElement('button');
+                ir.type = 'button';
+                ir.textContent = `${pendientes.length === 1 ? '1 venta' : `${pendientes.length} ventas`} con pago pendiente`;
+                ir.addEventListener('click', () => showAdminView('history'));
+                cobrar.replaceChildren(ir, document.createTextNode(
+                    `, por ${pesos(pendientes.reduce((t, o) => t + Number(o.total), 0))} en total (incluye los anticipos ya recibidos).`));
+            }
+
+            const nombres = new Map((perfiles.data || []).map((p) => [p.id, `${p.first_name || ''} ${p.last_name_p || ''}`.trim() || 'Sin nombre']));
+            const porVendedor = new Map();
+            for (const o of ventas.data) {
+                if (clave(new Date(o.created_at)) !== actual.clave) continue;
+                const quien = o.seller_id ? (nombres.get(o.seller_id) || 'Personal anterior') : 'Tienda en línea';
+                const v = porVendedor.get(quien) || { etiqueta: quien, monto: 0, ventas: 0 };
+                v.monto += Number(o.total); v.ventas += 1;
+                porVendedor.set(quien, v);
+            }
+            const vendedores = [...porVendedor.values()].sort((a, b) => b.monto - a.monto);
+            const cajaVendedores = document.getElementById('negocio-vendedores');
+            if (vendedores.length) pintarBarras(cajaVendedores, vendedores);
+            else { const p = document.createElement('p'); p.className = 'pendiente-al-dia'; p.textContent = 'Aún no hay ventas este mes.'; cajaVendedores.replaceChildren(p); }
+            pintarBarras(document.getElementById('negocio-meses'), meses, (f) => f === actual);
+        }
 
         // Producción: lo que el taller tiene que fabricar o instalar, el más
         // antiguo arriba. pedidos_de_taller() no trae precios ni cobros, y
