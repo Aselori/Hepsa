@@ -20,9 +20,15 @@
 - Scripts en el scratchpad de la sesión (no van al repo); salida final en
   ~/Downloads/videos_hepsa/. Rama docs/videos-demostracion sólo para esta
   nota. Prohibido: push, merge, tocar el hospedado, package.json, .env.
-- Siguiente paso: grabar cliente, revisar un cuadro de cada escena, seguir
-  con vendedor, taller y admin; deliverable-check sobre los subtítulos.
-- Decisiones por omisión: (se anotan aquí durante la corrida).
+- HECHO 00:50: 4 MP4 en ~/Downloads/videos_hepsa (1_Cliente 2:40, 2_Vendedor
+  1:47, 3_Taller 1:01, 4_Administrador 2:22). Grabados en cadena tras un reset
+  local: la cotización del cliente la vende el vendedor, el taller la instala.
+  Revisados cuadro por cuadro; deliverable-check limpio (1 acierto es ruido
+  binario del video). Scripts sólo en el scratchpad (se pueden perder).
+- Decisiones por omisión: (1) pagos en línea activos sólo en el video del
+  admin, en modo de prueba; (2) alert/confirm del navegador se dibujan en la
+  capa del video con el mismo texto; (3) el primer ingreso de Jorge (2FA con
+  QR) cierra el video del admin; (4) sin "recuperar contraseña": no existe.
 
 ## Base técnica (septiembre, resumido)
 
