@@ -7,6 +7,23 @@
 - CONTRIBUTING.md remains project convention source. User supplied updated global AGENTS instructions (Arch/Omarchy, mise, explicit restart timing).
 - User preference saved globally: enable best free approach when unavailable or explain exact enabling steps; no purchases. Filesystem inspection authorized, secrets excluded.
 
+## Corrida sin supervisión 2026-11-10 → 05:00: videos de demostración
+
+- Para el profesor. Subtítulos en español, sin voz. Un video por rol:
+  cliente (catálogo, ficha, carrito, cotizar, registro, perfil, pedidos,
+  recuperar contraseña, toma en teléfono), vendedor (2FA, Inicio,
+  solicitud→venta, nueva venta, ventas, catálogo), taller (Producción,
+  avanzar estado, teléfono), administrador (Inicio con alertas, Equipo,
+  productos, Precios, Negocio, Pagos). Todo lo relevante.
+- Sólo el stack LOCAL con las cuentas ficticias del manual; nunca el
+  hospedado. 1920×1080 MP4, cursor visible, escritura a ritmo humano.
+- Scripts en el scratchpad de la sesión (no van al repo); salida final en
+  ~/Downloads/videos_hepsa/. Rama docs/videos-demostracion sólo para esta
+  nota. Prohibido: push, merge, tocar el hospedado, package.json, .env.
+- Siguiente paso: grabar cliente, revisar un cuadro de cada escena, seguir
+  con vendedor, taller y admin; deliverable-check sobre los subtítulos.
+- Decisiones por omisión: (se anotan aquí durante la corrida).
+
 ## Base técnica (septiembre, resumido)
 
 - Docker: el usuario está en el grupo docker; si la sesión del agente no lo
