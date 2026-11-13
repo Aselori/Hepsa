@@ -7,6 +7,14 @@
 - CONTRIBUTING.md remains project convention source. User supplied updated global AGENTS instructions (Arch/Omarchy, mise, explicit restart timing).
 - User preference saved globally: enable best free approach when unavailable or explain exact enabling steps; no purchases. Filesystem inspection authorized, secrets excluded.
 
+## Datos de demostración EN EL SITIO PUBLICADO (desde 2026-11-12, rama demo/datos-en-vivo)
+- Para la exposición (la profesora usa la laptop; cada integrante pasa con un rol). Decisión del usuario: todo en el sitio publicado, preparado desde ya.
+- Cuentas (una por rol, creadas por SQL directo vía MCP; la contraseña se generó y se hasheó en local y vive sólo en `~/hepsa-cuentas-demo.txt`): admin.demo, vendedor.demo, taller.demo y cliente.demo @example.com. Sin 2FA al crearse.
+- Plan acordado (sin bypass en la base): en la laptop, un perfil de Chrome por rol con la sesión ya iniciada y el 2FA hecho con el teléfono del usuario. NO verificado: que la sesión siga viva días después.
+- Datos: `scripts/demo/datos-en-vivo.sql` (13 productos con precio inventado y publicados, 8 ventas, 3 solicitudes). Verificado: 19 visibles, 0 sin precio, 2 en producción; catálogo y portal de cliente revisados en navegador.
+- Reales que NO se tocan: la venta #4 y las 4 solicitudes que no son @example.com (3 de agosto y 1 del 2026-11-12). Parámetros del cotizador al cargar: iva=0.16, mensaje_ticket=0, permitir_sobre_pedido=0, precio_minimo=1500.
+- Deshacer después de la exposición: `scripts/demo/borrar-datos-en-vivo.sql` (borra lo @example.com y regresa los 13 productos a precio 0, ocultos, con la nota). Si HEPSA puso precios reales mientras, quitar esos de la lista.
+
 ## Base técnica (septiembre, resumido)
 
 - Docker: el usuario está en el grupo docker; si la sesión del agente no lo

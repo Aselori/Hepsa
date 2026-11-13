@@ -89,9 +89,9 @@ BEGIN
     VALUES
       ('Roberto', 'Cantú', 'roberto.cantu@example.com', '81 8899 0011', 'Protección para ventana de recámara, diseño sencillo.',
        'Pendiente de Revisión', 1500, 1200, 'acero', 'pintura_electrostatica', now() - interval '4 hours'),
-      ('Luis', 'Herrera', 'luis.herrera@example.com', '81 1111 0002', 'Portón de 5 × 3 m con motor, para cochera doble.',
+      ('Sergio', 'Peña', 'sergio.pena@example.com', '81 1111 0002', 'Portón de 5 × 3 m con motor, para cochera doble.',
        'Pendiente de Revisión', 5000, 3000, 'acero', 'pintura_electrostatica', now() - interval '4 days'),
-      ('Marta', 'Solís', 'marta.solis@example.com', '81 1111 0003', 'Barandal para escalera exterior.',
+      ('Lucía', 'Ortega', 'lucia.ortega@example.com', '81 1111 0003', 'Barandal para escalera exterior.',
        'Finalizado', 4000, 1000, 'hierro_forjado', 'pavonado', now() - interval '12 days');
   END IF;
 END $$;
