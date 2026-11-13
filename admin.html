@@ -1024,8 +1024,11 @@
             const price = parseFloat(document.getElementById('cat-price').value);
             const stock = parseInt(document.getElementById('cat-stock').value);
             const desc = document.getElementById('cat-desc').value.trim();
-            const isActive = document.getElementById('cat-active').checked;
             if (!name || isNaN(price) || isNaN(stock)) { showToast('Nombre, precio y stock son obligatorios', 'error'); return; }
+            // Precio 0 = producto sin precio: se guarda oculto (la base no deja
+            // publicarlo, products_visible_con_precio).
+            const sinPrecio = !(price > 0);
+            const isActive = document.getElementById('cat-active').checked && !sinPrecio;
 
             const btn = document.getElementById('btn-guardar-prod');
             btn.disabled = true; btn.textContent = 'Guardando…';
@@ -1038,7 +1041,7 @@
             btn.disabled = false; btn.textContent = 'Guardar producto';
             if (error) { showToast('Error: ' + error.message, 'error'); }
             else {
-                showToast('Producto guardado exitosamente');
+                showToast(sinPrecio ? 'Se guardó oculto: sin precio no se publica' : 'Producto guardado exitosamente');
                 ['cat-name','cat-price','cat-stock','cat-desc'].forEach(id => document.getElementById(id).value = '');
                 document.getElementById('cat-active').checked = true;
                 document.getElementById('cat-img').value = '';
@@ -1078,13 +1081,18 @@
                 image_url = await subirFotoProducto(foto);
                 if (!image_url) return; // el aviso ya salio; el modal sigue abierto
             }
+            // Si se le quita el precio a un producto visible, se oculta.
+            const ocultar = !(price > 0) && productosInventario.find(p => p.id == id)?.is_active;
             const { error } = await window.supabaseClient.from('products')
-                .update({ name, price, stock, description, ...(image_url ? { image_url } : {}) }).eq('id', id);
+                .update({ name, price, stock, description, ...(image_url ? { image_url } : {}), ...(ocultar ? { is_active: false } : {}) }).eq('id', id);
             if (error) { showToast('Error al actualizar: ' + error.message, 'error'); }
-            else { showToast('Producto actualizado'); cerrarModalEdicion(); cargarInventarioBD(); }
+            else { showToast(ocultar ? 'Se ocultó: sin precio no se publica' : 'Producto actualizado'); cerrarModalEdicion(); cargarInventarioBD(); }
         }
 
         async function toggleVisibilidad(id, actual) {
+            if (!actual && !(Number(productosInventario.find(p => p.id == id)?.price) > 0)) {
+                showToast('Ponle precio antes de mostrarlo', 'error'); return;
+            }
             const { error } = await window.supabaseClient.from('products').update({ is_active: !actual }).eq('id', id);
             if (error) showToast('Error: ' + error.message, 'error');
             else { showToast(actual ? 'Producto ocultado del catálogo' : 'Producto visible en catálogo'); cargarInventarioBD(); }
