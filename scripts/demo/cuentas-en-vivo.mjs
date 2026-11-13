@@ -1,8 +1,8 @@
 // ============================================================================
 // CUENTAS DE DEMOSTRACIÓN EN EL SITIO PUBLICADO · BORRAR ANTES DE USO REAL
 //
-// Crea las cuentas ficticias que usan el video y los manuales (correos
-// @example.com, que no pertenecen a nadie), ya confirmadas y con su rol.
+// Crea una cuenta genérica por rol para la exposición (correos @example.com,
+// que no pertenecen a nadie), ya confirmadas y con su rol.
 // NO inscribe segundo factor: cada cuenta del personal lo activa en su
 // primer ingreso, escaneando el QR con el teléfono de quien graba.
 //
@@ -37,14 +37,12 @@ const contrasena = existsSync(ARCHIVO)
   ? readFileSync(ARCHIVO, 'utf8').match(/^Contraseña: (.+)$/m)[1]
   : `Demo-${randomBytes(9).toString('base64url')}-26`;
 
+// Una cuenta genérica por rol, para la exposición.
 const personas = [
-  ['admin', 'Laura', 'Garza', 'laura.garza@example.com', '81 2233 4455'],
-  ['vendedor', 'Carlos', 'Ramírez', 'carlos.ramirez@example.com', '81 3344 5566'],
-  ['vendedor', 'Sofía', 'Treviño', 'sofia.trevino@example.com', '81 4455 6677'],
-  ['taller', 'Miguel', 'Torres', 'miguel.torres@example.com', '81 5566 7788'],
-  ['vendedor', 'Jorge', 'Salinas', 'jorge.salinas@example.com', '81 6677 8899'],
-  ['cliente', 'Ana', 'Martínez', 'ana.martinez@example.com', '81 7788 9900'],
-  ['cliente', 'Roberto', 'Cantú', 'roberto.cantu@example.com', '81 8899 0011'],
+  ['admin', 'Administrador', 'Demo', 'admin.demo@example.com', '81 2233 4455'],
+  ['vendedor', 'Vendedor', 'Demo', 'vendedor.demo@example.com', '81 3344 5566'],
+  ['taller', 'Taller', 'Demo', 'taller.demo@example.com', '81 5566 7788'],
+  ['cliente', 'Cliente', 'Demo', 'cliente.demo@example.com', '81 7788 9900'],
 ];
 
 const { data: lista, error: errorLista } = await sb.auth.admin.listUsers({ perPage: 1000 });
