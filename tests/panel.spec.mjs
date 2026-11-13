@@ -44,6 +44,7 @@ const browser = await navegadorLocal();
 let pedidoCreado = null;
 let imagenCreada = null;
 let fotoEditada = null;
+let productoSinPrecio = null;
 let page = null;
 
 try {
@@ -275,6 +276,56 @@ try {
   check('un admin sin 2FA no alcanza a otros perfiles para ascenderlos',
     sinFactor.alcance === 0, JSON.stringify(sinFactor));
   await ctx2.close();
+
+  // ── Un producto sin precio (precio 0) no se publica ──────────────────────
+  // El formulario marca «Visible» por omisión y el catálogo público sólo
+  // filtra por is_active: sin esto, un producto a $0 quedaba a la venta.
+  // Poner precio es de admin, así que esta parte va con su sesión.
+  const ctx3 = await browser.newContext();
+  const p3 = await ctx3.newPage();
+  await entrarConSegundoFactor(p3, 'ADMIN');
+  await p3.goto(`${BASE}/admin.html`);
+  await p3.waitForTimeout(2500);
+  await p3.evaluate(() => showAdminView('catalog'));
+  await p3.click('#btn-abrir-alta');
+  const nombreSinPrecio = `Prueba sin precio ${Date.now()}`;
+  await p3.fill('#cat-name', nombreSinPrecio);
+  await p3.fill('#cat-price', '0');
+  await p3.fill('#cat-stock', '1');
+  await p3.click('#btn-guardar-prod');
+  await p3.waitForTimeout(2000);
+  const leer = (nombre) => p3.evaluate(async (n) =>
+    (await window.supabaseClient.from('products').select('id, price, is_active').eq('name', n).maybeSingle()).data, nombre);
+  const alta = await leer(nombreSinPrecio);
+  productoSinPrecio = alta?.id ?? null;
+  check('un producto nuevo con precio 0 se guarda oculto aunque «Visible» esté marcado',
+    alta?.is_active === false, JSON.stringify(alta));
+
+  await p3.evaluate((id) => toggleVisibilidad(id, false), productoSinPrecio);
+  await p3.waitForTimeout(1500);
+  check('«Mostrar» no publica un producto sin precio', (await leer(nombreSinPrecio))?.is_active === false);
+
+  const directo = await p3.evaluate(async (id) =>
+    (await window.supabaseClient.from('products').update({ is_active: true }).eq('id', id)).error?.message ?? null, productoSinPrecio);
+  check('la base rechaza publicar un producto sin precio aunque se salte el panel',
+    /products_visible_con_precio/.test(directo ?? ''), JSON.stringify(directo));
+
+  await p3.evaluate(async (id) => window.supabaseClient.from('products').update({ price: 100, is_active: true }).eq('id', id), productoSinPrecio);
+  await p3.evaluate(() => cargarInventarioBD());
+  await p3.waitForTimeout(1500);
+  await p3.evaluate((id) => abrirModalEdicion(id), productoSinPrecio);
+  await p3.fill('#edit-prod-price', '0');
+  await p3.click('#modal-edit-product .action-btn');
+  await p3.waitForTimeout(2000);
+  const editado = await leer(nombreSinPrecio);
+  check('quitarle el precio a un producto visible lo oculta',
+    editado?.is_active === false && Number(editado?.price) === 0, JSON.stringify(editado));
+
+  await p3.evaluate(async (id) => window.supabaseClient.from('products').delete().eq('id', id), productoSinPrecio);
+  const sigue = await leer(nombreSinPrecio);
+  if (!sigue) productoSinPrecio = null;
+  check('el producto de prueba se borra', sigue === null);
+  await ctx3.close();
 
 } finally {
   if (pedidoCreado || imagenCreada) {
