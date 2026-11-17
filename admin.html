@@ -56,6 +56,15 @@
         .pedido-taller .espera { color: var(--text-muted); font-size: 0.9rem; }
         .pedido-taller ul { margin: 10px 0; padding-left: 20px; }
         .pedido-taller .notas { margin: 0 0 10px; color: var(--text-muted); white-space: pre-line; }
+        .notas-taller { margin: 0 0 12px; }
+        .notas-taller ul { list-style: none; margin: 0 0 8px; padding: 0 0 0 12px; border-left: 2px solid var(--card-border); display: flex; flex-direction: column; gap: 8px; }
+        .notas-taller li p { margin: 0; white-space: pre-line; }
+        .notas-taller li small { color: var(--text-muted); }
+        .notas-taller .btn-nota { width: auto; padding: 6px 0; background: none; border: none; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
+        .nota-nueva textarea { width: 100%; box-sizing: border-box; margin-bottom: 8px; font: inherit; }
+        .nota-nueva div { display: flex; gap: 8px; flex-wrap: wrap; }
+        .nota-nueva button { width: auto; padding: 9px 16px; }
+        .nota-historial { margin: 4px 0 0; }
         .pedido-taller footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
         .pedido-taller footer button { width: auto; padding: 9px 16px; }
         .pedido-taller footer a { color: inherit; font-weight: 600; }
@@ -1123,7 +1132,10 @@
         async function cargarHistorialBD() {
             const tbody = document.getElementById('history-table-body');
             renderTableMessage(tbody, 8, 'Cargando…');
-            const { data, error } = await window.supabaseClient.from('orders').select('*').order('created_at', { ascending: false });
+            const [{ data, error }, notasTaller] = await Promise.all([
+                window.supabaseClient.from('orders').select('*').order('created_at', { ascending: false }),
+                notasPorPedido(),
+            ]);
             if (error) { renderTableMessage(tbody, 8, `Error: ${error.message}`, 'mensaje-error'); return; }
             if (!data || data.length === 0) { pintarResumen('history-resumen', 0); renderTableMessage(tbody, 8, 'No hay ventas registradas.'); return; }
 
@@ -1154,6 +1166,16 @@
                 const total = celda(dinero(o.total), 'num');
                 if (pendientes.includes(o)) total.style.fontWeight = '600';
                 const notas = celda(o.notes, 'texto-tenue'); notas.style.cssText = 'max-width: 250px; white-space: normal; word-wrap: break-word;';
+                // Debajo de la nota del ticket, lo que anotó el taller.
+                const delTaller = notasTaller.mapa.get(o.id) || [];
+                if (delTaller.length && !o.notes) notas.textContent = '';
+                for (const n of delTaller) {
+                    const p = document.createElement('p');
+                    p.className = 'nota-historial';
+                    p.textContent = `${n.autor_nombre}: ${n.texto}`;
+                    p.title = fechaNota(n.creado);
+                    notas.append(p);
+                }
                 row.append(pago, celda(cliente), celda(o.client_phone), total, proyecto,
                     celda(new Date(o.created_at).toLocaleDateString('es-MX'), 'texto-tenue'),
                     celda(`#${String(o.id).substring(0, 8)}`, 'texto-tenue'), notas);
@@ -1346,6 +1368,8 @@
                 p.textContent = 'No se pudieron cargar los pedidos: ' + error.message;
                 lista.replaceChildren(p); return;
             }
+            const notas = await notasPorPedido(data.map((o) => o.id));
+            for (const o of data) { o.notasTaller = notas.mapa.get(o.id) || []; o.puedeAnotar = notas.disponible; }
             const enProduccion = data.filter((o) => o.estado === 'en_produccion');
             const mayorEspera = enProduccion.length ? Math.max(...enProduccion.map((o) => diasDesde(o.creado))) : 0;
             pintarResumen('produccion-resumen', enProduccion.length, 'pedido en producción', 'pedidos en producción',
@@ -1386,6 +1410,7 @@
                 notas.textContent = o.notas;
                 tarjeta.append(notas);
             }
+            tarjeta.append(bloqueNotasTaller(o));
             const pie = document.createElement('footer');
             // Para coordinar la instalación, el teléfono se marca desde aquí.
             const contacto = document.createElement(o.telefono ? 'a' : 'span');
@@ -1405,6 +1430,86 @@
             pie.append(contacto, boton);
             tarjeta.append(pie);
             return tarjeta;
+        }
+
+        // Notas de los pedidos (notas_pedido): las deja el taller y las lee
+        // también quien vende. Si la consulta falla, por ejemplo porque la
+        // migración aún no llega a la base, todo sigue funcionando sin ellas.
+        async function notasPorPedido(ids = null) {
+            const mapa = new Map();
+            if (ids && !ids.length) return { mapa, disponible: true };
+            let consulta = window.supabaseClient.from('notas_pedido').select('pedido_id, autor_nombre, texto, creado');
+            if (ids) consulta = consulta.in('pedido_id', ids);
+            const { data, error } = await consulta.order('creado');
+            if (error) return { mapa, disponible: false };
+            for (const n of data || []) {
+                if (!mapa.has(n.pedido_id)) mapa.set(n.pedido_id, []);
+                mapa.get(n.pedido_id).push(n);
+            }
+            return { mapa, disponible: true };
+        }
+
+        const fechaNota = (iso) => new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+
+        function itemNota(n) {
+            const li = document.createElement('li');
+            const texto = document.createElement('p');
+            texto.textContent = n.texto;
+            const firma = document.createElement('small');
+            firma.textContent = `${n.autor_nombre} · ${fechaNota(n.creado)}`;
+            li.append(texto, firma);
+            return li;
+        }
+
+        // Las notas se agregan, no se editan: cada una dice quién y cuándo.
+        function bloqueNotasTaller(o) {
+            const bloque = document.createElement('section');
+            bloque.className = 'notas-taller';
+            bloque.setAttribute('aria-label', `Notas del pedido ${o.id}`);
+            const lista = document.createElement('ul');
+            lista.replaceChildren(...o.notasTaller.map(itemNota));
+            lista.hidden = !o.notasTaller.length;
+            bloque.append(lista);
+            if (!o.puedeAnotar) return bloque;
+
+            const abrir = document.createElement('button');
+            abrir.type = 'button';
+            abrir.className = 'btn-nota';
+            abrir.textContent = 'Agregar nota';
+            const form = document.createElement('form');
+            form.className = 'nota-nueva';
+            form.hidden = true;
+            const campo = document.createElement('textarea');
+            campo.rows = 2; campo.maxLength = 1000; campo.required = true;
+            campo.setAttribute('aria-label', `Nota para el pedido ${o.id}`);
+            campo.placeholder = 'Ej: falta material, el cliente cambió la fecha…';
+            const acciones = document.createElement('div');
+            const guardar = document.createElement('button');
+            guardar.type = 'submit'; guardar.className = 'action-btn'; guardar.textContent = 'Guardar nota';
+            const cancelar = document.createElement('button');
+            cancelar.type = 'button'; cancelar.className = 'btn-secundario'; cancelar.textContent = 'Cancelar';
+            acciones.append(guardar, cancelar);
+            form.append(campo, acciones);
+
+            abrir.addEventListener('click', () => { form.hidden = false; abrir.hidden = true; campo.focus(); });
+            cancelar.addEventListener('click', () => { form.hidden = true; abrir.hidden = false; campo.value = ''; });
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const texto = campo.value.trim();
+                if (!texto) { campo.focus(); return; }
+                guardar.disabled = true;
+                const { data, error } = await window.supabaseClient.rpc('agregar_nota_pedido', { p_pedido: o.id, p_texto: texto });
+                guardar.disabled = false;
+                if (error) { showToast('No se pudo guardar la nota: ' + error.message, 'error'); return; }
+                o.notasTaller.push(data);
+                lista.append(itemNota(data));
+                lista.hidden = false;
+                campo.value = '';
+                form.hidden = true; abrir.hidden = false;
+                showToast(`Nota agregada al pedido ${o.id}`);
+            });
+            bloque.append(abrir, form);
+            return bloque;
         }
 
         // Inicio: una línea por cada cosa que pide atención, y cada línea abre la

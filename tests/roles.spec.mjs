@@ -6,7 +6,8 @@
 //   vendedor  no cambia precio ni nombre, no da de alta productos, no inserta
 //             ventas a mano ni cambia importes; vende por registrar_venta().
 //   taller    no lee orders; ve pedidos_de_taller() sin precios y sólo mueve
-//             entre "en producción" e "instalado".
+//             entre "en producción" e "instalado". Anota esos pedidos por
+//             agregar_nota_pedido(), nunca escribiendo en notas_pedido.
 //   admin     no puede quitarse a sí mismo el rol.
 import { createClient } from '@supabase/supabase-js';
 import { codigoTOTPFresco } from './totp.mjs';
@@ -97,12 +98,33 @@ try {
     !!fila && fila.conceptos?.length === 2 && !JSON.stringify(fila).includes('2500') && !('total' in fila) && !JSON.stringify(fila.conceptos).includes('precio'),
     JSON.stringify(fila));
 
+  // ─── Notas de los pedidos ────────────────────────────────────────────────
+  const nota = await taller.c.rpc('agregar_nota_pedido', { p_pedido: venta.data, p_texto: '  Falta lámina de 14  ' });
+  check('el taller anota un pedido en producción, con su nombre y rol',
+    nota.data?.texto === 'Falta lámina de 14' && nota.data?.autor_rol === 'taller' && !!nota.data?.autor_nombre, nota.error?.message ?? JSON.stringify(nota.data));
+  const directa = await taller.c.from('notas_pedido').insert({ pedido_id: venta.data, autor_nombre: 'Otro', autor_rol: 'admin', texto: 'x' }).select('id');
+  check('el taller no escribe notas a mano (autor falsificado)', !!directa.error, directa.error?.message ?? 'se insertó');
+  const borrar = await taller.c.from('notas_pedido').delete().eq('pedido_id', venta.data).select('id');
+  check('el taller no borra notas', !!borrar.error || (borrar.data?.length ?? 0) === 0, borrar.error?.message ?? 'se borró');
+  const vacia = await taller.c.rpc('agregar_nota_pedido', { p_pedido: venta.data, p_texto: '   ' });
+  check('una nota vacía se rechaza', !!vacia.error, vacia.error?.message ?? 'se guardó');
+  const leidas = await vendedor.c.from('notas_pedido').select('texto, autor_rol').eq('pedido_id', venta.data);
+  check('el vendedor lee las notas del taller', leidas.data?.length === 1 && leidas.data[0].autor_rol === 'taller', JSON.stringify(leidas.data ?? leidas.error?.message));
+  const notasCliente = await cliente.c.from('notas_pedido').select('id');
+  check('un cliente no lee notas internas', (notasCliente.data?.length ?? 0) === 0, `filas=${notasCliente.data?.length}`);
+  const notaCliente = await cliente.c.rpc('agregar_nota_pedido', { p_pedido: venta.data, p_texto: 'x' });
+  check('un cliente no agrega notas', !!notaCliente.error);
+
   const instalar = await taller.c.rpc('avanzar_proyecto', { p_pedido: venta.data, p_estado: 'instalado' });
   const instalado = (await admin.c.from('orders').select('project_status').eq('id', venta.data).single()).data;
   check('el taller marca el pedido como instalado', !instalar.error && instalado?.project_status === 'instalado', instalar.error?.message ?? '');
 
   const regresar = await taller.c.rpc('avanzar_proyecto', { p_pedido: venta.data, p_estado: 'cotizando' });
   check('el taller no regresa un pedido a cotización', !!regresar.error, regresar.error?.message ?? 'se regresó');
+
+  await vendedor.c.from('orders').update({ project_status: 'cotizando' }).eq('id', venta.data);
+  const enCotizacion = await taller.c.rpc('agregar_nota_pedido', { p_pedido: venta.data, p_texto: 'x' });
+  check('el taller no anota un pedido que no está en producción ni instalado', !!enCotizacion.error, enCotizacion.error?.message ?? 'se guardó');
 
   const produccionCliente = await cliente.c.rpc('pedidos_de_taller');
   check('un cliente no ve los pedidos de producción', !!produccionCliente.error);
