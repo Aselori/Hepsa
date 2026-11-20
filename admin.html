@@ -690,7 +690,7 @@
             }
 
             document.body.style.display = 'flex';
-            document.getElementById('user-role-display').textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
+            document.getElementById('user-role-display').textContent = { workshop: 'Taller', seller: 'Vendedor', admin: 'Administrador' }[userRole];
             document.querySelectorAll('.sidebar-nav [data-roles]').forEach((el) => {
                 // data-requiere: la sección sólo existe si config.js la enciende.
                 el.hidden = !el.dataset.roles.split(' ').includes(userRole)
@@ -2051,7 +2051,7 @@
             ['customer', 'Cliente', 'perderá el acceso al panel'],
             ['workshop', 'Taller', 'verá los pedidos en producción, sin precios ni cobros'],
             ['seller', 'Vendedor', 'podrá vender, cobrar, atender solicitudes y ajustar existencias'],
-            ['admin', 'Admin', 'tendrá acceso completo: precios, equipo y configuración'],
+            ['admin', 'Administrador', 'tendrá acceso completo: precios, equipo y configuración'],
         ];
         let perfilesEquipo = [];
 

@@ -189,6 +189,16 @@ GRANT UPDATE (status) ON public.custom_requests TO authenticated;
 ALTER TABLE public.orders
     ADD CONSTRAINT orders_total_matches CHECK (total = subtotal + tax);
 
+-- Columnas que siempre se llenan (por omisión o por las funciones) y que no
+-- tienen sentido vacías: un renglón sin pedido, un pedido sin estado de pago
+-- o de proyecto, o una venta o solicitud sin fecha.
+ALTER TABLE public.order_items ALTER COLUMN order_id SET NOT NULL;
+ALTER TABLE public.orders
+    ALTER COLUMN payment_status SET NOT NULL,
+    ALTER COLUMN project_status SET NOT NULL,
+    ALTER COLUMN created_at SET NOT NULL;
+ALTER TABLE public.custom_requests ALTER COLUMN created_at SET NOT NULL;
+
 -- ─── 7. Notas internas de ventas y solicitudes ──────────────────────────────
 
 ALTER TABLE public.notas_pedido RENAME TO notes;

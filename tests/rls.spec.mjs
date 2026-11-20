@@ -143,7 +143,8 @@ try {
 
     if (url.endsWith('/admin.html')) {
       const mostrado = await page.locator('#user-role-display').innerText().catch(() => '');
-      check(`${rol} ve su rol en pantalla`, mostrado.toLowerCase().includes(rol), `"${mostrado}"`);
+      const enPantalla = { seller: 'vendedor', admin: 'administrador' }[rol];
+      check(`${rol} ve su rol en pantalla, en español`, mostrado.toLowerCase() === enPantalla, `"${mostrado}"`);
 
       const menu = await page.locator('.sidebar-nav button:visible').allInnerTexts();
       const deAdmin = ['Negocio', 'Equipo', 'Precios'].every((v) => menu.includes(v));
