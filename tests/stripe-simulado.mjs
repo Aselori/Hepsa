@@ -1,6 +1,6 @@
 // Stripe simulado para las pruebas locales de la Mejora 2.
 //
-// La Edge Function crear-pago corre dentro de Docker y, con STRIPE_API_URL,
+// La Edge Function create-payment corre dentro de Docker y, con STRIPE_API_URL,
 // le habla a este servidor en vez de a api.stripe.com. Así la suite no
 // necesita llaves reales ni red, y puede revisar qué se le pidió a Stripe:
 // sobre todo, que el monto salió de la base y no del navegador.

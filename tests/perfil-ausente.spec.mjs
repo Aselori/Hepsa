@@ -1,7 +1,7 @@
 // Regresion de seguridad: un usuario autenticado SIN fila en public.profiles.
 //
 // Reproducido contra el stack local antes del arreglo: con AAL2, ese usuario
-// llamaba a empleados_sin_segundo_factor() y recibia la lista del personal en
+// llamaba a staff_without_mfa() y recibia la lista del personal en
 // lugar de un error. Lo que se filtraba es precisamente que cuentas del
 // personal no tienen segundo factor, o sea cuales se pueden tomar sabiendo
 // solo la contrasena.
@@ -60,7 +60,7 @@ try {
     `filas=${sinPerfil.data?.length}`);
 
   // El nucleo de la regresion.
-  const auditoria = await cliente.rpc('empleados_sin_segundo_factor');
+  const auditoria = await cliente.rpc('staff_without_mfa');
   check('la auditoria RECHAZA a un usuario sin perfil',
     auditoria.error !== null && (auditoria.data === null || auditoria.data.length === 0),
     auditoria.error ? `rechazo: ${auditoria.error.message}` : `DEVOLVIO ${auditoria.data?.length} filas`);

@@ -32,13 +32,13 @@ function cuenta(rol, prefijo, exigeTotp = false) {
 }
 const CUENTAS = {
   admin:    cuenta('admin', 'ADMIN', true),
-  vendedor: cuenta('vendedor', 'VENDEDOR', true),
-  cliente:  cuenta('cliente', 'CLIENTE'),
+  seller:   cuenta('seller', 'VENDEDOR', true),
+  customer: cuenta('customer', 'CLIENTE'),
 };
 
 const resultados = [];
 function check(nombre, ok, detalle = '') {
-  resultados.push({ nombre, ok, detalle });
+  resultados.push({ name: nombre, ok, detalle });
   console.log(`${ok ? 'PASA  ' : 'FALLA '} ${nombre}${detalle ? '  — ' + detalle : ''}`);
 }
 
@@ -112,7 +112,7 @@ try {
   {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
-    await entrar(page, CUENTAS.cliente);
+    await entrar(page, CUENTAS.customer);
     const { alerta, url } = await abrirAdmin(page);
     check('cliente es expulsado de admin.html',
       alerta?.includes('ACCESO DENEGADO') && url.includes('index.html'),
@@ -132,7 +132,7 @@ try {
   }
 
   // ── 3. vendedor y admin sí entran y ven las solicitudes ──────────────────
-  for (const rol of ['vendedor', 'admin']) {
+  for (const rol of ['seller', 'admin']) {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     await entrar(page, CUENTAS[rol]);
@@ -167,15 +167,15 @@ try {
         await page.fill('#buscar-cliente', env.CLIENTE2_EMAIL);
         const filaCliente = page.locator('#clientes-table-body tr', { hasText: env.CLIENTE2_EMAIL });
         page.once('dialog', (d) => d.accept());
-        await filaCliente.locator('select').selectOption('taller');
+        await filaCliente.locator('select').selectOption('workshop');
         const filaTaller = page.locator('#users-table-body tr', { hasText: env.CLIENTE2_EMAIL });
         await filaTaller.waitFor({ timeout: 5000 }).catch(() => {});
-        check('admin: da el rol de taller a un cliente desde Equipo', await filaTaller.locator('select').inputValue().catch(() => null) === 'taller');
+        check('admin: da el rol de taller a un cliente desde Equipo', await filaTaller.locator('select').inputValue().catch(() => null) === 'workshop');
         // La cuenta recién promovida no tiene segundo factor: debe salir marcada.
         check('admin: Equipo marca a quien no tiene segundo factor',
           (await filaTaller.locator('.status-peligro').innerText().catch(() => '')) === 'Pendiente');
         page.once('dialog', (d) => d.accept());
-        await filaTaller.locator('select').selectOption('cliente');
+        await filaTaller.locator('select').selectOption('customer');
         await filaTaller.waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
         check('admin: y se lo quita, regresándolo a cliente', await filaTaller.count() === 0);
         await page.screenshot({ path: 'tests/screenshots/equipo-admin.png', fullPage: true });
@@ -204,8 +204,8 @@ try {
         await page.click('#nav-negocio');
         await page.waitForSelector('#negocio-mes strong');
         const antesMes = await totalMes();
-        const ventaNegocio = await page.evaluate(async () => (await window.supabaseClient.rpc('registrar_venta', {
-          p_cliente: { nombre: 'Prueba', apellidos: 'Negocio' }, p_conceptos: [{ concepto: 'Prueba negocio', precio: 1000 }], p_pago: 'anticipo' })).data);
+        const ventaNegocio = await page.evaluate(async () => (await window.supabaseClient.rpc('register_sale', {
+          p_client: { name: 'Prueba', last_name: 'Negocio' }, p_items: [{ label: 'Prueba negocio', price: 1000 }], p_payment: 'deposit' })).data);
         await page.evaluate(() => cargarNegocioBD());
         const despuesMes = await totalMes();
         check('admin: Negocio suma la venta nueva al total del mes (1,160 con IVA)', despuesMes - antesMes === 1160, `${antesMes} -> ${despuesMes}`);
@@ -223,11 +223,11 @@ try {
 
         // Precios: el admin cambia una tarifa desde el panel y la base la guarda.
         await page.click('#nav-config');
-        const campoAcero = page.locator('#precio-material-acero');
+        const campoAcero = page.locator('#precio-material-steel');
         await campoAcero.waitFor();
         const aceroAntes = await campoAcero.inputValue();
         const leerAcero = () => page.evaluate(async () => (await window.supabaseClient
-          .from('tarifas_material').select('precio_m2').eq('material', 'acero').single()).data?.precio_m2);
+          .from('material_rates').select('price_per_m2').eq('material', 'steel').single()).data?.price_per_m2);
         await campoAcero.fill('2750');
         await page.click('#btn-guardar-precios');
         // waitForFunction no espera promesas: se sondea desde aquí.
@@ -238,7 +238,7 @@ try {
         check('admin: cambia el precio por m² del acero desde Precios', Number(await leerAcero()) === 2750,
           `${await leerAcero()} · ${(await page.locator('.toast').allInnerTexts()).join(' | ')}`);
         await page.screenshot({ path: 'tests/screenshots/precios-admin.png', fullPage: true });
-        await page.locator('#precio-material-acero').fill(aceroAntes);
+        await page.locator('#precio-material-steel').fill(aceroAntes);
         await page.click('#btn-guardar-precios');
         await esperarAcero(aceroAntes);
         check('admin: y lo regresa a su valor', Number(await leerAcero()) === Number(aceroAntes));
@@ -259,7 +259,7 @@ try {
   {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
-    await entrar(page, CUENTAS.vendedor);
+    await entrar(page, CUENTAS.seller);
     const r = await page.evaluate(async () => {
       const { data: p } = await window.supabaseClient.from('products').select('id').limit(1).single();
       const { error, count } = await window.supabaseClient
@@ -277,7 +277,7 @@ try {
   {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
-    await entrar(page, CUENTAS.vendedor);
+    await entrar(page, CUENTAS.seller);
     page.on('dialog', (d) => d.accept()); // el confirm() de eliminarProducto
     await page.goto(`${BASE}/admin.html`);
     await page.waitForTimeout(2000);
@@ -312,7 +312,7 @@ try {
   {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
-    await entrar(page, CUENTAS.cliente);
+    await entrar(page, CUENTAS.customer);
     const r = await page.evaluate(async () => {
       const perfiles = await window.supabaseClient.from('profiles').select('email');
       const solic    = await window.supabaseClient.from('custom_requests').select('email');
@@ -344,7 +344,7 @@ try {
 
     // Un anonimo puede cotizar sin registrarse. El estimado sale solo al
     // completar la pieza; no hay boton de calcular.
-    await llenar(2000, 1000, 'acero', 'cromado');
+    await llenar(2000, 1000, 'steel', 'chrome');
     await page.waitForFunction(() => /\d/.test(document.getElementById('quote-estimate-amount').textContent), null, { timeout: 8000 }).catch(() => {});
     const monto = await page.locator('#quote-estimate-amount').innerText();
     check('anonimo obtiene estimado', /7,000/.test(monto), `monto="${monto}"`);
@@ -355,15 +355,15 @@ try {
 
     // Medidas absurdas: se atajan antes de llegar a la base, con el aviso en
     // el recuadro del estimado (mientras se escribe no salen ventanas).
-    await llenar(50000, 1000, 'acero', 'cromado');
+    await llenar(50000, 1000, 'steel', 'chrome');
     await page.waitForTimeout(800);
     const fueraDeRango = await page.locator('#quote-estimate-amount').innerText();
     check('rechaza medidas fuera de rango', /20,000 mm/.test(fueraDeRango), `aviso="${fueraDeRango}"`);
 
     // El tarifario es informacion comercial: no se expone al publico.
     const tarifas = await page.evaluate(async () => {
-      const m = await window.supabaseClient.from('tarifas_material').select('*');
-      const a = await window.supabaseClient.from('tarifas_acabado').select('*');
+      const m = await window.supabaseClient.from('material_rates').select('*');
+      const a = await window.supabaseClient.from('finish_rates').select('*');
       return { m: m.data?.length, a: a.data?.length };
     });
     check('anonimo no ve el tarifario', tarifas.m === 0 && tarifas.a === 0,
@@ -373,18 +373,18 @@ try {
     const manipulado = await page.evaluate(async () => {
       const correo = `precio-falso-${Date.now()}@test.local`;
       await window.supabaseClient.from('custom_requests').insert([{
-        first_name: 'Precio', last_name_p: 'Falso', email: correo, phone: '0000000000',
-        largo_mm: 2000, alto_mm: 1000, material: 'acero', acabado: 'cromado',
-        precio_estimado: 1,
+        first_name: 'Precio', last_name: 'Falso', email: correo, phone: '0000000000',
+        length_mm: 2000, height_mm: 1000, material: 'steel', finish: 'chrome',
+        estimated_price: 1,
       }]);
       const { data } = await window.supabaseClient
-        .rpc('calcular_precio', { p_largo_mm: 2000, p_alto_mm: 1000, p_material: 'acero', p_acabado: 'cromado' });
-      return { correo, esperado: data };
+        .rpc('calculate_price', { p_length_mm: 2000, p_height_mm: 1000, p_material: 'steel', p_finish: 'chrome' });
+      return { email: correo, esperado: data };
     });
     const guardado = await page.evaluate(async () => null); // el anonimo no puede releer: se verifica abajo
     check('el precio manipulado no se acepta tal cual', manipulado.esperado !== 1,
       `calculado=${manipulado.esperado}`);
-    globalThis.__correoManipulado = manipulado.correo;
+    globalThis.__correoManipulado = manipulado.email;
     void guardado;
     await ctx.close();
   }
@@ -516,7 +516,7 @@ try {
     // Sesion A: arma un carrito estando dentro.
     const ctxA = await browser.newContext();
     const pageA = await ctxA.newPage();
-    await entrar(pageA, CUENTAS.cliente);
+    await entrar(pageA, CUENTAS.customer);
     await pageA.goto(`${BASE}/index.html`);
     await pageA.waitForSelector('[data-add-id]');
     await pageA.waitForFunction(() => usuarioActual !== null, null, { timeout: 8000 }).catch(() => {});
@@ -537,13 +537,13 @@ try {
     // el primer intento y no espera nada. page.evaluate si espera la promesa.
     await esperarEnLaBase(pageA, async () => {
       const { data } = await window.supabaseClient
-        .from('carrito_items').select('product_id, qty');
+        .from('cart_items').select('product_id, qty');
       return data?.length === 2 && data.find((r) => r.product_id === 5)?.qty === 2;
     });
 
     const guardadoEnBase = await pageA.evaluate(async () => {
       const { data } = await window.supabaseClient
-        .from('carrito_items').select('product_id, qty').order('product_id');
+        .from('cart_items').select('product_id, qty').order('product_id');
       return data;
     });
     check('el carrito se guarda en la cuenta',
@@ -554,7 +554,7 @@ try {
     // Sesion B: otro navegador, sin localStorage. Debe recuperarlo.
     const ctxB = await browser.newContext();
     const pageB = await ctxB.newPage();
-    await entrar(pageB, CUENTAS.cliente);
+    await entrar(pageB, CUENTAS.customer);
     await pageB.goto(`${BASE}/index.html`);
     await pageB.waitForSelector('[data-add-id]');
     await pageB.waitForFunction(() => cart.length > 0, null, { timeout: 8000 }).catch(() => {});
@@ -570,12 +570,12 @@ try {
     // sitio, un pedido ya confirmado volvia como carrito). Se espera mas que
     // ese plazo con la pagina abierta para que la escritura, si existe, ocurra.
     await pageB.evaluate(async () => {
-      await window.supabaseClient.from('carrito_items').delete().eq('user_id', usuarioActual);
+      await window.supabaseClient.from('cart_items').delete().eq('user_id', usuarioActual);
       localStorage.removeItem('hepsa_cart');
     });
     await pageB.waitForTimeout(1000);
     const resucitado = await pageB.evaluate(async () => {
-      const { data } = await window.supabaseClient.from('carrito_items').select('product_id');
+      const { data } = await window.supabaseClient.from('cart_items').select('product_id');
       return data?.length ?? -1;
     });
     check('cargar el carrito no lo vuelve a escribir en la cuenta', resucitado === 0, `filas=${resucitado}`);
@@ -592,7 +592,7 @@ try {
     // trampa que ya habia en la prueba del historial de ventas.
     const ajeno = await pageC.evaluate(async () => {
       const { data: { session } } = await window.supabaseClient.auth.getSession();
-      const { data } = await window.supabaseClient.from('carrito_items').select('user_id');
+      const { data } = await window.supabaseClient.from('cart_items').select('user_id');
       return {
         total: data?.length ?? 0,
         ajenas: (data ?? []).filter((c) => c.user_id !== session.user.id).length,
@@ -607,7 +607,7 @@ try {
   {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
-    await entrar(page, CUENTAS.cliente);
+    await entrar(page, CUENTAS.customer);
     await page.goto(`${BASE}/index.html`);
     await page.waitForSelector('[data-add-id]');
     await page.waitForFunction(() => usuarioActual !== null, null, { timeout: 8000 }).catch(() => {});
@@ -618,7 +618,7 @@ try {
     await pageAnon.goto(`${BASE}/index.html`);
     await pageAnon.waitForFunction(() => window.supabaseClient !== undefined);
     const anon = await pageAnon.evaluate(async () => {
-      const { error } = await window.supabaseClient.rpc('crear_pedido_desde_carrito', { p_notas: null });
+      const { error } = await window.supabaseClient.rpc('create_order_from_cart', { p_notes: null });
       return error?.message ?? 'SIN ERROR';
     });
     check('el anonimo no puede crear pedidos', anon !== 'SIN ERROR', `respuesta=${anon}`);
@@ -669,11 +669,11 @@ try {
       JSON.stringify(pedido.items));
 
     check('nace sin pago y en cotizacion',
-      pedido.pedido.payment_status === 'faltante' && pedido.pedido.project_status === 'cotizando',
+      pedido.pedido.payment_status === 'pending' && pedido.pedido.project_status === 'quoting',
       `${pedido.pedido.payment_status}/${pedido.pedido.project_status}`);
 
     const carritoTrasPedido = await page.evaluate(async () => {
-      const { data } = await window.supabaseClient.from('carrito_items').select('product_id');
+      const { data } = await window.supabaseClient.from('cart_items').select('product_id');
       return { base: data?.length, local: cart.length };
     });
     check('el carrito se vacia al confirmar',
@@ -726,8 +726,8 @@ try {
     await entrar(page, CUENTAS.admin);
     const fila = await page.evaluate(async (correo) => {
       const { data } = await window.supabaseClient
-        .from('custom_requests').select('precio_estimado').eq('email', correo).single();
-      return data?.precio_estimado;
+        .from('custom_requests').select('estimated_price').eq('email', correo).single();
+      return data?.estimated_price;
     }, globalThis.__correoManipulado);
     check('el servidor reescribio el precio', Number(fila) === 7000, `guardado=${fila}`);
 
@@ -746,7 +746,7 @@ try {
   {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
-    await entrar(page, CUENTAS.vendedor, { soloContrasena: true });
+    await entrar(page, CUENTAS.seller, { soloContrasena: true });
 
     check('la contraseña sola deja la sesión en aal1',
       (await nivelDeGarantia(page)) === 'aal1');
@@ -805,7 +805,7 @@ try {
   {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
-    await entrar(page, CUENTAS.vendedor);
+    await entrar(page, CUENTAS.seller);
 
     check('el segundo factor sube la sesión a aal2',
       (await nivelDeGarantia(page)) === 'aal2');
@@ -823,7 +823,7 @@ try {
   {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
-    await entrar(page, CUENTAS.cliente);
+    await entrar(page, CUENTAS.customer);
     check('al cliente no se le exige segundo factor',
       (await nivelDeGarantia(page)) === 'aal1');
     const propio = await page.evaluate(async () => {
@@ -841,7 +841,7 @@ try {
     const page = await ctx.newPage();
     await entrar(page, CUENTAS.admin);
     const r = await page.evaluate(async () => {
-      const { data, error } = await window.supabaseClient.rpc('empleados_sin_segundo_factor');
+      const { data, error } = await window.supabaseClient.rpc('staff_without_mfa');
       return { filas: data?.length ?? null, error: error?.message ?? null };
     });
     check('el admin puede auditar quién no tiene 2FA',
@@ -854,9 +854,9 @@ try {
   {
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
-    await entrar(page, CUENTAS.cliente);
+    await entrar(page, CUENTAS.customer);
     const err = await page.evaluate(async () => {
-      const { error } = await window.supabaseClient.rpc('empleados_sin_segundo_factor');
+      const { error } = await window.supabaseClient.rpc('staff_without_mfa');
       return error?.message ?? null;
     });
     check('un cliente no puede auditar el 2FA ajeno', err !== null, `error=${JSON.stringify(err)}`);
@@ -959,26 +959,26 @@ try {
   {
     const ctxA = await browser.newContext();
     const pageA = await ctxA.newPage();
-    await entrar(pageA, CUENTAS.cliente);
+    await entrar(pageA, CUENTAS.customer);
     await pageA.goto(`${BASE}/index.html`);
     await pageA.waitForSelector('[data-add-id]');
     await pageA.waitForFunction(() => usuarioActual !== null, null, { timeout: 10000 }).catch(() => {});
     await pageA.evaluate(async () => {
-      await window.supabaseClient.from('carrito_items').delete().eq('user_id', usuarioActual);
+      await window.supabaseClient.from('cart_items').delete().eq('user_id', usuarioActual);
       cart = []; guardarCart(); renderCart();
     });
 
     await pageA.click('[data-add-id="3"]');
     await pageA.click('[data-add-id="5"]');
     await esperarEnLaBase(pageA, async () => {
-      const { data } = await window.supabaseClient.from('carrito_items').select('product_id');
+      const { data } = await window.supabaseClient.from('cart_items').select('product_id');
       return data?.length === 2;
     });
 
     // El otro dispositivo lo recibe, que es la funcion que si debe conservarse.
     const ctxB = await browser.newContext();
     const pageB = await ctxB.newPage();
-    await entrar(pageB, CUENTAS.cliente);
+    await entrar(pageB, CUENTAS.customer);
     await pageB.goto(`${BASE}/index.html`);
     await pageB.waitForSelector('[data-add-id]');
     await pageB.waitForFunction(() => cart.length === 2, null, { timeout: 12000 }).catch(() => {});
@@ -989,7 +989,7 @@ try {
     // A quita una linea. B no debe resucitarla al recargar.
     await pageA.evaluate(() => { cart = cart.filter((l) => l.id !== 3); guardarCart(); renderCart(); sincronizarCarritoRemoto(); });
     await esperarEnLaBase(pageA, async () => {
-      const { data } = await window.supabaseClient.from('carrito_items').select('product_id');
+      const { data } = await window.supabaseClient.from('cart_items').select('product_id');
       return data?.length === 1;
     });
     await pageB.reload();
@@ -1003,7 +1003,7 @@ try {
     // Y el caso reportado: A hace el pedido, B recarga.
     const folio = await pageA.evaluate(async () => {
       const { data, error } = await window.supabaseClient
-        .rpc('crear_pedido_desde_carrito', { p_notas: 'prueba cruzada' });
+        .rpc('create_order_from_cart', { p_notes: 'prueba cruzada' });
       return error ? null : data;
     });
     check('el pedido se crea desde el primer dispositivo', folio !== null, `folio=${folio}`);
@@ -1017,7 +1017,7 @@ try {
       localB.length === 0, `carrito de B = ${JSON.stringify(localB)}`);
 
     const enBase = await pageB.evaluate(async () => {
-      const { data } = await window.supabaseClient.from('carrito_items').select('product_id');
+      const { data } = await window.supabaseClient.from('cart_items').select('product_id');
       return data?.length ?? -1;
     });
     check('y el dispositivo rezagado no lo reescribe en la base',
@@ -1054,10 +1054,10 @@ try {
     // Partir de una cuenta sin carrito.
     const ctxL = await browser.newContext();
     const pageL = await ctxL.newPage();
-    await entrar(pageL, CUENTAS.cliente);
+    await entrar(pageL, CUENTAS.customer);
     await pageL.evaluate(async () => {
       const { data: { session } } = await window.supabaseClient.auth.getSession();
-      await window.supabaseClient.from('carrito_items').delete().eq('user_id', session.user.id);
+      await window.supabaseClient.from('cart_items').delete().eq('user_id', session.user.id);
     });
     await ctxL.close();
 
@@ -1072,8 +1072,8 @@ try {
       sinSesion.length === 1 && sinSesion[0].qty === 2, JSON.stringify(sinSesion));
 
     await page.click('#btn-login');
-    await page.fill('#log-email', CUENTAS.cliente.email);
-    await page.fill('#log-pass', CUENTAS.cliente.pass);
+    await page.fill('#log-email', CUENTAS.customer.email);
+    await page.fill('#log-pass', CUENTAS.customer.pass);
     await Promise.all([
       page.waitForNavigation({ waitUntil: 'load', timeout: 25000 }),
       page.click('#form-login button[type="submit"]'),
@@ -1086,18 +1086,18 @@ try {
       trasEntrar.length === 1 && trasEntrar[0].qty === 2, JSON.stringify(trasEntrar));
 
     await esperarEnLaBase(page, async () => {
-      const { data } = await window.supabaseClient.from('carrito_items').select('qty');
+      const { data } = await window.supabaseClient.from('cart_items').select('qty');
       return data?.length === 1 && data[0].qty === 2;
     });
     const enCuenta = await page.evaluate(async () => {
-      const { data } = await window.supabaseClient.from('carrito_items').select('product_id, qty');
+      const { data } = await window.supabaseClient.from('cart_items').select('product_id, qty');
       return data;
     });
     check('y ademas queda guardado en la cuenta',
       enCuenta?.length === 1 && enCuenta[0].qty === 2, JSON.stringify(enCuenta));
 
     await page.evaluate(async () => {
-      await window.supabaseClient.from('carrito_items').delete().eq('user_id', usuarioActual);
+      await window.supabaseClient.from('cart_items').delete().eq('user_id', usuarioActual);
       localStorage.removeItem('hepsa_cart');
     });
     await ctx.close();

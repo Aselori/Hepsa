@@ -31,7 +31,7 @@
 import { randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
-const ROLES_PERSONAL = ['vendedor', 'admin'];
+const ROLES_PERSONAL = ['seller', 'admin'];
 
 function leerArgs(argv) {
   const args = { aplicar: false, compromiso: false };
@@ -96,7 +96,7 @@ const registro = {
   usuario_id: usuario.id,
   email: usuario.email,
   rol_encontrado: rol,
-  factores_encontrados: factores.map((f) => ({ id: f.id, tipo: f.factor_type, estado: f.status, nombre: f.friendly_name })),
+  factores_encontrados: factores.map((f) => ({ id: f.id, tipo: f.factor_type, status: f.status, name: f.friendly_name })),
   autorizo: args.autorizo ?? null,
   canal_verificacion: args.canal ?? null,
 };
@@ -135,7 +135,7 @@ if (!args.aplicar) {
 const hechos = [];
 
 if (args.compromiso && ROLES_PERSONAL.includes(rol)) {
-  const baja = await admin.from('profiles').update({ role: 'cliente' }).eq('id', usuario.id);
+  const baja = await admin.from('profiles').update({ role: 'customer' }).eq('id', usuario.id);
   if (baja.error) fallar(`No se pudo bajar el rol: ${baja.error.message}`, 1);
   hechos.push(`rol bajado de ${rol} a cliente`);
 }

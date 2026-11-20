@@ -4,7 +4,7 @@
 // leído con el token del propio cliente: si el pedido no es suyo, RLS no lo
 // devuelve y aquí se responde 404, sin distinguir "no existe" de "no es tuyo".
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
-import { clienteStripe } from '../_compartido/stripe.ts';
+import { clienteStripe } from '../_shared/stripe.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
   let pedidoId: number;
   try {
-    pedidoId = Number((await req.json()).pedido);
+    pedidoId = Number((await req.json()).order_id);
   } catch {
     return responder(400, { error: 'Falta el número de pedido' });
   }
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     .eq('id', pedidoId).maybeSingle();
   if (error) return responder(500, { error: 'No se pudo leer el pedido' });
   if (!pedido) return responder(404, { error: 'No encontramos ese pedido' });
-  if (pedido.payment_status === 'completo') return responder(409, { error: 'Ese pedido ya está pagado' });
+  if (pedido.payment_status === 'paid') return responder(409, { error: 'Ese pedido ya está pagado' });
 
   const centavos = Math.round(Number(pedido.total) * 100);
   if (!(centavos > 0)) return responder(409, { error: 'El pedido no tiene un total que cobrar' });
@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
         },
       }],
       client_reference_id: String(pedido.id),
-      metadata: { pedido: String(pedido.id) },
+      metadata: { order_id: String(pedido.id) },
       customer_email: user.email ?? undefined,
       success_url: `${sitio}/?pago=exito&pedido=${pedido.id}`,
       cancel_url: `${sitio}/?pago=cancelado&pedido=${pedido.id}`,

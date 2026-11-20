@@ -69,11 +69,11 @@ try {
   const reglas = await page.evaluate(() => document.getElementById('reg-pass').getAttribute('passwordrules'));
   check('el campo declara la regla de contraseñas para el gestor', /minlength: 10/.test(reglas ?? ''), reglas);
   await page.click('#form-registro .btn-ojo');
-  const visible = await page.evaluate(() => ({ tipo: document.getElementById('reg-pass').type, nombre: document.querySelector('#form-registro .btn-ojo').getAttribute('aria-label'), pulsado: document.querySelector('#form-registro .btn-ojo').getAttribute('aria-pressed') }));
+  const visible = await page.evaluate(() => ({ tipo: document.getElementById('reg-pass').type, name: document.querySelector('#form-registro .btn-ojo').getAttribute('aria-label'), pulsado: document.querySelector('#form-registro .btn-ojo').getAttribute('aria-pressed') }));
   await page.click('#form-registro .btn-ojo');
   const oculto = await page.evaluate(() => document.getElementById('reg-pass').type);
   check('el registro tiene un solo campo de contraseña y el ojo la deja ver y la vuelve a ocultar',
-    campos === 1 && visible.tipo === 'text' && visible.nombre === 'Mostrar contraseña' && visible.pulsado === 'true' && oculto === 'password', JSON.stringify({ campos, visible, oculto }));
+    campos === 1 && visible.tipo === 'text' && visible.name === 'Mostrar contraseña' && visible.pulsado === 'true' && oculto === 'password', JSON.stringify({ campos, visible, oculto }));
 
   // Dos campos de nombre y no cuatro: nombre(s) y apellidos completos.
   const nombres = await page.evaluate(() => ({
@@ -99,10 +99,10 @@ try {
   const perfil = await page.evaluate(async () => {
     const { data: { session } } = await window.supabaseClient.auth.getSession();
     if (!session) return null;
-    return (await window.supabaseClient.from('profiles').select('first_name, last_name_p, middle_name, last_name_m').eq('id', session.user.id).single()).data;
+    return (await window.supabaseClient.from('profiles').select('first_name, last_name, middle_name, second_last_name').eq('id', session.user.id).single()).data;
   });
   check('el perfil guarda "Prueba" y "Contraseña Fuerte" completos',
-    perfil?.first_name === 'Prueba' && perfil?.last_name_p === 'Contraseña Fuerte' && !perfil?.middle_name && !perfil?.last_name_m, JSON.stringify(perfil));
+    perfil?.first_name === 'Prueba' && perfil?.last_name === 'Contraseña Fuerte' && !perfil?.middle_name && !perfil?.second_last_name, JSON.stringify(perfil));
 
   // Enter en el inicio de sesión envía el formulario sin recargar la página.
   await page.evaluate(() => showView('login'));

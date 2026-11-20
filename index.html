@@ -371,7 +371,7 @@
             <button class="close-cart" onclick="toggleCart()" aria-label="Cerrar carrito">×</button>
         </div>
         <div id="cart-items-container"><p class="cart-vacio">El carrito está vacío</p></div>
-        <!-- Subtotal y no total: el IVA lo suma crear_pedido_desde_carrito()
+        <!-- Subtotal y no total: el IVA lo suma create_order_from_cart()
              al confirmar. Decir "Total" aqui hacia que el pedido saliera 16%
              mas caro de lo que el carrito habia mostrado. -->
         <div id="cart-combo" class="descuento-paquete" aria-live="polite" hidden></div>
@@ -417,17 +417,17 @@
                         <div class="form-group" style="margin-bottom: 0;"><label for="quote-material">Material *</label>
                             <select id="quote-material">
                                 <option value="">Selecciona…</option>
-                                <option value="acero">Acero</option>
-                                <option value="hierro_forjado">Hierro forjado</option>
-                                <option value="aluminio">Aluminio</option>
+                                <option value="steel">Acero</option>
+                                <option value="wrought_iron">Hierro forjado</option>
+                                <option value="aluminum">Aluminio</option>
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0;"><label for="quote-acabado">Acabado *</label>
                             <select id="quote-acabado">
                                 <option value="">Selecciona…</option>
-                                <option value="pintura_electrostatica">Pintura electrostática</option>
-                                <option value="pavonado">Pavonado</option>
-                                <option value="cromado">Cromado</option>
+                                <option value="powder_coat">Pintura electrostática</option>
+                                <option value="bluing">Pavonado</option>
+                                <option value="chrome">Cromado</option>
                             </select>
                         </div>
                     </div>
@@ -452,8 +452,8 @@
                 <div class="form-container">
                     <h3 class="cotizar-paso">2. ¿A dónde te enviamos la cotización?</h3>
                     <!-- Dos campos y no cuatro: nombre(s) y apellidos completos. Se guardan
-                         en first_name y last_name_p, que son los que se muestran en todo el
-                         sistema; middle_name y last_name_m quedan vacíos. -->
+                         en first_name y last_name, que son los que se muestran en todo el
+                         sistema; middle_name y second_last_name quedan vacíos. -->
                     <div class="name-grid">
                         <div class="form-group" style="margin-bottom: 0;"><label for="quote-nombre">Nombre(s) *</label><input type="text" id="quote-nombre" name="given-name" autocomplete="given-name" placeholder="Ej: Juan Carlos" required></div>
                         <div class="form-group" style="margin-bottom: 0;"><label for="quote-apellidos">Apellidos *</label><input type="text" id="quote-apellidos" name="family-name" autocomplete="family-name" placeholder="Ej: Garza Treviño" required></div>
@@ -631,7 +631,7 @@
         // teléfono no hay botón de llamar, en vez de uno que no lleva a nada.
         function pintarContacto() {
             const c = window.HEPSA_CONFIG.contacto || {};
-            const tel = String(c.telefono || '').trim();
+            const tel = String(c.phone || '').trim();
             const digitos = tel.replace(/\D/g, '');
             const wa = String(c.whatsapp || '').replace(/\D/g, '');
             const dir = String(c.direccion || '').trim();
@@ -716,7 +716,7 @@
         let sobrePedido = false;
 
         async function cargarReglaSobrePedido() {
-            const { data } = await window.supabaseClient.rpc('permite_sobre_pedido');
+            const { data } = await window.supabaseClient.rpc('allows_backorder');
             sobrePedido = data === true;
         }
 
@@ -737,7 +737,7 @@
 
         // ─── Carrito ligado a la cuenta ─────────────────────────────────────
         // El anonimo se queda en localStorage. Quien inicio sesion escribe
-        // ademas en carrito_items, para que su pedido lo siga entre
+        // ademas en cart_items, para que su pedido lo siga entre
         // dispositivos. El user_id lo pone la base por default.
 
         let usuarioActual = null;
@@ -769,10 +769,10 @@
             // que el carrito guardado queda vacío, y si la escritura falla ahí
             // el usuario pierde su pedido.
             if (items.length) {
-                await window.supabaseClient.from('carrito_items')
+                await window.supabaseClient.from('cart_items')
                     .upsert(items, { onConflict: 'user_id,product_id' });
             }
-            let borrar = window.supabaseClient.from('carrito_items')
+            let borrar = window.supabaseClient.from('cart_items')
                 .delete().eq('user_id', usuarioActual);
             const ids = items.map((i) => i.product_id);
             if (ids.length) borrar = borrar.not('product_id', 'in', `(${ids.join(',')})`);
@@ -800,7 +800,7 @@
         async function sincronizarCarritoConLaCuenta(userId) {
             usuarioActual = userId;
             const { data, error } = await window.supabaseClient
-                .from('carrito_items').select('product_id, qty');
+                .from('cart_items').select('product_id, qty');
             if (error) return;
 
             const recienIniciada = localStorage.getItem(LLAVE_FUSION) === '1';
@@ -895,17 +895,17 @@
         }
 
         function faltaExistenciaCombo(combo) {
-            return combo.items.find(({ producto_id, cantidad }) =>
-                (cart.find(l => l.id === producto_id)?.qty || 0) + cantidad > topeDe(producto_id));
+            return combo.items.find(({ product_id, quantity: cantidad }) =>
+                (cart.find(l => l.id === product_id)?.qty || 0) + cantidad > topeDe(product_id));
         }
 
         function agregarComboAlCarrito(combo) {
             const falta = faltaExistenciaCombo(combo);
-            if (falta) return avisarTope(falta.producto_id);
-            for (const { producto_id, cantidad } of combo.items) {
-                const linea = cart.find(l => l.id === producto_id);
+            if (falta) return avisarTope(falta.product_id);
+            for (const { product_id, quantity: cantidad } of combo.items) {
+                const linea = cart.find(l => l.id === product_id);
                 if (linea) linea.qty += cantidad;
-                else cart.push({ id: producto_id, qty: cantidad });
+                else cart.push({ id: product_id, qty: cantidad });
             }
             guardarCart();
             renderCart();
@@ -929,12 +929,12 @@
             btn.textContent = 'Confirmando…';
             try {
                 // Antes de pedir, dejar que termine cualquier sincronización
-                // pendiente: la función lee carrito_items, no el arreglo local.
+                // pendiente: la función lee cart_items, no el arreglo local.
                 clearTimeout(temporizadorSync);
                 await enviarCarrito();
 
                 const { data: folio, error } = await window.supabaseClient
-                    .rpc('crear_pedido_desde_carrito', { p_notas: null });
+                    .rpc('create_order_from_cart', { p_notes: null });
                 if (error) throw error;
 
                 cart = [];
@@ -982,17 +982,17 @@
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Todavía no tienes proyectos.</td></tr>';
                 return;
             }
-            const legible = { cotizando: 'Cotizando', en_produccion: 'En producción', instalado: 'Instalado' };
-            const pago = { completo: 'Pagado', anticipo: 'Con anticipo', faltante: 'Pago pendiente' };
+            const legible = { quoting: 'Cotizando', in_production: 'En producción', installed: 'Instalado' };
+            const pago = { paid: 'Pagado', deposit: 'Con anticipo', pending: 'Pago pendiente' };
             const celdaPago = (o) => {
                 const estado = esc(pago[o.payment_status] || 'Estado pendiente');
                 if (!window.HEPSA_CONFIG.pagosEnLinea) return estado;
                 const enRevision = regresoPago?.resultado === 'exito'
-                    && Number(o.id) === regresoPago.pedido && o.payment_status !== 'completo';
+                    && Number(o.id) === regresoPago.pedido && o.payment_status !== 'paid';
                 let accion = '';
-                if (!enRevision && o.payment_status === 'faltante') {
+                if (!enRevision && o.payment_status === 'pending') {
                     accion = `<button type="button" class="action-btn" data-pagar-id="${Number(o.id)}" aria-label="Pagar en línea el pedido #${Number(o.id)}">Pagar en línea</button>`;
-                } else if (!enRevision && o.payment_status === 'anticipo') {
+                } else if (!enRevision && o.payment_status === 'deposit') {
                     accion = '<span class="pedidos-pago-ayuda">Confirma el saldo con HEPSA.</span>';
                 }
                 return `<div class="pedidos-pago"><span class="pedidos-pago-estado">${enRevision ? 'Pago por confirmar' : estado}</span>${accion}</div>`;
@@ -1017,7 +1017,7 @@
             btn.textContent = 'Abriendo pago…';
             btn.setAttribute('aria-busy', 'true');
             try {
-                const { data, error } = await window.supabaseClient.functions.invoke('crear-pago', { body: { pedido: id } });
+                const { data, error } = await window.supabaseClient.functions.invoke('create-payment', { body: { order_id: id } });
                 if (error || !data?.url) throw error || new Error('Falta el enlace de pago');
                 location.assign(data.url);
             } catch (error) {
@@ -1037,7 +1037,7 @@
             aviso.hidden = !(regresoPago && (pedido || error));
             if (aviso.hidden) return;
             const folio = `#${regresoPago.pedido}`;
-            const pagado = pedido?.payment_status === 'completo';
+            const pagado = pedido?.payment_status === 'paid';
             const esperando = regresoPago.resultado === 'exito' && !pagado;
             if (error) mensaje.textContent = 'No pudimos consultar el pago. Actualiza el estado para volver a comprobarlo.';
             else if (pagado) mensaje.textContent = `Pago confirmado para el pedido ${folio}.`;
@@ -1153,7 +1153,7 @@
                 if (foto.complete && !foto.naturalWidth) foto.remove();
                 else foto.addEventListener('error', () => foto.remove(), { once: true });
             }
-            total -= combo?.descuento || 0;
+            total -= combo?.discount || 0;
             document.getElementById('cart-total-price').textContent = total.toLocaleString('en-US', {minimumFractionDigits:2});
         }
 
@@ -1284,7 +1284,7 @@
         const fichaVerPaquete = document.getElementById('ficha-ver-paquete');
         const fichaAgregarPaquete = document.getElementById('ficha-paquete-agregar');
         const scrollFicha = () => ficha.querySelector(matchMedia('(max-width: 640px)').matches ? '.ficha' : '.ficha-cuerpo');
-        const paquetesDe = id => combosPublicos.filter(combo => combo.items.some(i => i.producto_id === id));
+        const paquetesDe = id => combosPublicos.filter(combo => combo.items.some(i => i.product_id === id));
         let paqueteElegido = null;
         let scrollProducto = null;
 
@@ -1296,9 +1296,9 @@
         }
 
         function valorPaquete(combo) {
-            const lineas = combo.items.map(({ producto_id: id, cantidad: qty }) => ({ id, qty, price: catalogo[id].price }));
+            const lineas = combo.items.map(({ product_id: id, quantity: qty }) => ({ id, qty, price: catalogo[id].price }));
             const suma = lineas.reduce((total, linea) => total + linea.price * linea.qty, 0);
-            const ahorro = estimarCombo([combo], lineas)?.descuento || 0;
+            const ahorro = estimarCombo([combo], lineas)?.discount || 0;
             return { ahorro, total: suma - ahorro };
         }
 
@@ -1307,8 +1307,8 @@
             const opciones = document.getElementById('ficha-paquete-opciones');
             for (const boton of opciones.children) boton.setAttribute('aria-pressed', String(Number(boton.dataset.paqueteId) === combo.id));
             const piezas = document.getElementById('ficha-paquete-piezas');
-            piezas.replaceChildren(...combo.items.map(({ producto_id, cantidad }) => {
-                const producto = catalogo[producto_id];
+            piezas.replaceChildren(...combo.items.map(({ product_id, quantity: cantidad }) => {
+                const producto = catalogo[product_id];
                 const li = document.createElement('li');
                 const url = urlImagenSegura(producto.image_url);
                 if (url) {
@@ -1329,12 +1329,12 @@
         function mostrarPaquetesFicha(paquetes) {
             const opciones = document.getElementById('ficha-paquete-opciones');
             const varios = paquetes.length > 1;
-            document.getElementById('ficha-paquete-nombre').textContent = varios ? 'Paquetes disponibles' : paquetes[0].nombre;
+            document.getElementById('ficha-paquete-nombre').textContent = varios ? 'Paquetes disponibles' : paquetes[0].name;
             opciones.hidden = !varios;
             opciones.replaceChildren(...(varios ? paquetes.map(combo => {
                 const boton = Object.assign(document.createElement('button'), { type: 'button', className: 'btn-secundario ficha-paquete-opcion' });
                 boton.dataset.paqueteId = combo.id;
-                boton.append(Object.assign(document.createElement('span'), { textContent: combo.nombre }),
+                boton.append(Object.assign(document.createElement('span'), { textContent: combo.name }),
                     Object.assign(document.createElement('strong'), { textContent: `−${monedaPaquete(valorPaquete(combo).ahorro)}` }));
                 boton.addEventListener('click', () => elegirPaqueteFicha(combo));
                 return boton;
@@ -1469,7 +1469,7 @@
         function cotizarComo(p) {
             showView('quote');
             const texto = `${p.name} ${p.description || ''}`.toLowerCase();
-            const material = texto.includes('aluminio') ? 'aluminio' : texto.includes('hierro') ? 'hierro_forjado' : texto.includes('acero') ? 'acero' : '';
+            const material = texto.includes('aluminio') ? 'aluminum' : texto.includes('hierro') ? 'wrought_iron' : texto.includes('acero') ? 'steel' : '';
             const select = document.getElementById('quote-material');
             if (material && select) { select.value = material; select.dispatchEvent(new Event('change', { bubbles: true })); }
             const notas = document.getElementById('quote-specs');
@@ -1553,7 +1553,7 @@
             // Índice por id: el carrito guarda ids, no nombres ni precios.
             catalogo = Object.fromEntries(data.map((p) => [p.id, p]));
             combosPublicos = (await leerCombosDisponibles(window.supabaseClient))
-                .filter(combo => combo.items.every(item => catalogo[item.producto_id]));
+                .filter(combo => combo.items.every(item => catalogo[item.product_id]));
 
             grid.innerHTML = data.map(p => {
                 const paquetes = paquetesDe(p.id);
@@ -1612,7 +1612,7 @@
                 return { error: "La profundidad debe estar entre 10 mm y 5,000 mm, o dejarse vacía." };
             }
             if (!material || !acabado) return { incompleta: true, error: "Selecciona el material y el acabado." };
-            return { pieza: { largo_mm: largo, alto_mm: alto, profundidad_mm: prof, material, acabado } };
+            return { pieza: { length_mm: largo, height_mm: alto, depth_mm: prof, material, finish: acabado } };
         }
 
         function leerPieza() {
@@ -1646,21 +1646,21 @@
             if (r.error) return mostrarEstimado(r.error, '', true);
 
             const pieza = r.pieza;
-            const { data, error } = await window.supabaseClient.rpc('calcular_precio', {
-                p_largo_mm: pieza.largo_mm, p_alto_mm: pieza.alto_mm,
-                p_material: pieza.material, p_acabado: pieza.acabado
+            const { data, error } = await window.supabaseClient.rpc('calculate_price', {
+                p_length_mm: pieza.length_mm, p_height_mm: pieza.height_mm,
+                p_material: pieza.material, p_finish: pieza.finish
             });
             if (turno !== calculoVigente) return;
             if (error) return mostrarEstimado('No se pudo calcular el estimado. Intenta de nuevo en un momento.', '', true);
             if (data === null) return mostrarEstimado('No hay tarifa para esa combinación de material y acabado.', '', true);
 
-            const area = (pieza.largo_mm * pieza.alto_mm) / 1000000;
+            const area = (pieza.length_mm * pieza.height_mm) / 1000000;
             // El nombre sale del texto de la opción, no del valor interno: de
-            // 'pintura_electrostatica' no se puede recuperar el acento.
+            // 'powder_coat' no se puede recuperar el acento.
             const nombre = (id) => document.querySelector(`#${id} option:checked`).textContent;
             mostrarEstimado(
                 Number(data).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }),
-                `${pieza.largo_mm} × ${pieza.alto_mm} mm (${area.toFixed(2)} m²) · ${nombre('quote-material')} · ${nombre('quote-acabado')}`,
+                `${pieza.length_mm} × ${pieza.height_mm} mm (${area.toFixed(2)} m²) · ${nombre('quote-material')} · ${nombre('quote-acabado')}`,
                 false);
         }
 
@@ -1681,9 +1681,9 @@
             const pieza = leerPieza();
             if (!pieza) return;
 
-            // precio_estimado no se manda: lo pone un trigger en la base.
+            // estimated_price no se manda: lo pone un trigger en la base.
             const { error } = await window.supabaseClient.from('custom_requests').insert([{
-                first_name: nombre, last_name_p: apellidos,
+                first_name: nombre, last_name: apellidos,
                 email: email, phone: tel, specifications: specs, ...pieza
             }]);
             if (error) alert("Error: " + error.message);
@@ -1722,7 +1722,7 @@
             const { error } = await window.supabaseClient.auth.signUp({
                 email, password: pass,
                 // Sin 'role': lo asigna handle_new_user() en el servidor.
-                options: { data: { first_name: nombre, last_name_p: apellidos, phone: document.getElementById('reg-tel').value } }
+                options: { data: { first_name: nombre, last_name: apellidos, phone: document.getElementById('reg-tel').value } }
             });
             if (error?.code === 'weak_password') alert('La contraseña es demasiado débil: usa 10 caracteres o más, con mayúscula, minúscula y número.');
             else if (error) alert("Error: " + error.message);
@@ -1757,9 +1757,9 @@
                 // profiles es la fuente de verdad; user_metadata solo refleja
                 // lo que se escribió una vez al registrarse.
                 const { data: perfil } = await window.supabaseClient
-                    .from('profiles').select('first_name, last_name_p, phone').eq('id', session.user.id).single();
+                    .from('profiles').select('first_name, last_name, phone').eq('id', session.user.id).single();
                 const m = perfil || session.user.user_metadata;
-                document.getElementById('prof-name').value = `${m.first_name||''} ${m.last_name_p||''}`.trim();
+                document.getElementById('prof-name').value = `${m.first_name||''} ${m.last_name||''}`.trim();
                 document.getElementById('prof-email').value = session.user.email;
                 document.getElementById('prof-tel').value = m.phone || '';
                 // El carrito guardado en la cuenta se junta con el local.

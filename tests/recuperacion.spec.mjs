@@ -42,7 +42,7 @@ function script(...args) {
 }
 
 const ids = [];
-async function empleadoConFactor(rol = 'vendedor') {
+async function empleadoConFactor(rol = 'seller') {
   const email = `recuperacion-${randomUUID()}@example.test`;
   const pass = contrasenaDePrueba();
   const { data, error } = await admin.auth.admin.createUser({ email, password: pass, email_confirm: true });
@@ -124,11 +124,11 @@ try {
   check('con --compromiso el token ya emitido pierde el acceso de inmediato', await solicitudesCon(tokenC) === 0,
     'el rol se lee de la base en cada peticion');
 
-  const prematuro = script('--email', c.email, '--restaurar-rol', 'vendedor', '--autorizo', 'Propietario (prueba)', '--canal', 'En persona (prueba)');
+  const prematuro = script('--email', c.email, '--restaurar-rol', 'seller', '--autorizo', 'Propietario (prueba)', '--canal', 'En persona (prueba)');
   check('no devuelve el rol a una cuenta sin factor verificado', prematuro.codigo === 1);
 
   const reC = await reinscribir(c.email, tempC);
-  const restaurado = script('--email', c.email, '--restaurar-rol', 'vendedor', '--autorizo', 'Propietario (prueba)', '--canal', 'En persona (prueba)');
+  const restaurado = script('--email', c.email, '--restaurar-rol', 'seller', '--autorizo', 'Propietario (prueba)', '--canal', 'En persona (prueba)');
   check('tras la reinscripcion restaura el rol y el acceso', restaurado.codigo === 0 && await solicitudesCon(reC.token) > 0);
 } finally {
   for (const id of ids) {

@@ -52,7 +52,7 @@ async function entrar(email, pass) {
 async function pedirPago(pedido, token) {
   const headers = { 'Content-Type': 'application/json', apikey: LLAVE };
   if (token) headers.Authorization = `Bearer ${token}`;
-  const r = await fetch(`${FUNCIONES}/crear-pago`, { method: 'POST', headers, body: JSON.stringify({ pedido }) });
+  const r = await fetch(`${FUNCIONES}/create-payment`, { method: 'POST', headers, body: JSON.stringify({ order_id: pedido }) });
   return { status: r.status, cuerpo: await r.json().catch(() => null) };
 }
 
@@ -62,26 +62,26 @@ async function avisar(evento, { secreto = STRIPE_WEBHOOK_SECRET, firmar = true }
   const t = Math.floor(Date.now() / 1000);
   const headers = { 'Content-Type': 'application/json' };
   if (firmar) headers['Stripe-Signature'] = `t=${t},v1=${createHmac('sha256', secreto).update(`${t}.${cuerpo}`).digest('hex')}`;
-  const r = await fetch(`${FUNCIONES}/webhook-stripe`, { method: 'POST', headers, body: cuerpo });
+  const r = await fetch(`${FUNCIONES}/stripe-webhook`, { method: 'POST', headers, body: cuerpo });
   return { status: r.status, cuerpo: await r.json().catch(() => null) };
 }
 
 const eventoDeSesion = ({ sesion, pedido, centavos, estado = 'paid', tipo = 'checkout.session.completed' }) => ({
   id: `evt_${randomBytes(8).toString('hex')}`, object: 'event', type: tipo,
-  data: { object: { id: sesion, object: 'checkout.session', payment_status: estado, amount_total: centavos, currency: 'mxn', metadata: { pedido: String(pedido) } } },
+  data: { object: { id: sesion, object: 'checkout.session', payment_status: estado, amount_total: centavos, currency: 'mxn', metadata: { order_id: String(pedido) } } },
 });
 
 async function crearPedido(c, uid, qty, qtyComplemento = 0) {
   const lineas = [{ user_id: uid, product_id: productoId, qty }];
   if (qtyComplemento) lineas.push({ user_id: uid, product_id: complementoId, qty: qtyComplemento });
-  const carrito = await c.from('carrito_items').upsert(lineas);
+  const carrito = await c.from('cart_items').upsert(lineas);
   if (carrito.error) throw carrito.error;
-  const { data, error } = await c.rpc('crear_pedido_desde_carrito', { p_notas: null });
+  const { data, error } = await c.rpc('create_order_from_cart', { p_notes: null });
   if (error) throw error;
   return data;
 }
 
-const leerPedido = async (c, id) => (await c.from('orders').select('subtotal, total, payment_status, combo_name, combo_count, combo_discount').eq('id', id).single()).data;
+const leerPedido = async (c, id) => (await c.from('orders').select('subtotal, total, payment_status, bundle_name, bundle_count, bundle_discount').eq('id', id).single()).data;
 const leerStock = async (c) => (await c.from('products').select('stock').eq('id', productoId).single()).data?.stock;
 
 const uno = await entrar(CLIENTE_EMAIL, CLIENTE_PASS);
@@ -97,15 +97,15 @@ if (factorVerificado.error) throw factorVerificado.error;
 
 try {
   const combo = {
-    p_id: null, p_nombre: PAGOS_COMBO_NOMBRE, p_porcentaje: 20, p_activo: true,
-    p_items: [{ producto_id: productoId, cantidad: 1 }, { producto_id: complementoId, cantidad: 1 }],
+    p_id: null, p_name: PAGOS_COMBO_NOMBRE, p_discount_percent: 20, p_is_active: true,
+    p_items: [{ product_id: productoId, quantity: 1 }, { product_id: complementoId, quantity: 1 }],
   };
-  const sinPermiso = await uno.c.rpc('guardar_combo', combo);
+  const sinPermiso = await uno.c.rpc('save_bundle', combo);
   check('un cliente no puede crear combos', !!sinPermiso.error);
-  const creado = await administrador.c.rpc('guardar_combo', combo);
-  const alterno = await administrador.c.rpc('guardar_combo', {
-    ...combo, p_nombre: `${PAGOS_COMBO_NOMBRE} alterno`, p_porcentaje: 10,
-    p_items: [{ producto_id: productoId, cantidad: 2 }, { producto_id: complementoId, cantidad: 1 }],
+  const creado = await administrador.c.rpc('save_bundle', combo);
+  const alterno = await administrador.c.rpc('save_bundle', {
+    ...combo, p_name: `${PAGOS_COMBO_NOMBRE} alterno`, p_discount_percent: 10,
+    p_items: [{ product_id: productoId, quantity: 2 }, { product_id: complementoId, quantity: 1 }],
   });
   if (creado.error || alterno.error) throw creado.error || alterno.error;
 
@@ -115,12 +115,12 @@ try {
   const pedidoConAhorro = await leerPedido(uno.c, pedido);
   const { total } = pedidoConAhorro;
   check('checkout escoge el mayor ahorro, sin combinar descuentos sobre las mismas piezas',
-    pedidoConAhorro.combo_name === PAGOS_COMBO_NOMBRE && pedidoConAhorro.combo_count === 1 &&
-    pedidoConAhorro.combo_discount === 350 && pedidoConAhorro.subtotal === 2650, JSON.stringify(pedidoConAhorro));
+    pedidoConAhorro.bundle_name === PAGOS_COMBO_NOMBRE && pedidoConAhorro.bundle_count === 1 &&
+    pedidoConAhorro.bundle_discount === 350 && pedidoConAhorro.subtotal === 2650, JSON.stringify(pedidoConAhorro));
   const centavos = Math.round(Number(total) * 100);
-  check('el pedido nace pendiente de pago', (await leerPedido(uno.c, pedido)).payment_status === 'faltante');
+  check('el pedido nace pendiente de pago', (await leerPedido(uno.c, pedido)).payment_status === 'pending');
 
-  // ─── crear-pago ─────────────────────────────────────────────────────────
+  // ─── create-payment ─────────────────────────────────────────────────────────
   const sinSesion = await pedirPago(pedido, null);
   check('sin sesión no se crea un pago', sinSesion.status === 401, `status=${sinSesion.status}`);
 
@@ -139,11 +139,11 @@ try {
   check('a Stripe se le pide el total de la base, en centavos MXN',
     pedida['line_items[0][price_data][unit_amount]'] === String(centavos) && pedida['line_items[0][price_data][currency]'] === 'mxn',
     `pedido=${pedida['line_items[0][price_data][unit_amount]']} esperado=${centavos}`);
-  check('la sesión lleva el número de pedido', pedida['metadata[pedido]'] === String(pedido));
+  check('la sesión lleva el número de pedido', pedida['metadata[order_id]'] === String(pedido));
   check('la sesión usa la llave secreta del servidor', sesiones.at(-1)?.autorizacion === 'Bearer sk_test_local_hepsa');
   check('ajeno e inválido no llegaron a Stripe', sesiones.length === 1, `sesiones=${sesiones.length}`);
 
-  // ─── webhook-stripe ─────────────────────────────────────────────────────
+  // ─── stripe-webhook ─────────────────────────────────────────────────────
   const sesion = `cs_test_${randomBytes(8).toString('hex')}`;
   const pagado = eventoDeSesion({ sesion, pedido, centavos });
 
@@ -151,49 +151,49 @@ try {
   check('un aviso sin firma se rechaza', sinFirma.status === 400, `status=${sinFirma.status}`);
   const firmaFalsa = await avisar(pagado, { secreto: 'whsec_otro' });
   check('un aviso con firma de otro secreto se rechaza', firmaFalsa.status === 400, `status=${firmaFalsa.status}`);
-  check('tras avisos falsos el pedido sigue pendiente', (await leerPedido(uno.c, pedido)).payment_status === 'faltante');
+  check('tras avisos falsos el pedido sigue pendiente', (await leerPedido(uno.c, pedido)).payment_status === 'pending');
 
   const sinCobrar = await avisar(eventoDeSesion({ sesion: `${sesion}_x`, pedido, centavos, estado: 'unpaid' }));
-  check('una sesión completada sin cobrar no marca pagado', sinCobrar.status === 200 && (await leerPedido(uno.c, pedido)).payment_status === 'faltante',
+  check('una sesión completada sin cobrar no marca pagado', sinCobrar.status === 200 && (await leerPedido(uno.c, pedido)).payment_status === 'pending',
     `status=${sinCobrar.status}`);
 
   const montoDistinto = await avisar(eventoDeSesion({ sesion: `${sesion}_m`, pedido, centavos: centavos - 100 }));
   check('un monto distinto al total falla para que Stripe reintente', montoDistinto.status === 500, `status=${montoDistinto.status}`);
-  check('con monto distinto el pedido sigue pendiente', (await leerPedido(uno.c, pedido)).payment_status === 'faltante');
+  check('con monto distinto el pedido sigue pendiente', (await leerPedido(uno.c, pedido)).payment_status === 'pending');
 
   const bueno = await avisar(pagado);
-  check('el aviso firmado registra el pago', bueno.status === 200 && bueno.cuerpo?.resultado === 'pagado', `status=${bueno.status} ${JSON.stringify(bueno.cuerpo)}`);
-  check('el pedido queda pagado', (await leerPedido(uno.c, pedido)).payment_status === 'completo');
+  check('el aviso firmado registra el pago', bueno.status === 200 && bueno.cuerpo?.resultado === 'paid', `status=${bueno.status} ${JSON.stringify(bueno.cuerpo)}`);
+  check('el pedido queda pagado', (await leerPedido(uno.c, pedido)).payment_status === 'paid');
   const stockPagado = await leerStock(uno.c);
   check('el pago descuenta las existencias', stockPagado === stockInicial - 2, `antes=${stockInicial} despues=${stockPagado}`);
   const complementoPagado = (await uno.c.from('products').select('stock').eq('id', complementoId).single()).data.stock;
   check('el pago descuenta las piezas de cada componente del combo', complementoPagado === stockComplemento - 1);
 
   const repetido = await avisar(pagado);
-  check('el mismo aviso otra vez no se cuenta dos veces', repetido.status === 200 && repetido.cuerpo?.resultado === 'repetido', JSON.stringify(repetido.cuerpo));
+  check('el mismo aviso otra vez no se cuenta dos veces', repetido.status === 200 && repetido.cuerpo?.resultado === 'repeated', JSON.stringify(repetido.cuerpo));
   check('ni descuenta dos veces', (await leerStock(uno.c)) === stockPagado);
 
   const yaPagado = await pedirPago(pedido, uno.token);
   check('un pedido pagado no abre otro pago', yaPagado.status === 409, `status=${yaPagado.status}`);
 
   const doble = await avisar(eventoDeSesion({ sesion: `${sesion}_2`, pedido, centavos }));
-  check('un segundo cobro del mismo pedido queda marcado como duplicado', doble.cuerpo?.resultado === 'duplicado', JSON.stringify(doble.cuerpo));
+  check('un segundo cobro del mismo pedido queda marcado como duplicado', doble.cuerpo?.resultado === 'duplicate', JSON.stringify(doble.cuerpo));
   check('el duplicado no descuenta existencias', (await leerStock(uno.c)) === stockPagado);
 
   // ─── Permisos sobre pagos ───────────────────────────────────────────────
-  const propios = await uno.c.from('pagos').select('monto, duplicado').eq('order_id', pedido).order('id');
-  check('el cliente ve sus pagos', propios.data?.length === 2 && Number(propios.data[0].monto) === Number(total) && propios.data[1].duplicado === true,
+  const propios = await uno.c.from('payments').select('amount, is_duplicate').eq('order_id', pedido).order('id');
+  check('el cliente ve sus pagos', propios.data?.length === 2 && Number(propios.data[0].amount) === Number(total) && propios.data[1].is_duplicate === true,
     JSON.stringify(propios.data));
-  const ajenos = await otro.c.from('pagos').select('id').eq('order_id', pedido);
+  const ajenos = await otro.c.from('payments').select('id').eq('order_id', pedido);
   check('otro cliente no ve esos pagos', (ajenos.data?.length ?? 0) === 0, `filas=${ajenos.data?.length}`);
-  const escribe = await uno.c.from('pagos').insert({ order_id: pedido, sesion_id: 'cs_intruso', monto: 1 });
+  const escribe = await uno.c.from('payments').insert({ order_id: pedido, session_id: 'cs_intruso', amount: 1 });
   check('el cliente no puede escribir pagos', escribe.error !== null);
-  const registra = await uno.c.rpc('registrar_pago_en_linea', { p_pedido: pedido, p_sesion: 'cs_intruso', p_monto: total, p_moneda: 'mxn' });
-  check('el cliente no puede llamar a registrar_pago_en_linea', registra.error !== null);
+  const registra = await uno.c.rpc('record_online_payment', { p_order_id: pedido, p_session_id: 'cs_intruso', p_amount: total, p_currency: 'mxn' });
+  check('el cliente no puede llamar a record_online_payment', registra.error !== null);
 
   // ─── Portal ─────────────────────────────────────────────────────────────
   const pendiente = await crearPedido(uno.c, uid, 1);
-  check('un combo incompleto conserva el precio normal', (await leerPedido(uno.c, pendiente)).combo_discount === 0);
+  check('un combo incompleto conserva el precio normal', (await leerPedido(uno.c, pendiente)).bundle_discount === 0);
   const navegador = await chromium.launch();
   try {
     const contexto = await navegador.newContext();
@@ -325,7 +325,7 @@ try {
       const ventaConAhorro = await leerPedido(administrador.c, folioCombo);
       const ticketAhorro = await admin.locator('#tkt-combo').innerText();
       check('el ticket y la venta aplican dos veces el combo de mayor ahorro',
-        ventaConAhorro?.combo_count === 2 && ventaConAhorro.combo_discount === 700 && ventaConAhorro.subtotal === 2800 &&
+        ventaConAhorro?.bundle_count === 2 && ventaConAhorro.bundle_discount === 700 && ventaConAhorro.subtotal === 2800 &&
         ticketAhorro.includes('700.00'), JSON.stringify(ventaConAhorro));
       await admin.locator('#nav-catalog').click();
       await admin.locator('#combos-admin summary').click();
@@ -334,16 +334,16 @@ try {
       await admin.getByRole('button', { name: 'Guardar paquete' }).click();
       await admin.locator('#combo-lista div', { hasText: `${PAGOS_COMBO_NOMBRE} · 20 % · Inactivo` }).waitFor();
       check('desactivar un combo desde Catálogo no cambia el pedido previo',
-        (await leerPedido(uno.c, pedido)).combo_discount === 350);
+        (await leerPedido(uno.c, pedido)).bundle_discount === 350);
     }
   } finally {
     await navegador.close();
   }
-  const carritoConcurrente = await uno.c.from('carrito_items').upsert({ user_id: uid, product_id: productoId, qty: 1 });
+  const carritoConcurrente = await uno.c.from('cart_items').upsert({ user_id: uid, product_id: productoId, qty: 1 });
   if (carritoConcurrente.error) throw carritoConcurrente.error;
   const confirmaciones = await Promise.all([
-    uno.c.rpc('crear_pedido_desde_carrito', { p_notas: null }),
-    uno.c.rpc('crear_pedido_desde_carrito', { p_notas: null }),
+    uno.c.rpc('create_order_from_cart', { p_notes: null }),
+    uno.c.rpc('create_order_from_cart', { p_notes: null }),
   ]);
   check('dos confirmaciones simultáneas no consumen el mismo carrito dos veces',
     confirmaciones.filter(r => Number.isSafeInteger(r.data)).length === 1 &&

@@ -53,11 +53,11 @@ try {
     if (error.code !== 'ENOENT') throw error;
 }
 const etiqueta = randomUUID().slice(0, 8);
-for (const role of (cuentas.length ? [] : ['admin', 'vendedor', 'cliente'])) {
+for (const role of (cuentas.length ? [] : ['admin', 'seller', 'customer'])) {
     const email = `${role}-${etiqueta}@example.test`;
     const password = contrasenaDePrueba();
     const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true,
-        user_metadata: { first_name: 'Demo', last_name_p: role } });
+        user_metadata: { first_name: 'Demo', last_name: role } });
     if (error) throw error;
     const cambio = await admin.from('profiles').update({ role }).eq('id', data.user.id).select('id').single();
     if (cambio.error) throw cambio.error;

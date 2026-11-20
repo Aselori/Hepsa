@@ -3,7 +3,7 @@
 // Vista previa del ahorro. Las dos rutas de registro lo calculan en PostgreSQL.
 async function leerCombosDisponibles(sb) {
     if (typeof sb?.rpc !== 'function') return [];
-    const { data } = await sb.rpc('combos_disponibles');
+    const { data } = await sb.rpc('available_bundles');
     return Array.isArray(data) ? data.filter(combo => Array.isArray(combo.items) && combo.items.length >= 2) : [];
 }
 
@@ -17,16 +17,16 @@ function estimarCombo(combos, lineas) {
     for (const combo of combos) {
         let juegos = Infinity;
         let base = 0;
-        for (const { producto_id, cantidad } of combo.items) {
-            const linea = porProducto.get(producto_id);
+        for (const { product_id, quantity: cantidad } of combo.items) {
+            const linea = porProducto.get(product_id);
             juegos = Math.min(juegos, Math.floor((linea?.qty || 0) / cantidad));
             base += (linea?.centavos || 0) * cantidad;
         }
-        const tasa = Math.round(combo.porcentaje * 100);
+        const tasa = Math.round(combo.discount_percent * 100);
         const ahorro = Math.round(base * juegos * tasa / 10000) / 100;
-        if (ahorro > 0 && (!mejor || ahorro > mejor.descuento ||
-                (ahorro === mejor.descuento && combo.id < mejor.id))) {
-            mejor = { id: combo.id, nombre: combo.nombre, juegos, descuento: ahorro };
+        if (ahorro > 0 && (!mejor || ahorro > mejor.discount ||
+                (ahorro === mejor.discount && combo.id < mejor.id))) {
+            mejor = { id: combo.id, name: combo.name, sets: juegos, discount: ahorro };
         }
     }
     return mejor;
@@ -45,8 +45,8 @@ function pintarDescuentoPaquete(elemento, combo) {
         return;
     }
     const etiqueta = Object.assign(document.createElement('strong'), { textContent: 'Descuento por paquete' });
-    const importe = Object.assign(document.createElement('strong'), { textContent: `−${monedaPaquete(combo.descuento, 2)}` });
-    const cantidad = combo.juegos > 1 ? ` × ${combo.juegos}` : '';
-    const nombre = Object.assign(document.createElement('small'), { textContent: combo.nombre + cantidad });
+    const importe = Object.assign(document.createElement('strong'), { textContent: `−${monedaPaquete(combo.discount, 2)}` });
+    const cantidad = combo.sets > 1 ? ` × ${combo.sets}` : '';
+    const nombre = Object.assign(document.createElement('small'), { textContent: combo.name + cantidad });
     elemento.replaceChildren(etiqueta, importe, nombre);
 }

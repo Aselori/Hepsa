@@ -25,24 +25,24 @@ window.HEPSA_CONFIG = {
     //   telefono:  como se lee, por ejemplo '81 1234 5678'
     //   whatsapp:  con lada de país, por ejemplo '528112345678' (para wa.me)
     //   direccion: una línea, por ejemplo 'Av. Ejemplo 123, Monterrey, N.L.'
-    contacto: { telefono: '', whatsapp: '', direccion: '' },
+    contacto: { phone: '', whatsapp: '', direccion: '' },
 
     // Pagos con tarjeta por Stripe (Mejora 2). Queda en false hasta que las
-    // Edge Functions crear-pago y webhook-stripe estén desplegadas con sus
+    // Edge Functions create-payment y stripe-webhook estén desplegadas con sus
     // secretos: con false el portal no muestra el botón de pagar. Pasos en
     // docs/pagos-en-linea.md.
     pagosEnLinea: false,
 
     // ¿Se puede pedir más de lo que hay en existencia?
     //
-    // NO se configura aquí. Vive en la base, en parametros_cotizacion:
+    // NO se configura aquí. Vive en la base, en quote_settings:
     //
-    //   UPDATE public.parametros_cotizacion
+    //   UPDATE public.quote_settings
     //      SET valor = 1            -- 1 = se acepta sobre pedido, 0 = topa en stock
-    //    WHERE clave = 'permitir_sobre_pedido';
+    //    WHERE key = 'allow_backorder';
     //
     // Está allá y no aquí porque el checkout también tiene que respetarla, y
     // una regla escrita en dos lados acaba con las dos mitades en desacuerdo:
     // el navegador dejaría pedir lo que el servidor luego rechaza. El portal
-    // la consulta al arrancar con permite_sobre_pedido().
+    // la consulta al arrancar con allows_backorder().
 };

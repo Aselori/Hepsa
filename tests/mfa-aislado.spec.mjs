@@ -25,7 +25,7 @@ async function escenario(nombre, run) {
         await context.addInitScript(() => {
             window.HEPSA_CONFIG = {};
             window.estadoPrueba = {
-                session: { user: { id: 'empleado-sintetico' } }, rol: 'vendedor',
+                session: { user: { id: 'empleado-sintetico' } }, rol: 'seller',
                 aal: { currentLevel: 'aal1', nextLevel: 'aal2' },
                 factores: [{ id: 'factor-1', status: 'verified', factor_type: 'totp', friendly_name: 'Principal' }],
                 llamadas: [],
@@ -161,7 +161,7 @@ try {
         assert.equal(await page.locator('#mfa-secreto').textContent(), '');
     });
     await escenario('cliente sin factor y personal AAL2 no necesitan alta; sesion ausente falla cerrada', async page => {
-        await set(page, { rol: 'cliente', aal: { currentLevel: 'aal1', nextLevel: 'aal1' } });
+        await set(page, { rol: 'customer', aal: { currentLevel: 'aal1', nextLevel: 'aal1' } });
         await preparar(page);
         assert.equal(await page.locator('#view-mfa').isVisible(), false);
         await set(page, { rol: 'admin', aal: { currentLevel: 'aal2', nextLevel: 'aal2' } });

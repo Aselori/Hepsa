@@ -4,7 +4,7 @@
 // es auténtico es la firma Stripe-Signature, calculada sobre el cuerpo crudo
 // con el secreto del endpoint. Por eso se lee con text() y no con json().
 import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
-import { clienteStripe, cryptoProvider } from '../_compartido/stripe.ts';
+import { clienteStripe, cryptoProvider } from '../_shared/stripe.ts';
 
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -36,18 +36,18 @@ Deno.serve(async (req) => {
   const sesion = evento.data.object;
   if (sesion.payment_status !== 'paid') return Response.json({ pendiente: sesion.id });
 
-  const pedido = Number(sesion.metadata?.pedido);
+  const pedido = Number(sesion.metadata?.order_id);
   if (!Number.isSafeInteger(pedido) || pedido <= 0 || sesion.amount_total == null) {
     // Un aviso firmado pero sin pedido no es de esta integración: reintentar
     // no lo arreglaría.
     return Response.json({ ignorado: 'sin pedido' });
   }
 
-  const { data, error } = await admin.rpc('registrar_pago_en_linea', {
-    p_pedido: pedido,
-    p_sesion: sesion.id,
-    p_monto: sesion.amount_total / 100,
-    p_moneda: sesion.currency ?? '',
+  const { data, error } = await admin.rpc('record_online_payment', {
+    p_order_id: pedido,
+    p_session_id: sesion.id,
+    p_amount: sesion.amount_total / 100,
+    p_currency: sesion.currency ?? '',
   });
   if (error) {
     // 500 hace que Stripe reintente y que el fallo se vea en su panel.

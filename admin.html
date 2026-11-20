@@ -56,15 +56,16 @@
         .pedido-taller .espera { color: var(--text-muted); font-size: 0.9rem; }
         .pedido-taller ul { margin: 10px 0; padding-left: 20px; }
         .pedido-taller .notas { margin: 0 0 10px; color: var(--text-muted); white-space: pre-line; }
-        .notas-taller { margin: 0 0 12px; }
-        .notas-taller ul { list-style: none; margin: 0 0 8px; padding: 0 0 0 12px; border-left: 2px solid var(--card-border); display: flex; flex-direction: column; gap: 8px; }
-        .notas-taller li p { margin: 0; white-space: pre-line; }
-        .notas-taller li small { color: var(--text-muted); }
-        .notas-taller .btn-nota { width: auto; padding: 6px 0; background: none; border: none; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
+        .notas-internas { margin: 0 0 12px; }
+        .notas-internas ul { list-style: none; margin: 0 0 8px; padding: 0 0 0 12px; border-left: 2px solid var(--card-border); display: flex; flex-direction: column; gap: 8px; }
+        .notas-internas li p { margin: 0; white-space: pre-line; }
+        .notas-internas li small { color: var(--text-muted); }
+        .notas-internas .btn-nota { width: auto; padding: 6px 0; background: none; border: none; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
         .nota-nueva textarea { width: 100%; box-sizing: border-box; margin-bottom: 8px; font: inherit; }
         .nota-nueva div { display: flex; gap: 8px; flex-wrap: wrap; }
         .nota-nueva button { width: auto; padding: 9px 16px; }
-        .nota-historial { margin: 4px 0 0; }
+        .celda-notas { max-width: 280px; white-space: normal; overflow-wrap: anywhere; }
+        .celda-notas .notas-internas { margin: 4px 0 0; }
         .pedido-taller footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
         .pedido-taller footer button { width: auto; padding: 9px 16px; }
         .pedido-taller footer a { color: inherit; font-weight: 600; }
@@ -301,12 +302,12 @@
         <!-- Cada botón dice qué roles lo ven. Esconderlo es orientación, no
              defensa: lo que un rol no puede hacer lo niega la base. -->
         <nav class="sidebar-nav" aria-label="Secciones del panel">
-            <button onclick="showAdminView('produccion')" id="nav-produccion" data-roles="taller">Producción</button>
-            <button onclick="showAdminView('inicio')" id="nav-inicio" data-roles="vendedor admin" class="active">Inicio</button>
-            <button onclick="showAdminView('pos')" id="nav-pos" data-roles="vendedor admin">Nueva venta</button>
-            <button onclick="showAdminView('history')" id="nav-history" data-roles="vendedor admin">Ventas</button>
-            <button onclick="showAdminView('projects')" id="nav-projects" data-roles="vendedor admin">Solicitudes</button>
-            <button onclick="showAdminView('catalog')" id="nav-catalog" data-roles="vendedor admin">Catálogo</button>
+            <button onclick="showAdminView('produccion')" id="nav-produccion" data-roles="workshop">Producción</button>
+            <button onclick="showAdminView('inicio')" id="nav-inicio" data-roles="seller admin" class="active">Inicio</button>
+            <button onclick="showAdminView('pos')" id="nav-pos" data-roles="seller admin">Nueva venta</button>
+            <button onclick="showAdminView('history')" id="nav-history" data-roles="seller admin">Ventas</button>
+            <button onclick="showAdminView('projects')" id="nav-projects" data-roles="seller admin">Solicitudes</button>
+            <button onclick="showAdminView('catalog')" id="nav-catalog" data-roles="seller admin">Catálogo</button>
             <p class="nav-grupo" data-roles="admin">Administración</p>
             <button onclick="showAdminView('negocio')" id="nav-negocio" data-roles="admin">Negocio</button>
             <button onclick="showAdminView('pagos')" id="nav-pagos" data-roles="admin" data-requiere="pagosEnLinea">Pagos en línea</button>
@@ -375,9 +376,9 @@
                         <div class="form-grid">
                             <div class="form-group"><label for="payment-type">Pago *</label>
                                 <select id="payment-type" onchange="updatePaymentStatus()">
-                                    <option value="completo">Pago completo (100%)</option>
-                                    <option value="anticipo">Anticipo (50% aprox.)</option>
-                                    <option value="faltante">Liquidación / faltante</option>
+                                    <option value="paid">Pago completo (100%)</option>
+                                    <option value="deposit">Anticipo (50% aprox.)</option>
+                                    <option value="pending">Liquidación / faltante</option>
                                 </select>
                             </div>
                             <div class="form-group"><label for="ticket-notes">Notas del ticket</label><textarea id="ticket-notes" rows="2" placeholder="Ej: Entregar por la tarde, color especial…" autocomplete="off"></textarea></div>
@@ -668,10 +669,10 @@
             const { data: perfil, error } = await window.supabaseClient
                 .from('profiles').select('role').eq('id', session.user.id).single();
             if (error || !perfil) throw new Error("No se pudo verificar tu rol. Reintenta.");
-            const userRole = perfil?.role || 'cliente';
+            const userRole = perfil?.role || 'customer';
             rolActual = userRole;
             idActual = session.user.id;
-            if (!['taller', 'vendedor', 'admin'].includes(userRole)) { alert("ACCESO DENEGADO."); window.location.href = 'index.html'; return; }
+            if (!['workshop', 'seller', 'admin'].includes(userRole)) { alert("ACCESO DENEGADO."); window.location.href = 'index.html'; return; }
 
             // MEJORA 3: el rol ya no basta. Las políticas RLS exigen que el
             // token traiga aal2, así que una sesión de vendedor sin segundo
@@ -700,7 +701,7 @@
             document.getElementById('combos-admin').hidden = userRole !== 'admin';
             // El taller sólo tiene Producción: no carga ventas, catálogo ni
             // precios, que de todos modos la base no le entrega.
-            if (userRole === 'taller') {
+            if (userRole === 'workshop') {
                 showAdminView('produccion');
             } else {
                 await cargarParametros();
@@ -783,24 +784,24 @@
         let rolActual = null;
         let idActual = null;
 
-        // IVA y pie del ticket viven en parametros_cotizacion: son los mismos
-        // que usa registrar_venta() en el servidor. Antes vivían sólo en esta
+        // IVA y pie del ticket viven en quote_settings: son los mismos
+        // que usa register_sale() en el servidor. Antes vivían sólo en esta
         // pestaña y se perdían al recargar.
         async function cargarParametros() {
             const { data, error } = await window.supabaseClient
-                .from('parametros_cotizacion').select('clave, valor, texto').in('clave', ['iva', 'mensaje_ticket']);
+                .from('quote_settings').select('key, value, text_value').in('key', ['tax_rate', 'ticket_message']);
             if (error || !data) return;
-            const iva = data.find((r) => r.clave === 'iva');
-            const mensaje = data.find((r) => r.clave === 'mensaje_ticket');
+            const iva = data.find((r) => r.key === 'tax_rate');
+            const mensaje = data.find((r) => r.key === 'ticket_message');
             if (iva) {
-                configIVA = Number(iva.valor);
+                configIVA = Number(iva.value);
                 const porcentaje = Math.round(configIVA * 10000) / 100;
                 document.getElementById('disp-iva-perc').textContent = porcentaje;
                 document.getElementById('cfg-iva').value = porcentaje;
             }
-            if (mensaje?.texto) {
-                document.getElementById('config-footer-msg').textContent = mensaje.texto;
-                document.getElementById('cfg-msg').value = mensaje.texto;
+            if (mensaje?.text_value) {
+                document.getElementById('config-footer-msg').textContent = mensaje.text_value;
+                document.getElementById('cfg-msg').value = mensaje.text_value;
             }
         }
         let posSubtotal = 0;
@@ -885,7 +886,7 @@
             comboTicket = estimarCombo(combosParaVenta, posCart
                 .filter(x => x.product_id)
                 .map(x => ({ id: Number(x.product_id), qty: 1, price: x.price })));
-            posSubtotal -= comboTicket?.descuento || 0;
+            posSubtotal -= comboTicket?.discount || 0;
             pintarDescuentoTicket();
             const iva = posSubtotal * configIVA;
             const total = posSubtotal + iva;
@@ -904,8 +905,8 @@
             const val = document.getElementById('payment-type').value;
             const badge = document.getElementById('tkt-status-badge');
             badge.className = 'status-badge';
-            if (val === 'completo') { badge.classList.add('status-completo'); badge.textContent = 'PAGO COMPLETO'; }
-            else if (val === 'anticipo') { badge.classList.add('status-anticipo'); badge.textContent = 'ANTICIPO'; }
+            if (val === 'paid') { badge.classList.add('status-completo'); badge.textContent = 'PAGO COMPLETO'; }
+            else if (val === 'deposit') { badge.classList.add('status-anticipo'); badge.textContent = 'ANTICIPO'; }
             else { badge.classList.add('status-faltante'); badge.textContent = 'LIQUIDACIÓN'; }
         }
 
@@ -936,24 +937,24 @@
             const btn = document.getElementById('btn-registrar-venta');
             btn.disabled = true; btn.textContent = 'Registrando…';
 
-            // Los importes los calcula registrar_venta() con los precios del
+            // Los importes los calcula register_sale() con los precios del
             // catálogo y el IVA de la base; lo que se muestra aquí es la vista
             // previa. El vendedor queda registrado con la sesión.
             const v = (id) => document.getElementById(id)?.value.trim() || '';
             const cliente = {
-                nombre: [v('cli-nom1'), v('cli-nom2')].filter(Boolean).join(' '),
-                apellidos: [v('cli-ap-pat'), v('cli-ap-mat')].filter(Boolean).join(' '),
-                telefono: v('cli-tel'), correo: v('cli-email'),
+                name: [v('cli-nom1'), v('cli-nom2')].filter(Boolean).join(' '),
+                last_name: [v('cli-ap-pat'), v('cli-ap-mat')].filter(Boolean).join(' '),
+                phone: v('cli-tel'), email: v('cli-email'),
             };
             const conceptos = posCart.map((c) => c.product_id
-                ? { producto_id: Number(c.product_id), cantidad: 1 }
-                : { concepto: c.item, precio: c.price, cantidad: 1 });
+                ? { product_id: Number(c.product_id), quantity: 1 }
+                : { label: c.item, price: c.price, quantity: 1 });
             const origen = solicitudOrigen;
             const { data: orderId, error: orderError } = await window.supabaseClient.rpc(
-                origen ? 'convertir_solicitud_en_venta' : 'registrar_venta', {
-                ...(origen ? { p_solicitud: origen } : {}),
-                p_cliente: cliente, p_conceptos: conceptos,
-                p_pago: document.getElementById('payment-type').value, p_notas: v('ticket-notes') || null,
+                origen ? 'convert_request_to_sale' : 'register_sale', {
+                ...(origen ? { p_request_id: origen } : {}),
+                p_client: cliente, p_items: conceptos,
+                p_payment: document.getElementById('payment-type').value, p_notes: v('ticket-notes') || null,
             });
             if (orderError) {
                 showToast('No se pudo registrar la venta: ' + orderError.message, 'error');
@@ -961,11 +962,11 @@
                 return;
             }
             // El ticket muestra lo que quedó guardado, no la cuenta del navegador.
-            const { data: guardada } = await window.supabaseClient.from('orders').select('subtotal, tax, total, combo_name, combo_count, combo_discount').eq('id', orderId).single();
+            const { data: guardada } = await window.supabaseClient.from('orders').select('subtotal, tax, total, bundle_name, bundle_count, bundle_discount').eq('id', orderId).single();
             if (guardada) {
                 importesRegistrados = guardada;
-                comboTicket = guardada.combo_name ? {
-                    nombre: guardada.combo_name, juegos: guardada.combo_count, descuento: Number(guardada.combo_discount),
+                comboTicket = guardada.bundle_name ? {
+                    name: guardada.bundle_name, sets: guardada.bundle_count, discount: Number(guardada.bundle_discount),
                 } : null;
                 pintarDescuentoTicket();
                 document.getElementById('tkt-sub').textContent = formatMoney(Number(guardada.subtotal));
@@ -1028,9 +1029,9 @@
             const total = Number(importesRegistrados?.total ?? subtotal + iva);
             doc.setFontSize(8);
             if (comboTicket) {
-                const etiquetaCombo = doc.splitTextToSize(`Paquete: ${comboTicket.nombre} × ${comboTicket.juegos}`, 45);
+                const etiquetaCombo = doc.splitTextToSize(`Paquete: ${comboTicket.name} × ${comboTicket.sets}`, 45);
                 doc.text(etiquetaCombo, 5, y);
-                doc.text(`-$${formatMoney(comboTicket.descuento)}`, W - 5, y, { align: 'right' });
+                doc.text(`-$${formatMoney(comboTicket.discount)}`, W - 5, y, { align: 'right' });
                 y += lineH * etiquetaCombo.length;
             }
             doc.text(`Subtotal:`, 5, y); doc.text(`$${formatMoney(subtotal)}`, W - 5, y, { align: 'right' }); y += lineH;
@@ -1038,8 +1039,8 @@
             doc.setFont('courier', 'bold'); doc.setFontSize(11); doc.text('TOTAL:', 5, y); doc.text(`$${formatMoney(total)} MXN`, W - 5, y, { align: 'right' }); y += 8;
 
             const estado = document.getElementById('payment-type').value;
-            const estadoTexto = { completo: 'PAGO COMPLETO', anticipo: 'ANTICIPO', faltante: 'LIQUIDACIÓN' }[estado] || 'PAGO COMPLETO';
-            const colorMap = { completo: [21, 87, 36], anticipo: [133, 100, 4], faltante: [114, 28, 36] };
+            const estadoTexto = { paid: 'PAGO COMPLETO', deposit: 'ANTICIPO', pending: 'LIQUIDACIÓN' }[estado] || 'PAGO COMPLETO';
+            const colorMap = { paid: [21, 87, 36], deposit: [133, 100, 4], pending: [114, 28, 36] };
             const [r, g, b] = colorMap[estado] || colorMap.completo;
 
             doc.setFillColor(r, g, b); doc.roundedRect(10, y, W - 20, 8, 2, 2, 'F'); doc.setTextColor(255, 255, 255);
@@ -1166,9 +1167,9 @@
             for (const p of productosInventario) {
                 producto.append(new Option(p.is_active ? p.name : `${p.name} (oculto)`, p.id));
             }
-            producto.value = item.producto_id ?? '';
+            producto.value = item.product_id ?? '';
             const cantidad = Object.assign(document.createElement('input'), {
-                type: 'number', required: true, min: 1, max: 999, step: 1, value: item.cantidad ?? 1,
+                type: 'number', required: true, min: 1, max: 999, step: 1, value: item.quantity ?? 1,
             });
             const quitar = Object.assign(document.createElement('button'), {
                 type: 'button', className: 'btn-secundario paquete-quitar', textContent: 'Quitar',
@@ -1190,9 +1191,9 @@
 
         function editarCombo(combo) {
             comboEditado = combo?.id ?? null;
-            document.getElementById('combo-nombre').value = combo?.nombre ?? '';
-            document.getElementById('combo-porcentaje').value = combo?.porcentaje ?? '';
-            document.getElementById('combo-activo').checked = combo?.activo ?? true;
+            document.getElementById('combo-nombre').value = combo?.name ?? '';
+            document.getElementById('combo-porcentaje').value = combo?.discount_percent ?? '';
+            document.getElementById('combo-activo').checked = combo?.is_active ?? true;
             productosCombo.replaceChildren();
             for (const item of combo?.items ?? [{}, {}]) agregarLineaCombo(item);
             document.getElementById('combo-titulo').textContent = combo ? 'Editar paquete' : 'Crear paquete';
@@ -1206,8 +1207,8 @@
             if (!folioRegistrado && posCart.length) renderPOSTicket();
             if (rolActual !== 'admin') return;
             const lista = document.getElementById('combo-lista');
-            const { data, error } = await sb.from('combos')
-                .select('id, nombre, porcentaje, activo, items:combo_items(producto_id, cantidad)').order('id');
+            const { data, error } = await sb.from('bundles')
+                .select('id, name, discount_percent, is_active, items:bundle_items(product_id, quantity)').order('id');
             if (error) {
                 lista.textContent = 'No se pudieron cargar los paquetes.';
                 return;
@@ -1215,11 +1216,11 @@
             lista.replaceChildren(...(data ?? []).map(combo => {
                 const fila = document.createElement('div');
                 const texto = document.createTextNode(
-                    `${combo.nombre} · ${combo.porcentaje} %${combo.activo ? '' : ' · Inactivo'} `);
+                    `${combo.name} · ${combo.discount_percent} %${combo.is_active ? '' : ' · Inactivo'} `);
                 const editar = Object.assign(document.createElement('button'), {
                     type: 'button', className: 'btn-secundario', textContent: 'Editar',
                 });
-                editar.setAttribute('aria-label', `Editar paquete ${combo.nombre}`);
+                editar.setAttribute('aria-label', `Editar paquete ${combo.name}`);
                 editar.addEventListener('click', () => editarCombo(combo));
                 fila.append(texto, editar);
                 return fila;
@@ -1233,21 +1234,21 @@
         formCombo.addEventListener('submit', async event => {
             event.preventDefault();
             const items = [...productosCombo.children].map(linea => ({
-                producto_id: Number(linea.querySelector('select').value),
-                cantidad: linea.querySelector('input').valueAsNumber,
+                product_id: Number(linea.querySelector('select').value),
+                quantity: linea.querySelector('input').valueAsNumber,
             }));
-            if (items.length < 2 || new Set(items.map(i => i.producto_id)).size !== items.length) {
+            if (items.length < 2 || new Set(items.map(i => i.product_id)).size !== items.length) {
                 showToast('Elige al menos dos productos distintos.', 'error');
                 return;
             }
             botonGuardarCombo.disabled = true;
             botonCancelarCombo.disabled = true;
             try {
-                const { error } = await window.supabaseClient.rpc('guardar_combo', {
+                const { error } = await window.supabaseClient.rpc('save_bundle', {
                     p_id: comboEditado,
-                    p_nombre: document.getElementById('combo-nombre').value.trim(),
-                    p_porcentaje: document.getElementById('combo-porcentaje').valueAsNumber,
-                    p_activo: document.getElementById('combo-activo').checked,
+                    p_name: document.getElementById('combo-nombre').value.trim(),
+                    p_discount_percent: document.getElementById('combo-porcentaje').valueAsNumber,
+                    p_is_active: document.getElementById('combo-activo').checked,
                     p_items: items,
                 });
                 if (error) { showToast('No se pudo guardar el paquete: ' + error.message, 'error'); return; }
@@ -1277,7 +1278,7 @@
             const desc = document.getElementById('cat-desc').value.trim();
             if (!name || isNaN(price) || isNaN(stock)) { showToast('Nombre, precio y stock son obligatorios', 'error'); return; }
             // Precio 0 = producto sin precio: se guarda oculto (la base no deja
-            // publicarlo, products_visible_con_precio).
+            // publicarlo, products_active_requires_price).
             const sinPrecio = !(price > 0);
             const isActive = document.getElementById('cat-active').checked && !sinPrecio;
 
@@ -1382,16 +1383,16 @@
         async function cargarHistorialBD() {
             const tbody = document.getElementById('history-table-body');
             renderTableMessage(tbody, 8, 'Cargando…');
-            const [{ data, error }, notasTaller] = await Promise.all([
+            const [{ data, error }, notasVenta] = await Promise.all([
                 window.supabaseClient.from('orders').select('*').order('created_at', { ascending: false }),
-                notasPorPedido(),
+                notasPor('order_id'),
             ]);
             if (error) { renderTableMessage(tbody, 8, `Error: ${error.message}`, 'mensaje-error'); return; }
             if (!data || data.length === 0) { pintarResumen('history-resumen', 0); renderTableMessage(tbody, 8, 'No hay ventas registradas.'); return; }
 
             // Lo que falta cobrar va primero y con su punto de color; lo pagado
             // queda abajo y en silencio.
-            const pendientes = data.filter(o => o.payment_status === 'anticipo' || o.payment_status === 'faltante');
+            const pendientes = data.filter(o => o.payment_status === 'deposit' || o.payment_status === 'pending');
             const pagadas = data.filter(o => !pendientes.includes(o));
             const n = pendientes.length;
             pintarResumen('history-resumen', n, 'venta', 'ventas', n === 1 ? ' tiene pago pendiente.' : ' tienen pago pendiente.');
@@ -1400,9 +1401,9 @@
             const fila = (o) => {
                 const row = document.createElement('tr');
                 const pago = document.createElement('td');
-                if (o.payment_status === 'anticipo' || o.payment_status === 'faltante') {
+                if (o.payment_status === 'deposit' || o.payment_status === 'pending') {
                     const marca = document.createElement('span');
-                    marca.className = `status-badge ${o.payment_status === 'anticipo' ? 'status-anticipo' : 'status-faltante'}`;
+                    marca.className = `status-badge ${o.payment_status === 'deposit' ? 'status-anticipo' : 'status-faltante'}`;
                     // Solo el punto: el texto ya lo dice el selector de al lado.
                     marca.setAttribute('aria-hidden', 'true');
                     pago.appendChild(marca);
@@ -1415,17 +1416,10 @@
                 const cliente = `${o.client_first_name || ''} ${o.client_last_name || ''}`.trim();
                 const total = celda(dinero(o.total), 'num');
                 if (pendientes.includes(o)) total.style.fontWeight = '600';
-                const notas = celda(o.notes, 'texto-tenue'); notas.style.cssText = 'max-width: 250px; white-space: normal; word-wrap: break-word;';
-                // Debajo de la nota del ticket, lo que anotó el taller.
-                const delTaller = notasTaller.mapa.get(o.id) || [];
-                if (delTaller.length && !o.notes) notas.textContent = '';
-                for (const n of delTaller) {
-                    const p = document.createElement('p');
-                    p.className = 'nota-historial';
-                    p.textContent = `${n.autor_nombre}: ${n.texto}`;
-                    p.title = fechaNota(n.creado);
-                    notas.append(p);
-                }
+                // La nota del ticket (la ve el cliente) y debajo las internas.
+                const notas = document.createElement('td'); notas.className = 'celda-notas';
+                if (o.notes) notas.append(Object.assign(document.createElement('p'), { className: 'texto-tenue', textContent: o.notes }));
+                notas.append(bloqueNotas(notasVenta.get(o.id) || [], { params: { p_order_id: o.id }, etiqueta: `Notas internas del folio #${o.id}` }));
                 row.append(pago, celda(cliente), celda(o.client_phone), total, proyecto,
                     celda(new Date(o.created_at).toLocaleDateString('es-MX'), 'texto-tenue'),
                     celda(`#${String(o.id).substring(0, 8)}`, 'texto-tenue'), notas);
@@ -1437,8 +1431,8 @@
             pagadas.forEach(o => tbody.appendChild(fila(o)));
         }
 
-        const ESTADOS_PAGO = [['faltante', 'Falta liquidar'], ['anticipo', 'Anticipo'], ['completo', 'Pagado']];
-        const ESTADOS_PROYECTO = [['cotizando', 'Cotizando'], ['en_produccion', 'En producción'], ['instalado', 'Instalado']];
+        const ESTADOS_PAGO = [['pending', 'Falta liquidar'], ['deposit', 'Anticipo'], ['paid', 'Pagado']];
+        const ESTADOS_PROYECTO = [['quoting', 'Cotizando'], ['in_production', 'En producción'], ['installed', 'Instalado']];
 
         function selectorEstatus(id, campo, actual, opciones, etiqueta) {
             const select = document.createElement('select');
@@ -1464,17 +1458,17 @@
             row.appendChild(cell); tbody.appendChild(row);
         }
 
-        // Nombres fijos y no derivados del valor: de 'pintura_electrostatica'
+        // Nombres fijos y no derivados del valor: de 'powder_coat'
         // no se recupera el acento. Mismos textos que el cotizador del portal.
-        const NOMBRES_PIEZA = { acero: 'Acero', hierro_forjado: 'Hierro forjado', aluminio: 'Aluminio',
-            pintura_electrostatica: 'Pintura electrostática', pavonado: 'Pavonado', cromado: 'Cromado' };
+        const NOMBRES_PIEZA = { steel: 'Acero', wrought_iron: 'Hierro forjado', aluminum: 'Aluminio',
+            powder_coat: 'Pintura electrostática', bluing: 'Pavonado', chrome: 'Cromado' };
 
         // Una solicitud sin estatus o "Pendiente de Revisión" sigue sin respuesta.
-        const cotizacionAbierta = (req) => req.status !== 'Finalizado' && !req.converted_order_id;
+        const cotizacionAbierta = (req) => req.status !== 'closed' && !req.converted_order_id;
         const cotizacionVencida = (req) => cotizacionAbierta(req) && req.quote_expires_at &&
             new Date(req.quote_expires_at).getTime() <= Date.now();
         const sinResponder = (req) => !cotizacionVencida(req) && !req.converted_order_id &&
-            (!req.status || req.status === 'Pendiente de Revisión');
+            (!req.status || req.status === 'pending');
         const fechaVigencia = new Intl.DateTimeFormat('es-MX', {
             dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Monterrey',
         });
@@ -1488,7 +1482,7 @@
         const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
         function pintarBarras(contenedor, filas, destacar = () => false) {
-            const maximo = Math.max(1, ...filas.map((f) => f.monto));
+            const maximo = Math.max(1, ...filas.map((f) => f.amount));
             contenedor.replaceChildren();
             for (const f of filas) {
                 const etiqueta = document.createElement('span');
@@ -1499,12 +1493,12 @@
                 pista.className = 'pista';
                 const barra = document.createElement('div');
                 barra.className = 'barra';
-                barra.style.width = `${(f.monto / maximo) * 100}%`;
-                if (!f.monto) barra.style.minWidth = '0';
+                barra.style.width = `${(f.amount / maximo) * 100}%`;
+                if (!f.amount) barra.style.minWidth = '0';
                 pista.append(barra);
                 const valor = document.createElement('span');
                 valor.className = 'valor' + (destacar(f) ? ' actual' : '');
-                valor.textContent = pesos(f.monto);
+                valor.textContent = pesos(f.amount);
                 const cuenta = document.createElement('small');
                 cuenta.textContent = f.ventas === 1 ? '1 venta' : `${f.ventas} ventas`;
                 valor.append(cuenta);
@@ -1518,8 +1512,8 @@
             const [ventas, porCobrar, perfiles] = await Promise.all([
                 window.supabaseClient.from('orders').select('total, seller_id, created_at').gte('created_at', desde.toISOString()),
                 // Sin límite de fecha: una venta vieja sin liquidar sigue pendiente.
-                window.supabaseClient.from('orders').select('total').in('payment_status', ['anticipo', 'faltante']),
-                window.supabaseClient.from('profiles').select('id, first_name, last_name_p').neq('role', 'cliente'),
+                window.supabaseClient.from('orders').select('total').in('payment_status', ['deposit', 'pending']),
+                window.supabaseClient.from('profiles').select('id, first_name, last_name').neq('role', 'customer'),
             ]);
             const mes = document.getElementById('negocio-mes');
             if (ventas.error) { mes.textContent = 'No se pudieron cargar las ventas: ' + ventas.error.message; mes.className = 'resumen mensaje-error'; return; }
@@ -1528,20 +1522,20 @@
             const porMes = new Map();
             for (let i = 5; i >= 0; i--) {
                 const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
-                porMes.set(clave(d), { etiqueta: `${MESES[d.getMonth()]} ${d.getFullYear()}`, monto: 0, ventas: 0, clave: clave(d) });
+                porMes.set(clave(d), { etiqueta: `${MESES[d.getMonth()]} ${d.getFullYear()}`, amount: 0, ventas: 0, key: clave(d) });
             }
             for (const o of ventas.data) {
                 const m = porMes.get(clave(new Date(o.created_at)));
-                if (m) { m.monto += Number(o.total); m.ventas += 1; }
+                if (m) { m.amount += Number(o.total); m.ventas += 1; }
             }
             const meses = [...porMes.values()];
             const actual = meses[5];
             const anterior = meses[4];
 
             const cifra = document.createElement('strong');
-            cifra.textContent = pesos(actual.monto);
-            const comparacion = anterior.monto
-                ? ` · ${actual.monto >= anterior.monto ? 'más' : 'menos'} que el mes pasado (${pesos(anterior.monto)})`
+            cifra.textContent = pesos(actual.amount);
+            const comparacion = anterior.amount
+                ? ` · ${actual.amount >= anterior.amount ? 'más' : 'menos'} que el mes pasado (${pesos(anterior.amount)})`
                 : '';
             mes.replaceChildren(cifra, document.createTextNode(
                 ` vendidos este mes en ${actual.ventas === 1 ? '1 venta' : `${actual.ventas} ventas`}${comparacion}.`));
@@ -1560,16 +1554,16 @@
                     `, por ${pesos(pendientes.reduce((t, o) => t + Number(o.total), 0))} en total (incluye los anticipos ya recibidos).`));
             }
 
-            const nombres = new Map((perfiles.data || []).map((p) => [p.id, `${p.first_name || ''} ${p.last_name_p || ''}`.trim() || 'Sin nombre']));
+            const nombres = new Map((perfiles.data || []).map((p) => [p.id, `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'Sin nombre']));
             const porVendedor = new Map();
             for (const o of ventas.data) {
-                if (clave(new Date(o.created_at)) !== actual.clave) continue;
+                if (clave(new Date(o.created_at)) !== actual.key) continue;
                 const quien = o.seller_id ? (nombres.get(o.seller_id) || 'Personal anterior') : 'Tienda en línea';
-                const v = porVendedor.get(quien) || { etiqueta: quien, monto: 0, ventas: 0 };
-                v.monto += Number(o.total); v.ventas += 1;
+                const v = porVendedor.get(quien) || { etiqueta: quien, amount: 0, ventas: 0 };
+                v.amount += Number(o.total); v.ventas += 1;
                 porVendedor.set(quien, v);
             }
-            const vendedores = [...porVendedor.values()].sort((a, b) => b.monto - a.monto);
+            const vendedores = [...porVendedor.values()].sort((a, b) => b.amount - a.amount);
             const cajaVendedores = document.getElementById('negocio-vendedores');
             if (vendedores.length) pintarBarras(cajaVendedores, vendedores);
             else { const p = document.createElement('p'); p.className = 'pendiente-al-dia'; p.textContent = 'Aún no hay ventas este mes.'; cajaVendedores.replaceChildren(p); }
@@ -1593,20 +1587,20 @@
             monto.textContent = conteo.textContent = aviso.textContent = '';
             renderTableMessage(tbody, 5, 'Cargando pagos…');
             try {
-                const { data, error } = await window.supabaseClient.from('pagos')
-                    .select('id, order_id, monto, moneda, duplicado, creado, orders(client_first_name, client_last_name)')
-                    .order('creado', { ascending: false }).limit(200);
+                const { data, error } = await window.supabaseClient.from('payments')
+                    .select('id, order_id, amount, currency, is_duplicate, created_at, orders(client_first_name, client_last_name)')
+                    .order('created_at', { ascending: false }).limit(200);
                 if (error) throw error;
 
-                const duplicados = data.filter((pago) => pago.duplicado);
-                const recibidos = data.filter((pago) => !pago.duplicado);
+                const duplicados = data.filter((pago) => pago.is_duplicate);
+                const recibidos = data.filter((pago) => !pago.is_duplicate);
                 const hoy = new Date();
-                const delMes = recibidos.filter(({ creado }) => {
+                const delMes = recibidos.filter(({ created_at: creado }) => {
                     const fecha = new Date(creado);
                     return fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
                 });
                 const moneda = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
-                monto.textContent = moneda.format(delMes.reduce((total, pago) => total + Number(pago.monto), 0)) + ' MXN';
+                monto.textContent = moneda.format(delMes.reduce((total, pago) => total + Number(pago.amount), 0)) + ' MXN';
                 conteo.textContent = delMes.length === 1 ? '1 pago' : `${delMes.length} pagos`;
                 mes.hidden = false;
 
@@ -1637,10 +1631,10 @@
                     fila.setAttribute('role', 'row');
                     const estado = celda('', 'pagos-estado');
                     const marca = document.createElement('span');
-                    marca.className = `status-badge ${pago.duplicado ? 'status-peligro' : 'status-ok'}`;
-                    marca.textContent = pago.duplicado ? 'Duplicado' : 'Cobrado';
+                    marca.className = `status-badge ${pago.is_duplicate ? 'status-peligro' : 'status-ok'}`;
+                    marca.textContent = pago.is_duplicate ? 'Duplicado' : 'Cobrado';
                     estado.append(marca);
-                    if (pago.duplicado) {
+                    if (pago.is_duplicate) {
                         const revision = document.createElement('span');
                         revision.className = 'pagos-revision';
                         revision.textContent = 'Gestionar en Stripe';
@@ -1650,8 +1644,8 @@
                     fila.append(
                         celda(`#${pago.order_id}`, 'pagos-pedido'),
                         celda(cliente, 'pagos-cliente'),
-                        celda(fechaPago.format(new Date(pago.creado)), 'pagos-fecha'),
-                        celda(moneda.format(Number(pago.monto)), 'num pagos-monto'),
+                        celda(fechaPago.format(new Date(pago.created_at)), 'pagos-fecha'),
+                        celda(moneda.format(Number(pago.amount)), 'num pagos-monto'),
                         estado,
                     );
                     return fila;
@@ -1665,33 +1659,31 @@
         }
 
         // Producción: lo que el taller tiene que fabricar o instalar, el más
-        // antiguo arriba. pedidos_de_taller() no trae precios ni cobros, y
-        // avanzar_proyecto() sólo deja moverlo entre producción e instalado.
+        // antiguo arriba. workshop_orders() no trae precios ni cobros, y
+        // set_project_status() sólo deja moverlo entre producción e instalado.
         async function cargarProduccionBD() {
             const lista = document.getElementById('produccion-lista');
             const instalados = document.getElementById('instalados-lista');
-            const { data, error } = await window.supabaseClient.rpc('pedidos_de_taller');
+            const { data, error } = await window.supabaseClient.rpc('workshop_orders');
             if (error) {
                 const p = document.createElement('p');
                 p.className = 'mensaje-error'; p.setAttribute('role', 'alert');
                 p.textContent = 'No se pudieron cargar los pedidos: ' + error.message;
                 lista.replaceChildren(p); return;
             }
-            const notas = await notasPorPedido(data.map((o) => o.id));
-            for (const o of data) { o.notasTaller = notas.mapa.get(o.id) || []; o.puedeAnotar = notas.disponible; }
-            const enProduccion = data.filter((o) => o.estado === 'en_produccion');
-            const mayorEspera = enProduccion.length ? Math.max(...enProduccion.map((o) => diasDesde(o.creado))) : 0;
+            const enProduccion = data.filter((o) => o.status === 'in_production');
+            const mayorEspera = enProduccion.length ? Math.max(...enProduccion.map((o) => diasDesde(o.created_at))) : 0;
             pintarResumen('produccion-resumen', enProduccion.length, 'pedido en producción', 'pedidos en producción',
                 enProduccion.length ? `; el más antiguo, de hace ${textoEspera(mayorEspera)}.` : '');
-            lista.replaceChildren(...enProduccion.map((o) => tarjetaTaller(o, 'instalado', 'Marcar instalado')));
+            lista.replaceChildren(...enProduccion.map((o) => tarjetaTaller(o, 'installed', 'Marcar instalado')));
             if (!enProduccion.length) {
                 const p = document.createElement('p');
                 p.className = 'pendiente-al-dia';
                 p.textContent = 'No hay pedidos en producción.';
                 lista.append(p);
             }
-            const hechos = data.filter((o) => o.estado === 'instalado');
-            instalados.replaceChildren(...hechos.map((o) => tarjetaTaller(o, 'en_produccion', 'Regresar a producción')));
+            const hechos = data.filter((o) => o.status === 'installed');
+            instalados.replaceChildren(...hechos.map((o) => tarjetaTaller(o, 'in_production', 'Regresar a producción')));
             instalados.parentElement.hidden = !hechos.length;
         }
 
@@ -1700,40 +1692,40 @@
             tarjeta.className = 'pedido-taller';
             const cabeza = document.createElement('header');
             const titulo = document.createElement('h3');
-            titulo.textContent = `Pedido ${o.id} · ${o.cliente || 'Público general'}`;
+            titulo.textContent = `Pedido ${o.id} · ${o.client || 'Público general'}`;
             const espera = document.createElement('span');
             espera.className = 'espera';
-            const dias = diasDesde(o.creado);
+            const dias = diasDesde(o.created_at);
             espera.textContent = dias === 0 ? 'de hoy' : `de hace ${textoEspera(dias)}`;
             cabeza.append(titulo, espera);
             const conceptos = document.createElement('ul');
-            for (const c of o.conceptos) {
+            for (const c of o.items) {
                 const li = document.createElement('li');
-                li.textContent = `${c.cantidad} × ${c.concepto || 'Concepto sin nombre'}`;
+                li.textContent = `${c.quantity} × ${c.label || 'Concepto sin nombre'}`;
                 conceptos.append(li);
             }
             tarjeta.append(cabeza, conceptos);
-            if (o.notas) {
+            if (o.notes) {
                 const notas = document.createElement('p');
                 notas.className = 'notas';
-                notas.textContent = o.notas;
+                notas.textContent = o.notes;
                 tarjeta.append(notas);
             }
-            tarjeta.append(bloqueNotasTaller(o));
+            tarjeta.append(bloqueNotas(o.internal_notes, { params: { p_order_id: o.id }, etiqueta: `Notas internas del pedido ${o.id}` }));
             const pie = document.createElement('footer');
             // Para coordinar la instalación, el teléfono se marca desde aquí.
-            const contacto = document.createElement(o.telefono ? 'a' : 'span');
-            if (o.telefono) { contacto.href = `tel:${o.telefono.replace(/[^\d+]/g, '')}`; contacto.textContent = o.telefono; }
+            const contacto = document.createElement(o.phone ? 'a' : 'span');
+            if (o.phone) { contacto.href = `tel:${o.phone.replace(/[^\d+]/g, '')}`; contacto.textContent = o.phone; }
             else contacto.textContent = 'Sin teléfono';
             const boton = document.createElement('button');
             boton.type = 'button';
-            boton.className = siguiente === 'instalado' ? 'action-btn' : 'btn-secundario';
+            boton.className = siguiente === 'installed' ? 'action-btn' : 'btn-secundario';
             boton.textContent = accion;
             boton.addEventListener('click', async () => {
                 boton.disabled = true;
-                const { error } = await window.supabaseClient.rpc('avanzar_proyecto', { p_pedido: o.id, p_estado: siguiente });
+                const { error } = await window.supabaseClient.rpc('set_project_status', { p_order_id: o.id, p_status: siguiente });
                 if (error) { showToast('No se pudo actualizar: ' + error.message, 'error'); boton.disabled = false; return; }
-                showToast(siguiente === 'instalado' ? `Pedido ${o.id} instalado` : `Pedido ${o.id} de regreso en producción`);
+                showToast(siguiente === 'installed' ? `Pedido ${o.id} instalado` : `Pedido ${o.id} de regreso en producción`);
                 cargarProduccionBD();
             });
             pie.append(contacto, boton);
@@ -1741,45 +1733,44 @@
             return tarjeta;
         }
 
-        // Notas de los pedidos (notas_pedido): las deja el taller y las lee
-        // también quien vende. Si la consulta falla, por ejemplo porque la
-        // migración aún no llega a la base, todo sigue funcionando sin ellas.
-        async function notasPorPedido(ids = null) {
-            const mapa = new Map();
-            if (ids && !ids.length) return { mapa, disponible: true };
-            let consulta = window.supabaseClient.from('notas_pedido').select('pedido_id, autor_nombre, texto, creado');
-            if (ids) consulta = consulta.in('pedido_id', ids);
-            const { data, error } = await consulta.order('creado');
-            if (error) return { mapa, disponible: false };
-            for (const n of data || []) {
-                if (!mapa.has(n.pedido_id)) mapa.set(n.pedido_id, []);
-                mapa.get(n.pedido_id).push(n);
-            }
-            return { mapa, disponible: true };
-        }
-
+        // Notas internas de ventas y solicitudes (tabla notes). Se agregan, no
+        // se editan: cada una dice quién, con qué rol y cuándo. add_note()
+        // fija el autor en el servidor y revisa que el rol pueda anotar ahí.
+        const ROL_NOTA = { workshop: 'Taller', seller: 'Ventas', admin: 'Administración' };
         const fechaNota = (iso) => new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+
+        // Las notas de todas las ventas o de todas las solicitudes en una consulta.
+        async function notasPor(columna) {
+            const mapa = new Map();
+            const { data, error } = await window.supabaseClient.from('notes')
+                .select('order_id, request_id, author_name, author_role, body, created_at')
+                .not(columna, 'is', null).order('created_at');
+            if (error) { showToast('No se pudieron cargar las notas: ' + error.message, 'error'); return mapa; }
+            for (const n of data) {
+                if (!mapa.has(n[columna])) mapa.set(n[columna], []);
+                mapa.get(n[columna]).push(n);
+            }
+            return mapa;
+        }
 
         function itemNota(n) {
             const li = document.createElement('li');
             const texto = document.createElement('p');
-            texto.textContent = n.texto;
+            texto.textContent = n.body;
             const firma = document.createElement('small');
-            firma.textContent = `${n.autor_nombre} · ${fechaNota(n.creado)}`;
+            firma.textContent = `${ROL_NOTA[n.author_role] || ''} · ${n.author_name} · ${fechaNota(n.created_at)}`;
             li.append(texto, firma);
             return li;
         }
 
-        // Las notas se agregan, no se editan: cada una dice quién y cuándo.
-        function bloqueNotasTaller(o) {
+        // destino: { params } para add_note() y { etiqueta } para el campo.
+        function bloqueNotas(notas, destino) {
             const bloque = document.createElement('section');
-            bloque.className = 'notas-taller';
-            bloque.setAttribute('aria-label', `Notas del pedido ${o.id}`);
+            bloque.className = 'notas-internas';
+            bloque.setAttribute('aria-label', destino.etiqueta);
             const lista = document.createElement('ul');
-            lista.replaceChildren(...o.notasTaller.map(itemNota));
-            lista.hidden = !o.notasTaller.length;
-            bloque.append(lista);
-            if (!o.puedeAnotar) return bloque;
+            lista.replaceChildren(...notas.map(itemNota));
+            lista.hidden = !notas.length;
 
             const abrir = document.createElement('button');
             abrir.type = 'button';
@@ -1790,7 +1781,7 @@
             form.hidden = true;
             const campo = document.createElement('textarea');
             campo.rows = 2; campo.maxLength = 1000; campo.required = true;
-            campo.setAttribute('aria-label', `Nota para el pedido ${o.id}`);
+            campo.setAttribute('aria-label', destino.etiqueta);
             campo.placeholder = 'Ej: falta material, el cliente cambió la fecha…';
             const acciones = document.createElement('div');
             const guardar = document.createElement('button');
@@ -1807,17 +1798,16 @@
                 const texto = campo.value.trim();
                 if (!texto) { campo.focus(); return; }
                 guardar.disabled = true;
-                const { data, error } = await window.supabaseClient.rpc('agregar_nota_pedido', { p_pedido: o.id, p_texto: texto });
+                const { data, error } = await window.supabaseClient.rpc('add_note', { p_body: texto, ...destino.params });
                 guardar.disabled = false;
                 if (error) { showToast('No se pudo guardar la nota: ' + error.message, 'error'); return; }
-                o.notasTaller.push(data);
                 lista.append(itemNota(data));
                 lista.hidden = false;
                 campo.value = '';
                 form.hidden = true; abrir.hidden = false;
-                showToast(`Nota agregada al pedido ${o.id}`);
+                showToast('Nota guardada');
             });
-            bloque.append(abrir, form);
+            bloque.append(lista, abrir, form);
             return bloque;
         }
 
@@ -1829,9 +1819,9 @@
             const sb = window.supabaseClient;
             const [solicitudes, ventas, productos, sinFactor] = await Promise.all([
                 sb.from('custom_requests').select('status, created_at, quote_expires_at, converted_order_id'),
-                sb.from('orders').select('payment_status').in('payment_status', ['anticipo', 'faltante']),
+                sb.from('orders').select('payment_status').in('payment_status', ['deposit', 'pending']),
                 sb.from('products').select('stock, price, is_active').or(`stock.lt.${STOCK_BAJO},price.lte.0`),
-                rolActual === 'admin' ? sb.rpc('empleados_sin_segundo_factor') : Promise.resolve({ data: [] }),
+                rolActual === 'admin' ? sb.rpc('staff_without_mfa') : Promise.resolve({ data: [] }),
             ]);
             const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
             const lineas = [];
@@ -1849,7 +1839,7 @@
             }
             if (ventas.error) errores.push('las ventas');
             else if (ventas.data.length) {
-                const faltantes = ventas.data.filter((o) => o.payment_status === 'faltante').length;
+                const faltantes = ventas.data.filter((o) => o.payment_status === 'pending').length;
                 linea('history', plural(ventas.data.length, 'venta con pago pendiente', 'ventas con pago pendiente'),
                     faltantes ? `${faltantes} con faltante` : '');
             }
@@ -1908,8 +1898,11 @@
 
         async function cargarProyectosBD() {
             const tbody = document.getElementById('projects-table-body');
-            const { data } = await window.supabaseClient.from('custom_requests').select('*').order('created_at', { ascending: false });
-            const estados = ['Pendiente de Revisión', 'Contactado', 'En Progreso', 'Finalizado'];
+            const [{ data }, notasSolicitud] = await Promise.all([
+                window.supabaseClient.from('custom_requests').select('*').order('created_at', { ascending: false }),
+                notasPor('request_id'),
+            ]);
+            const estados = [['pending', 'Pendiente de revisión'], ['contacted', 'Contactado'], ['in_progress', 'En progreso'], ['closed', 'Finalizado']];
             if (!data || data.length === 0) { pintarResumen('projects-resumen', 0); renderTableMessage(tbody, 5, 'No hay solicitudes.'); return; }
 
             // Lo que espera respuesta va primero, el más antiguo arriba: es lo
@@ -1924,11 +1917,11 @@
             const legible = (v) => NOMBRES_PIEZA[v] || (v || '').replace(/_/g, ' ');
             const textCell = (value, tag = 'td') => { const el = document.createElement(tag); el.textContent = value || ''; return el; };
             const fila = (req) => {
-                const name = `${req.first_name||''} ${req.last_name_p||''}`.trim();
-                const medidas = `${req.largo_mm} × ${req.alto_mm}${req.profundidad_mm ? ' × ' + req.profundidad_mm : ''} mm`;
-                const area = ((req.largo_mm * req.alto_mm) / 1000000).toFixed(2);
-                const precio = req.precio_estimado != null
-                    ? Number(req.precio_estimado).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+                const name = `${req.first_name||''} ${req.last_name||''}`.trim();
+                const medidas = `${req.length_mm} × ${req.height_mm}${req.depth_mm ? ' × ' + req.depth_mm : ''} mm`;
+                const area = ((req.length_mm * req.height_mm) / 1000000).toFixed(2);
+                const precio = req.estimated_price != null
+                    ? Number(req.estimated_price).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
                     : '—';
                 const row = document.createElement('tr');
 
@@ -1956,16 +1949,17 @@
 
                 const piece = textCell(''); piece.style.cssText = 'max-width:300px; white-space:normal;';
                 const dimensions = textCell(medidas, 'strong'); piece.append(dimensions, document.createTextNode(` (${area} m²)`), document.createElement('br'));
-                const details = textCell(`${legible(req.material)} · ${legible(req.acabado)}`, 'small'); piece.appendChild(details);
+                const details = textCell(`${legible(req.material)} · ${legible(req.finish)}`, 'small'); piece.appendChild(details);
                 if (req.specifications) {
                     piece.appendChild(document.createElement('br'));
                     const texto = String(req.specifications);
                     const notes = textCell(texto.length > 60 ? `${texto.substring(0, 60)}…` : texto, 'small'); notes.className = 'texto-tenue';
                     piece.appendChild(notes);
                 }
+                piece.appendChild(bloqueNotas(notasSolicitud.get(req.id) || [], { params: { p_request_id: req.id }, etiqueta: `Notas internas de la solicitud de ${name || 'este cliente'}` }));
                 const estimate = textCell(precio); estimate.className = 'num';
                 if (sinResponder(req)) estimate.style.fontWeight = '600';
-                const select = document.createElement('select'); estados.forEach(est => { const option = document.createElement('option'); option.value = est; option.textContent = est; option.selected = req.status === est; select.appendChild(option); }); select.addEventListener('change', () => actualizarEstatusProyecto(req.id, select.value));
+                const select = document.createElement('select'); estados.forEach(([valor, texto]) => select.add(new Option(texto, valor, false, req.status === valor))); select.addEventListener('change', () => actualizarEstatusProyecto(req.id, select.value));
                 select.setAttribute('aria-label', `Estatus de ${name || 'la solicitud'}`);
                 const status = document.createElement('td'); status.appendChild(select);
                 if (req.converted_order_id) {
@@ -1999,7 +1993,7 @@
 
         async function renovarCotizacion(id, boton) {
             boton.disabled = true;
-            const { error } = await window.supabaseClient.rpc('renovar_cotizacion', { p_solicitud: id });
+            const { error } = await window.supabaseClient.rpc('renew_quote', { p_request_id: id });
             if (error) {
                 boton.disabled = false;
                 showToast('No se pudo actualizar la cotización: ' + error.message, 'error');
@@ -2011,7 +2005,7 @@
 
         // Una solicitud aceptada se vuelve venta sin volver a capturar nada: se
         // llena Nueva venta con el contacto y la pieza al precio estimado (sin
-        // IVA; registrar_venta lo suma). El vendedor revisa y registra; al
+        // IVA; register_sale lo suma). El vendedor revisa y registra; al
         // registrarse, la solicitud pasa a "En Progreso".
         let solicitudOrigen = null;
 
@@ -2026,19 +2020,19 @@
             clearPOS();
             const poner = (id, valor) => { document.getElementById(id).value = valor || ''; };
             poner('cli-nom1', req.first_name); poner('cli-nom2', req.middle_name);
-            poner('cli-ap-pat', req.last_name_p); poner('cli-ap-mat', req.last_name_m);
+            poner('cli-ap-pat', req.last_name); poner('cli-ap-mat', req.second_last_name);
             poner('cli-tel', req.phone); poner('cli-email', req.email);
             poner('ticket-notes', req.specifications);
             updateTicketClient();
             const nombre = (v) => NOMBRES_PIEZA[v] || String(v || '').replace(/_/g, ' ');
-            const medidas = `${req.largo_mm} × ${req.alto_mm}${req.profundidad_mm ? ' × ' + req.profundidad_mm : ''} mm`;
-            const precio = Number(req.precio_estimado);
+            const medidas = `${req.length_mm} × ${req.height_mm}${req.depth_mm ? ' × ' + req.depth_mm : ''} mm`;
+            const precio = Number(req.estimated_price);
             if (precio > 0) {
-                posCart.push({ item: `Pieza a medida: ${nombre(req.material)}, ${nombre(req.acabado)}, ${medidas}`, price: precio, product_id: null });
+                posCart.push({ item: `Pieza a medida: ${nombre(req.material)}, ${nombre(req.finish)}, ${medidas}`, price: precio, product_id: null });
             } else {
                 // Sin estimado (medidas fuera del cotizador): el concepto se
                 // deja escrito y el precio lo pone el vendedor.
-                poner('ticket-item', `Pieza a medida: ${nombre(req.material)}, ${nombre(req.acabado)}, ${medidas}`);
+                poner('ticket-item', `Pieza a medida: ${nombre(req.material)}, ${nombre(req.finish)}, ${medidas}`);
             }
             renderPOSTicket();
             solicitudOrigen = req.id;
@@ -2054,20 +2048,20 @@
         // Qué gana o pierde cada rol, para que el cambio se confirme sabiendo
         // lo que implica. Lo hace valer la base (permisos_por_rol), no esto.
         const ROLES = [
-            ['cliente', 'Cliente', 'perderá el acceso al panel'],
-            ['taller', 'Taller', 'verá los pedidos en producción, sin precios ni cobros'],
-            ['vendedor', 'Vendedor', 'podrá vender, cobrar, atender solicitudes y ajustar existencias'],
+            ['customer', 'Cliente', 'perderá el acceso al panel'],
+            ['workshop', 'Taller', 'verá los pedidos en producción, sin precios ni cobros'],
+            ['seller', 'Vendedor', 'podrá vender, cobrar, atender solicitudes y ajustar existencias'],
             ['admin', 'Admin', 'tendrá acceso completo: precios, equipo y configuración'],
         ];
         let perfilesEquipo = [];
 
-        const nombrePerfil = (p) => `${p.first_name || ''} ${p.last_name_p || ''}`.trim() || '(sin nombre)';
+        const nombrePerfil = (p) => `${p.first_name || ''} ${p.last_name || ''}`.trim() || '(sin nombre)';
 
         function selectorRol(perfil) {
             const select = document.createElement('select');
             select.className = 'selector-estatus';
             select.setAttribute('aria-label', `Rol de ${nombrePerfil(perfil)}`);
-            const actual = perfil.role || 'cliente';
+            const actual = perfil.role || 'customer';
             for (const [valor, texto] of ROLES) select.add(new Option(texto, valor, false, valor === actual));
             if (perfil.id === idActual) {
                 // La base tampoco lo permite: el admin no se quita su propio rol.
@@ -2077,7 +2071,7 @@
             }
             select.addEventListener('change', async () => {
                 const [, texto, efecto] = ROLES.find(([v]) => v === select.value);
-                const aviso = select.value === 'cliente' ? '' : '\n\nSi aún no tiene segundo factor, el portal se lo pedirá al entrar.';
+                const aviso = select.value === 'customer' ? '' : '\n\nSi aún no tiene segundo factor, el portal se lo pedirá al entrar.';
                 if (!confirm(`¿Dar a ${nombrePerfil(perfil)} el rol de ${texto}? ${efecto[0].toUpperCase() + efecto.slice(1)}.${aviso}`)) {
                     select.value = actual; return;
                 }
@@ -2096,15 +2090,15 @@
         async function cargarUsuariosBD() {
             const tbody = document.getElementById('users-table-body');
             const [perfiles, sinFactor] = await Promise.all([
-                window.supabaseClient.from('profiles').select('id, first_name, last_name_p, email, role').order('first_name'),
-                window.supabaseClient.rpc('empleados_sin_segundo_factor'),
+                window.supabaseClient.from('profiles').select('id, first_name, last_name, email, role').order('first_name'),
+                window.supabaseClient.rpc('staff_without_mfa'),
             ]);
             if (perfiles.error) { renderTableMessage(tbody, 4, `Error: ${perfiles.error.message}`, 'mensaje-error'); return; }
             perfilesEquipo = perfiles.data;
             const pendientes = new Set((sinFactor.data || []).map((e) => e.id));
 
             // Quien no tiene segundo factor no puede entrar: va primero y marcado.
-            const equipo = perfiles.data.filter((p) => p.role && p.role !== 'cliente')
+            const equipo = perfiles.data.filter((p) => p.role && p.role !== 'customer')
                 .sort((a, b) => pendientes.has(b.id) - pendientes.has(a.id));
             pintarResumen('users-resumen', pendientes.size, 'persona del equipo', 'personas del equipo',
                 pendientes.size === 1 ? ' no tiene segundo factor y no puede entrar al panel.' : ' no tienen segundo factor y no pueden entrar al panel.');
@@ -2134,7 +2128,7 @@
             const tbody = document.getElementById('clientes-table-body');
             const termino = document.getElementById('buscar-cliente').value.trim().toLowerCase();
             if (termino.length < 2) { renderTableMessage(tbody, 3, 'Escribe al menos dos letras del nombre o del correo.'); return; }
-            const hallados = perfilesEquipo.filter((p) => (!p.role || p.role === 'cliente')
+            const hallados = perfilesEquipo.filter((p) => (!p.role || p.role === 'customer')
                 && `${nombrePerfil(p)} ${p.email || ''}`.toLowerCase().includes(termino)).slice(0, 20);
             if (!hallados.length) { renderTableMessage(tbody, 3, 'Ningún cliente coincide.'); return; }
             tbody.replaceChildren();
@@ -2166,25 +2160,25 @@
         async function cargarPrecios() {
             const sb = window.supabaseClient;
             const [materiales, acabados, parametros] = await Promise.all([
-                sb.from('tarifas_material').select('material, precio_m2').order('precio_m2'),
-                sb.from('tarifas_acabado').select('acabado, factor').order('factor'),
-                sb.from('parametros_cotizacion').select('clave, valor, texto'),
+                sb.from('material_rates').select('material, price_per_m2').order('price_per_m2'),
+                sb.from('finish_rates').select('finish, factor').order('factor'),
+                sb.from('quote_settings').select('key, value, text_value'),
             ]);
             const error = materiales.error || acabados.error || parametros.error;
             if (error) { showToast('No se pudieron cargar los precios: ' + error.message, 'error'); return; }
-            const param = (clave) => parametros.data.find((r) => r.clave === clave);
+            const param = (clave) => parametros.data.find((r) => r.key === clave);
             preciosCargados = {
-                material: Object.fromEntries(materiales.data.map((m) => [m.material, Number(m.precio_m2)])),
-                acabado: Object.fromEntries(acabados.data.map((a) => [a.acabado, Number(a.factor)])),
-                minimo: Number(param('precio_minimo')?.valor ?? 0),
-                iva: Math.round(Number(param('iva')?.valor ?? 0.16) * 10000) / 100,
-                mensaje: param('mensaje_ticket')?.texto ?? '',
-                sobrePedido: Number(param('permitir_sobre_pedido')?.valor ?? 0) === 1,
+                material: Object.fromEntries(materiales.data.map((m) => [m.material, Number(m.price_per_m2)])),
+                finish: Object.fromEntries(acabados.data.map((a) => [a.finish, Number(a.factor)])),
+                minimo: Number(param('minimum_price')?.value ?? 0),
+                iva: Math.round(Number(param('tax_rate')?.value ?? 0.16) * 10000) / 100,
+                mensaje: param('ticket_message')?.text_value ?? '',
+                sobrePedido: Number(param('allow_backorder')?.value ?? 0) === 1,
             };
             document.getElementById('precios-material').replaceChildren(...materiales.data.map((m) =>
-                campoPrecio(`precio-material-${m.material}`, NOMBRES_PIEZA[m.material] || m.material, m.precio_m2, '50')));
+                campoPrecio(`precio-material-${m.material}`, NOMBRES_PIEZA[m.material] || m.material, m.price_per_m2, '50')));
             document.getElementById('precios-acabado').replaceChildren(...acabados.data.map((a) =>
-                campoPrecio(`precio-acabado-${a.acabado}`, NOMBRES_PIEZA[a.acabado] || a.acabado, a.factor, '0.05')));
+                campoPrecio(`precio-acabado-${a.finish}`, NOMBRES_PIEZA[a.finish] || a.finish, a.factor, '0.05')));
             document.getElementById('cfg-minimo').value = preciosCargados.minimo;
             document.getElementById('cfg-iva').value = preciosCargados.iva;
             document.getElementById('cfg-msg').value = preciosCargados.mensaje;
@@ -2202,24 +2196,24 @@
             for (const [material, antes] of Object.entries(preciosCargados.material)) {
                 const v = leer(`precio-material-${material}`);
                 if (!(v > 0)) errores.push(`el precio de ${nombre(material)} debe ser mayor que 0`);
-                else if (v !== antes) cambios.push(sb.from('tarifas_material').update({ precio_m2: v, actualizado: ahora }).eq('material', material).select('material'));
+                else if (v !== antes) cambios.push(sb.from('material_rates').update({ price_per_m2: v, updated_at: ahora }).eq('material', material).select('material'));
             }
-            for (const [acabado, antes] of Object.entries(preciosCargados.acabado)) {
+            for (const [acabado, antes] of Object.entries(preciosCargados.finish)) {
                 const v = leer(`precio-acabado-${acabado}`);
                 if (!(v > 0)) errores.push(`el factor de ${nombre(acabado)} debe ser mayor que 0`);
-                else if (v !== antes) cambios.push(sb.from('tarifas_acabado').update({ factor: v, actualizado: ahora }).eq('acabado', acabado).select('acabado'));
+                else if (v !== antes) cambios.push(sb.from('finish_rates').update({ factor: v, updated_at: ahora }).eq('finish', acabado).select('finish'));
             }
-            const parametro = (clave, campos) => sb.from('parametros_cotizacion').update(campos).eq('clave', clave).select('clave');
+            const parametro = (clave, campos) => sb.from('quote_settings').update(campos).eq('key', clave).select('key');
             const minimo = leer('cfg-minimo');
             if (!(minimo >= 0)) errores.push('el cobro mínimo no puede ser negativo');
-            else if (minimo !== preciosCargados.minimo) cambios.push(parametro('precio_minimo', { valor: minimo }));
+            else if (minimo !== preciosCargados.minimo) cambios.push(parametro('minimum_price', { value: minimo }));
             const iva = leer('cfg-iva');
             if (!(iva >= 0 && iva <= 100)) errores.push('el IVA debe ser un porcentaje entre 0 y 100');
-            else if (iva !== preciosCargados.iva) cambios.push(parametro('iva', { valor: Math.round(iva * 100) / 10000 }));
+            else if (iva !== preciosCargados.iva) cambios.push(parametro('tax_rate', { value: Math.round(iva * 100) / 10000 }));
             const mensaje = document.getElementById('cfg-msg').value.trim();
-            if (mensaje !== preciosCargados.mensaje) cambios.push(parametro('mensaje_ticket', { texto: mensaje }));
+            if (mensaje !== preciosCargados.mensaje) cambios.push(parametro('ticket_message', { text_value: mensaje }));
             const sobrePedido = document.getElementById('cfg-sobre-pedido').checked;
-            if (sobrePedido !== preciosCargados.sobrePedido) cambios.push(parametro('permitir_sobre_pedido', { valor: sobrePedido ? 1 : 0 }));
+            if (sobrePedido !== preciosCargados.sobrePedido) cambios.push(parametro('allow_backorder', { value: sobrePedido ? 1 : 0 }));
 
             if (errores.length) { showToast(`Revisa: ${errores.join('; ')}.`, 'error'); return; }
             if (!cambios.length) { showToast('No hay cambios que guardar'); return; }

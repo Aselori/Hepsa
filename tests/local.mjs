@@ -52,17 +52,17 @@ const server = createServer(async (req, res) => {
 });
 
 try {
-    for (const [prefix, role] of [['ADMIN', 'admin'], ['VENDEDOR', 'vendedor'], ['TALLER', 'taller'], ['CLIENTE', 'cliente'], ['CLIENTE2', 'cliente']]) {
+    for (const [prefix, role] of [['ADMIN', 'admin'], ['VENDEDOR', 'seller'], ['TALLER', 'workshop'], ['CLIENTE', 'customer'], ['CLIENTE2', 'customer']]) {
         const email = `prueba-${randomUUID()}@example.test`;
         const password = contrasenaDePrueba();
-        const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { first_name: 'Prueba', last_name_p: prefix } });
+        const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { first_name: 'Prueba', last_name: prefix } });
         if (error) throw new Error(`No se pudo crear fixture ${prefix}: ${error.message}`);
         ids.push(data.user.id);
         const cambio = await admin.from('profiles').update({ role }).eq('id', data.user.id).select('id').single();
         if (cambio.error) throw cambio.error;
         env[`${prefix}_EMAIL`] = email;
         env[`${prefix}_PASS`] = password;
-        if (role !== 'cliente') {
+        if (role !== 'customer') {
             const client = createClient(url.origin, key, { auth: { persistSession: false, autoRefreshToken: false } });
             clientes.push(client);
             const login = await client.auth.signInWithPassword({ email, password });
@@ -83,7 +83,7 @@ try {
     {
         const email = `huerfano-${randomUUID()}@example.test`;
         const password = contrasenaDePrueba();
-        const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { first_name: 'Prueba', last_name_p: 'HUERFANO' } });
+        const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { first_name: 'Prueba', last_name: 'HUERFANO' } });
         if (error) throw new Error(`No se pudo crear el fixture sin perfil: ${error.message}`);
         ids.push(data.user.id);
 
@@ -117,7 +117,7 @@ try {
     {
         const email = `rolnulo-${randomUUID()}@example.test`;
         const password = contrasenaDePrueba();
-        const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { first_name: 'Prueba', last_name_p: 'ROLNULO' } });
+        const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { first_name: 'Prueba', last_name: 'ROLNULO' } });
         if (error) throw new Error(`No se pudo crear el fixture de role NULL: ${error.message}`);
         ids.push(data.user.id);
 
@@ -153,8 +153,8 @@ try {
     env.PAGOS_COMBO_NOMBRE = tagCombo;
 
     const cotizacion = await admin.from('custom_requests').insert({
-        first_name: 'Prueba', last_name_p: 'Vencida', email: `vencida-${randomUUID()}@test.local`,
-        largo_mm: 1000, alto_mm: 1000, material: 'acero', acabado: 'pavonado',
+        first_name: 'Prueba', last_name: 'Vencida', email: `vencida-${randomUUID()}@test.local`,
+        length_mm: 1000, height_mm: 1000, material: 'steel', finish: 'bluing',
     }).select('id').single();
     if (cotizacion.error) throw cotizacion.error;
     const vencimiento = await admin.from('custom_requests')
@@ -179,10 +179,10 @@ try {
     let bitacora = '';
     funciones.stdout.on('data', (c) => { bitacora += c; });
     funciones.stderr.on('data', (c) => { bitacora += c; });
-    // Lista cuando crear-pago contesta su propio 401 (no el 503 de la pasarela).
+    // Lista cuando create-payment contesta su propio 401 (no el 503 de la pasarela).
     const limite = Date.now() + 240_000;
     for (;;) {
-        const r = await fetch(`${url.origin}/functions/v1/crear-pago`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => null);
+        const r = await fetch(`${url.origin}/functions/v1/create-payment`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => null);
         if (r?.status === 401) break;
         if (Date.now() > limite || funciones.exitCode !== null) throw new Error(`Las Edge Functions no arrancaron:\n${bitacora.slice(-2000)}`);
         await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -207,7 +207,7 @@ try {
         const respuestas = {};
         const limiteSinLlaves = Date.now() + 240_000;
         for (;;) {
-            for (const f of ['crear-pago', 'webhook-stripe']) {
+            for (const f of ['create-payment', 'stripe-webhook']) {
                 const r = await fetch(`${url.origin}/functions/v1/${f}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => null);
                 respuestas[f] = r ? { status: r.status, cuerpo: (await r.text()).slice(0, 120) } : null;
             }
@@ -216,8 +216,8 @@ try {
             if (listas || Date.now() > limiteSinLlaves) break;
             await new Promise((resolve) => setTimeout(resolve, 2000));
         }
-        const ok = respuestas['crear-pago']?.status === 503 && /no están configurados/.test(respuestas['crear-pago'].cuerpo)
-            && respuestas['webhook-stripe']?.status === 503 && /sin configurar/.test(respuestas['webhook-stripe'].cuerpo);
+        const ok = respuestas['create-payment']?.status === 503 && /no están configurados/.test(respuestas['create-payment'].cuerpo)
+            && respuestas['stripe-webhook']?.status === 503 && /sin configurar/.test(respuestas['stripe-webhook'].cuerpo);
         console.log(`${ok ? 'PASA  ' : 'FALLA '} sin secretos de Stripe las funciones contestan 503, no 500  — ${JSON.stringify(respuestas)}`);
         if (!ok) process.exitCode = 1;
     }
@@ -241,7 +241,7 @@ try {
     ] : [];
     const idsPedidos = pedidos.map((o) => o.id);
     if (idsPedidos.length) {
-        const pagos = await admin.from('pagos').delete().in('order_id', idsPedidos);
+        const pagos = await admin.from('payments').delete().in('order_id', idsPedidos);
         const renglones = await admin.from('order_items').delete().in('order_id', idsPedidos);
         const ordenes = await admin.from('orders').delete().in('id', idsPedidos);
         if (pagos.error || renglones.error || ordenes.error) { console.error('Fallo la limpieza de los pedidos de prueba.'); process.exitCode = 1; }
@@ -255,7 +255,7 @@ try {
     }
     if (solicitudes.error) { console.error(`Fallo la limpieza de las solicitudes de prueba: ${solicitudes.error.message}`); process.exitCode = 1; }
     if (productosPagos.length) {
-        const combos = await admin.from('combos').delete().in('nombre', [tagCombo, `${tagCombo} alterno`]);
+        const combos = await admin.from('bundles').delete().in('name', [tagCombo, `${tagCombo} alterno`]);
         const borrado = await admin.from('products').delete().in('id', productosPagos);
         if (combos.error || borrado.error) {
             console.error(`Fallo la limpieza de combos y productos de pagos: ${combos.error?.message || borrado.error.message}`);
@@ -264,7 +264,7 @@ try {
     }
     for (const id of ids) {
         // El esquema heredado no tiene cascade de auth.users a profiles/carrito.
-        const carrito = await admin.from('carrito_items').delete().eq('user_id', id);
+        const carrito = await admin.from('cart_items').delete().eq('user_id', id);
         const perfil = await admin.from('profiles').delete().eq('id', id);
         const usuario = await admin.auth.admin.deleteUser(id);
         if (carrito.error || perfil.error || usuario.error) { console.error('Fallo la limpieza de una cuenta local. Reinicia solo el stack de pruebas antes del siguiente intento.'); process.exitCode = 1; }

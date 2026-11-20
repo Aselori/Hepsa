@@ -42,7 +42,7 @@ try {
     window.supabaseClient = {
       ...window.supabaseClient,
       from: () => consulta,
-      rpc: async (nombre) => nombre === 'calcular_precio' ? { data: 7000, error: null } : { data: null, error: null },
+      rpc: async (nombre) => nombre === 'calculate_price' ? { data: 7000, error: null } : { data: null, error: null },
     };
     await cargarCatalogoPublico();
   });
@@ -81,7 +81,7 @@ try {
 
   const conContacto = await page.evaluate(() => {
     if (typeof pintarContacto !== 'function') return { encabezado: false, whatsapp: false, direccion: false };
-    window.HEPSA_CONFIG.contacto = { telefono: '81 1234 5678', whatsapp: '528112345678', direccion: 'Av. Ejemplo 123' };
+    window.HEPSA_CONFIG.contacto = { phone: '81 1234 5678', whatsapp: '528112345678', direccion: 'Av. Ejemplo 123' };
     pintarContacto();
     const enc = document.getElementById('contacto-encabezado');
     return {
@@ -104,24 +104,24 @@ try {
   const hayBotonCalcular = await page.evaluate(() => [...document.querySelectorAll('#view-quote button')].some(b => /calcular/i.test(b.textContent)));
   await page.fill('#quote-largo', '2000');
   await page.fill('#quote-alto', '1000');
-  await page.selectOption('#quote-material', 'acero');
-  await page.selectOption('#quote-acabado', 'cromado');
+  await page.selectOption('#quote-material', 'steel');
+  await page.selectOption('#quote-acabado', 'chrome');
   await page.waitForTimeout(800);
   const estimado = await page.evaluate(() => ({
     visible: !document.getElementById('quote-estimate').hidden,
-    monto: document.getElementById('quote-estimate-amount').textContent,
+    amount: document.getElementById('quote-estimate-amount').textContent,
     detalle: document.getElementById('quote-estimate-detail').textContent,
     mayusculas: getComputedStyle(document.getElementById('quote-estimate-detail')).textTransform,
   }));
   check('el detalle del estimado dice "mm", no "Mm"', estimado.detalle.includes('1000 mm') && estimado.mayusculas !== 'capitalize', estimado.detalle);
-  await page.selectOption('#quote-acabado', 'pintura_electrostatica');
+  await page.selectOption('#quote-acabado', 'powder_coat');
   await page.waitForTimeout(800);
   const conAcento = await page.locator('#quote-estimate-detail').textContent();
   check('el detalle del estimado conserva el acento del acabado', conAcento.includes('Pintura electrostática'), conAcento);
-  await page.selectOption('#quote-acabado', 'cromado');
+  await page.selectOption('#quote-acabado', 'chrome');
   await page.waitForTimeout(800);
   check('el estimado aparece solo al completar la pieza, sin boton',
-    !hayBotonCalcular && estimado.visible && estimado.monto.includes('7,000'), JSON.stringify(estimado));
+    !hayBotonCalcular && estimado.visible && estimado.amount.includes('7,000'), JSON.stringify(estimado));
 
   await page.fill('#quote-largo', '50000');
   await page.waitForTimeout(800);
@@ -140,9 +140,9 @@ try {
     document.body.style.display = 'flex';
     const datos = {
       orders: [
-        { id: 'o-pagada', created_at: fechas.hoy, client_first_name: 'Paga', client_last_name: 'Todo', total: 100, payment_status: 'completo' },
-        { id: 'o-falta', created_at: fechas.ayer, client_first_name: 'Debe', client_last_name: 'Resto', total: 200, payment_status: 'faltante' },
-        { id: 'o-anticipo', created_at: fechas.antier, client_first_name: 'Dejo', client_last_name: 'Anticipo', total: 300, payment_status: 'anticipo' },
+        { id: 'o-pagada', created_at: fechas.hoy, client_first_name: 'Paga', client_last_name: 'Todo', total: 100, payment_status: 'paid' },
+        { id: 'o-falta', created_at: fechas.ayer, client_first_name: 'Debe', client_last_name: 'Resto', total: 200, payment_status: 'pending' },
+        { id: 'o-anticipo', created_at: fechas.antier, client_first_name: 'Dejo', client_last_name: 'Anticipo', total: 300, payment_status: 'deposit' },
       ],
       products: [
         { id: 'p-normal', name: 'Abeto', price: 100, stock: 10, is_active: true },
@@ -150,15 +150,16 @@ try {
         { id: 'p-oculto', name: 'Celosia', price: 300, stock: 5, is_active: false },
       ],
       custom_requests: [
-        { id: 'r-hecha', created_at: fechas.hace10, first_name: 'Ya', last_name_p: 'Atendida', status: 'Finalizado', largo_mm: 1000, alto_mm: 1000, material: 'acero', acabado: 'pavonado' },
-        { id: 'r-vieja', created_at: fechas.hace5, first_name: 'Espera', last_name_p: 'Mucho', phone: '81 1000 0001', email: 'a@b.test', status: 'Pendiente de Revisión', largo_mm: 1000, alto_mm: 1000, material: 'acero', acabado: 'pavonado' },
-        { id: 'r-nueva', created_at: fechas.ayer, first_name: 'Espera', last_name_p: 'Poco', status: null, largo_mm: 1000, alto_mm: 1000, material: 'hierro_forjado', acabado: 'pintura_electrostatica' },
+        { id: 'r-hecha', created_at: fechas.hace10, first_name: 'Ya', last_name: 'Atendida', status: 'closed', length_mm: 1000, height_mm: 1000, material: 'steel', finish: 'bluing' },
+        { id: 'r-vieja', created_at: fechas.hace5, first_name: 'Espera', last_name: 'Mucho', phone: '81 1000 0001', email: 'a@b.test', status: 'pending', length_mm: 1000, height_mm: 1000, material: 'steel', finish: 'bluing' },
+        { id: 'r-nueva', created_at: fechas.ayer, first_name: 'Espera', last_name: 'Poco', status: null, length_mm: 1000, height_mm: 1000, material: 'wrought_iron', finish: 'powder_coat' },
       ],
     };
     window.supabaseClient = {
       from(tabla) {
         const consulta = {
           select() { return consulta; },
+          not() { return consulta; },
           order() { return Promise.resolve({ data: datos[tabla] || [], error: null }); },
           then(ok, mal) { return Promise.resolve({ data: datos[tabla] || [], error: null }).then(ok, mal); },
         };
@@ -197,7 +198,7 @@ try {
     filas: [...document.querySelectorAll('#projects-table-body tr')].map(tr => tr.classList.contains('fila-grupo') ? '|' : tr.querySelector('strong')?.textContent),
     espera: document.querySelector('#projects-table-body tr .status-badge')?.textContent,
     esperaUrgente: document.querySelector('#projects-table-body tr .status-badge')?.classList.contains('status-peligro'),
-    telefono: document.querySelector('#projects-table-body a[href^="tel:"]')?.getAttribute('href'),
+    phone: document.querySelector('#projects-table-body a[href^="tel:"]')?.getAttribute('href'),
     pieza: document.querySelector('#projects-table-body').textContent,
   }));
   check('proyectos: material y acabado se leen con su acento y mayúscula correcta',
@@ -207,7 +208,7 @@ try {
   check('proyectos: se ve cuanto lleva esperando y se cuenta arriba',
     proyectos.espera === '5 días' && proyectos.esperaUrgente && /^2 solicitudes sin responder; la más antigua espera desde hace 5 días/.test(proyectos.resumen),
     `${proyectos.espera} / "${proyectos.resumen}"`);
-  check('proyectos: el telefono del cliente es un enlace', proyectos.telefono === 'tel:8110000001', proyectos.telefono);
+  check('proyectos: el telefono del cliente es un enlace', proyectos.phone === 'tel:8110000001', proyectos.phone);
 
   const pos = await page.evaluate(() => ({
     queAntesQueQuien: Boolean(document.getElementById('pos-product-select').compareDocumentPosition(document.getElementById('cli-nom1')) & Node.DOCUMENT_POSITION_FOLLOWING),
