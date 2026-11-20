@@ -21,36 +21,20 @@ herramientas de IA.
   del administrador.
 - Nunca guardar aquí contraseñas, llaves ni datos de clientes.
 
-## Rama `feat/english-schema` (sin publicar)
+## Publicado el 2026-11-20 (PR #52, commit e1542ea)
 
-Parte de `origin/main` (5be7c99, notas del taller ya aplicadas en vivo). Trae:
-
-- Vigencia de 14 días y paquetes (antes `feature/cotizaciones-y-combos`) e
-  interfaz de pagos (antes `ui/pagos-en-linea`), integradas.
-- Producto sin precio no se publica (antes PR #50), con migración
-  renombrada a `20261120110000_product_active_requires_price.sql`.
-- `20261120120000_english_schema.sql`: renombra en sitio todo el esquema;
-  `notes` reemplaza a `notas_pedido` (ventas y solicitudes; el taller sólo
-  anota y lee lo que ve, por `workshop_orders()`); `custom_requests.status`
-  pasa a enum; `orders` exige `total = subtotal + tax`; paquetes y vigencia
-  escritos en inglés. Las migraciones españolas de paquetes y vigencia, que
-  nunca llegaron al hospedado, se quitaron.
-- Edge Functions: `create-payment` y `stripe-webhook` (antes `crear-pago` y
-  `webhook-stripe`; las viejas siguen desplegadas hasta borrarlas a mano).
-- Documentos y scripts con los nombres nuevos; se quitaron la revisión de
-  septiembre, la corrección del catálogo de octubre y su script.
-- Después de abrir el PR #52: el panel mostraba el rol en inglés (Seller);
-  ahora dice Vendedor, Taller o Administrador y la prueba de RLS lo exige.
-  `cart_items.qty` pasa a `quantity`, y renglones, estados y fechas que
-  nunca deben quedar vacíos pasan a NOT NULL (el hospedado no tiene vacíos).
-
-Verificado: `npm test` (aisladas, incluida `notas-internas.spec.mjs` 17/17) y
-`npm run test:local` completos en verde sobre una base local reconstruida
-desde cero. Recorrido visual local de paquetes (catálogo, detalle, carrito en
-1366 y 390 px), Solicitudes con vigencia y editor de paquetes.
-
-No verificado: la migración contra los datos del hospedado (sí se revisó que
-sus datos cumplen las reglas nuevas: totales, estados, precios).
+- Migraciones 20261120110000 y 20261120120000 aplicadas en el hospedado;
+  Edge Functions `create-payment` y `stripe-webhook` activas; sitio en Vercel.
+- Antes de fusionar se comparó el esquema del hospedado con el local en
+  20261117160000: idénticos salvo `rls_auto_enable()` (de Supabase). Los datos
+  cumplían las reglas nuevas (totales, estados, nulos, precios).
+- Después: prueba de humo del sitio (catálogo, cotizador con
+  calculate_price, sin errores), datos convertidos (solicitudes pending/closed,
+  2 notas, roles en inglés) y asesor de seguridad sin hallazgos nuevos.
+- Sigue pendiente: borrar a mano `crear-pago` y `webhook-stripe` (el permiso
+  automático no dejó borrarlas desde aquí) y las llaves de Stripe.
+- `scripts/demo/*-en-vivo*` traducidos a los nombres nuevos y probados en
+  local (cargar y borrar).
 
 ## Hallazgos de la revisión del trabajo del 19
 
@@ -70,15 +54,13 @@ sus datos cumplen las reglas nuevas: totales, estados, precios).
 ## Datos en el hospedado
 
 - 4 cuentas de demostración (@example.com) y datos de demostración cargados
-  para la exposición; se quitan con `borrar-datos-en-vivo.sql` de la rama
-  `demo/datos-en-vivo`, que debe actualizarse a los nombres en inglés antes
-  de usarse después de publicar esta rama.
+  para la exposición; se quitan con `scripts/demo/borrar-datos-en-vivo.sql`
+  (ya con los nombres en inglés) en el SQL Editor de Supabase.
 - Datos reales: una venta y cuatro solicitudes que no son @example.com.
 
 ## Pendiente del usuario
 
-1. Visto bueno para fusionar `feat/english-schema` (publica todo de una vez).
-   Antes conviene saber la fecha de la exposición.
+1. (Hecho: fusionado y publicado.)
 2. Cuenta de Stripe en modo de prueba y sus dos secretos en Supabase
    (`docs/pagos-en-linea.md`); después se pone `pagosEnLinea: true`.
 3. Borrar en Supabase las funciones viejas `crear-pago` y `webhook-stripe`.
@@ -88,8 +70,8 @@ sus datos cumplen las reglas nuevas: totales, estados, precios).
 
 ## Siguientes pasos
 
-1. Tras la fusión: comprobar en vivo la migración, las funciones y un pago de
-   prueba de punta a punta; actualizar y probar los scripts de demostración.
+1. Con las llaves de Stripe: poner `pagosEnLinea: true` en config.js y hacer
+   un pago de prueba de punta a punta en el sitio publicado.
 2. Historial sin rastros de IA y descripciones de PR; borrar ramas viejas.
 3. Manuales: HECHOS (usuario v7, técnico v5) en `~/Downloads/manuales_hepsa/`,
    generador en `~/Work/uni/proyint/expediente/manuales` (rama `manuales-v5`,
