@@ -27,11 +27,16 @@ window.HEPSA_CONFIG = {
     //   direccion: una línea, por ejemplo 'Av. Ejemplo 123, Monterrey, N.L.'
     contacto: { phone: '', whatsapp: '', direccion: '' },
 
-    // Pagos con tarjeta por Stripe (Mejora 2). Queda en false hasta que las
-    // Edge Functions create-payment y stripe-webhook estén desplegadas con sus
-    // secretos: con false el portal no muestra el botón de pagar. Pasos en
+    // Pagos con tarjeta por Stripe (Mejora 2), en modo de prueba. Necesita las
+    // Edge Functions create-payment y stripe-webhook con sus secretos; con
+    // false el portal no muestra el botón de pagar. Pasos en
     // docs/pagos-en-linea.md.
-    pagosEnLinea: false,
+    pagosEnLinea: true,
+
+    // Mientras HEPSA no tenga cuenta de Stripe, el pago es una demostración:
+    // un diálogo simula el procesador y la base registra el pago (sin dinero).
+    // En false, el botón abre el pago real de Stripe.
+    pagosSimulados: true,
 
     // ¿Se puede pedir más de lo que hay en existencia?
     //
