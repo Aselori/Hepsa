@@ -20,7 +20,7 @@
 
 DO $$
 DECLARE
-  v_pedido bigint;
+  v_order_id bigint;
   v_venta  record;
   v_sub    numeric;
 BEGIN
@@ -44,50 +44,50 @@ BEGIN
   -- Una fila por venta: cliente, días atrás, pago, proyecto, producto, piezas.
   FOR v_venta IN
     SELECT * FROM (VALUES
-      ('Roberto',  'Salinas',   '81 2233 4455', 41, 'completo', 'instalado',     'Barandal de escalera en hierro forjado', 2, 'Instalación en San Pedro'),
-      ('Mariana',  'Cantú',     '81 9876 5432', 37, 'completo', 'instalado',     'Protección para ventana',                4, ''),
-      ('Jorge',    'Elizondo',  '81 5555 0101', 33, 'completo', 'instalado',     'Puerta de acero con vidrio',             1, 'Entrega por la tarde'),
-      ('Daniela',  'Garza',     '81 4321 8765', 28, 'completo', 'en_produccion', 'Pérgola de aluminio',                    1, ''),
-      ('Luis',     'Treviño',   '81 1212 3434', 24, 'anticipo', 'en_produccion', 'Portón corredizo de acero',              1, 'Anticipo del 50% en transferencia'),
-      ('Fernanda', 'Villarreal','81 7788 9900', 20, 'completo', 'en_produccion', 'Reja perimetral por tramo',              6, 'Fraccionamiento Cumbres'),
-      ('Héctor',   'Martínez',  '81 3344 5566', 15, 'anticipo', 'cotizando',     'Escalera de caracol',                    1, 'Anticipo en efectivo'),
-      ('Sofía',    'Leal',      '81 6677 8899', 11, 'faltante', 'cotizando',     'Protección para ventana',                3, ''),
-      ('Ricardo',  'Montemayor','81 9090 1010',  8, 'completo', 'cotizando',     'Puerta de acero con vidrio',             2, ''),
-      ('Paola',    'Zambrano',  '81 2020 3030',  5, 'faltante', 'cotizando',     'Barandal de escalera en hierro forjado', 1, 'Pendiente de medir en sitio'),
-      ('Andrés',   'Guerra',    '81 4040 5050',  2, 'anticipo', 'cotizando',     'Pérgola de aluminio',                    1, ''),
-      ('Valeria',  'Rodríguez', '81 6060 7070',  0, 'completo', 'cotizando',     'Reja perimetral por tramo',              2, '')
-    ) AS t(nombre, apellido, tel, dias, pago, proyecto, producto, piezas, nota)
+      ('Roberto',  'Salinas',   '81 2233 4455', 41, 'paid', 'installed',     'Barandal de escalera en hierro forjado', 2, 'Instalación en San Pedro'),
+      ('Mariana',  'Cantú',     '81 9876 5432', 37, 'paid', 'installed',     'Protección para ventana',                4, ''),
+      ('Jorge',    'Elizondo',  '81 5555 0101', 33, 'paid', 'installed',     'Puerta de acero con vidrio',             1, 'Entrega por la tarde'),
+      ('Daniela',  'Garza',     '81 4321 8765', 28, 'paid', 'in_production', 'Pérgola de aluminio',                    1, ''),
+      ('Luis',     'Treviño',   '81 1212 3434', 24, 'deposit', 'in_production', 'Portón corredizo de acero',              1, 'Anticipo del 50% en transferencia'),
+      ('Fernanda', 'Villarreal','81 7788 9900', 20, 'paid', 'in_production', 'Reja perimetral por tramo',              6, 'Fraccionamiento Cumbres'),
+      ('Héctor',   'Martínez',  '81 3344 5566', 15, 'deposit', 'quoting',     'Escalera de caracol',                    1, 'Anticipo en efectivo'),
+      ('Sofía',    'Leal',      '81 6677 8899', 11, 'pending', 'quoting',     'Protección para ventana',                3, ''),
+      ('Ricardo',  'Montemayor','81 9090 1010',  8, 'paid', 'quoting',     'Puerta de acero con vidrio',             2, ''),
+      ('Paola',    'Zambrano',  '81 2020 3030',  5, 'pending', 'quoting',     'Barandal de escalera en hierro forjado', 1, 'Pendiente de medir en sitio'),
+      ('Andrés',   'Guerra',    '81 4040 5050',  2, 'deposit', 'quoting',     'Pérgola de aluminio',                    1, ''),
+      ('Valeria',  'Rodríguez', '81 6060 7070',  0, 'paid', 'quoting',     'Reja perimetral por tramo',              2, '')
+    ) AS t(name, apellido, tel, dias, pago, proyecto, producto, piezas, description)
   LOOP
     SELECT price * v_venta.piezas INTO v_sub FROM public.products
      WHERE name = v_venta.producto AND description LIKE '[DEMO-BORRAR]%';
 
     INSERT INTO public.orders (client_first_name, client_last_name, client_phone,
                                subtotal, tax, total, payment_status, project_status, notes, created_at)
-    VALUES (v_venta.nombre, v_venta.apellido, v_venta.tel,
+    VALUES (v_venta.name, v_venta.apellido, v_venta.tel,
             v_sub, ROUND(v_sub * 0.16, 2), ROUND(v_sub * 1.16, 2),
             v_venta.pago::public.payment_status, v_venta.proyecto::public.project_status,
-            trim('[DEMO-BORRAR] ' || v_venta.nota),
+            trim('[DEMO-BORRAR] ' || v_venta.description),
             now() - make_interval(days => v_venta.dias))
-    RETURNING id INTO v_pedido;
+    RETURNING id INTO v_order_id;
 
     INSERT INTO public.order_items (order_id, product_id, custom_label, quantity, unit_price)
-    SELECT v_pedido, p.id, p.name, v_venta.piezas, p.price
+    SELECT v_order_id, p.id, p.name, v_venta.piezas, p.price
       FROM public.products p
      WHERE p.name = v_venta.producto AND p.description LIKE '[DEMO-BORRAR]%';
   END LOOP;
 
   -- ─── Solicitudes del cotizador ────────────────────────────────────────────
   -- precio_estimado lo calcula el disparador, como con una solicitud real.
-  INSERT INTO public.custom_requests (first_name, last_name_p, email, phone, specifications, status,
-                                      largo_mm, alto_mm, profundidad_mm, material, acabado, created_at) VALUES
+  INSERT INTO public.custom_requests (first_name, last_name, email, phone, specifications, status,
+                                      length_mm, height_mm, depth_mm, material, finish, created_at) VALUES
     ('Gabriela', 'Salazar', 'gabriela.salazar@demo.invalid', '81 1111 2222',
-     'Barandal para terraza, mismo diseño que la escalera.', 'Pendiente de Revisión', 6000, 1000, NULL, 'hierro_forjado', 'pavonado', now() - interval '4 days'),
+     'Barandal para terraza, mismo diseño que la escalera.', 'pending', 6000, 1000, NULL, 'wrought_iron', 'bluing', now() - interval '4 days'),
     ('Miguel', 'Cavazos', 'miguel.cavazos@demo.invalid', '81 3333 4444',
-     'Puerta principal de doble hoja con mirilla.', 'Pendiente de Revisión', 1800, 2400, 60, 'acero', 'pintura_electrostatica', now() - interval '1 day'),
+     'Puerta principal de doble hoja con mirilla.', 'pending', 1800, 2400, 60, 'steel', 'powder_coat', now() - interval '1 day'),
     ('Laura', 'Ochoa', 'laura.ochoa@demo.invalid', '81 5555 6666',
-     'Cubierta para cochera de dos autos.', 'Contactado', 6000, 5500, NULL, 'aluminio', 'pintura_electrostatica', now() - interval '9 days'),
+     'Cubierta para cochera de dos autos.', 'contacted', 6000, 5500, NULL, 'aluminum', 'powder_coat', now() - interval '9 days'),
     ('Tomás', 'Benavides', 'tomas.benavides@demo.invalid', '81 7777 8888',
-     'Protecciones para 6 ventanas iguales.', 'Finalizado', 1200, 1000, NULL, 'acero', 'cromado', now() - interval '20 days');
+     'Protecciones para 6 ventanas iguales.', 'closed', 1200, 1000, NULL, 'steel', 'chrome', now() - interval '20 days');
 
   RAISE NOTICE 'Datos de demostración agregados: 8 productos, 12 ventas, 4 solicitudes.';
 END $$;

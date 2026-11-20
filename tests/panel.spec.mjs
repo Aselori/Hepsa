@@ -81,6 +81,7 @@ try {
   await filaVencida.getByRole('button', { name: 'Actualizar cotización' }).click();
   await filaVencida.getByRole('button', { name: 'Convertir en venta' }).waitFor();
   check('el vendedor renueva la misma solicitud vencida', (await filaVencida.innerText()).includes('Vence el'));
+  await page.locator('#view-projects').screenshot({ path: 'tests/screenshots/solicitudes-vigencia.png' }).catch(() => {});
 
   // ── Solicitud a venta ────────────────────────────────────────────────────
   const solicitud = await page.evaluate(async (email) => (await window.supabaseClient.from('custom_requests')

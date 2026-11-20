@@ -133,7 +133,6 @@ HEPSA/
 
 - [Entrega y recuperacion del segundo factor](docs/entrega-2fa.md)
 - [Pagos en línea con Stripe (Mejora 2)](docs/pagos-en-linea.md)
-- [Revision integral y plan de recuperacion, septiembre 2026](docs/revision-integral.md)
 - [Arquitectura del sistema](docs/architecture.md)
 - [Requerimientos y módulos](docs/requirements.md)
 - [Guía rápida para el equipo](docs/team-guide.md)

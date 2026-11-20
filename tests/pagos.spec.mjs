@@ -329,6 +329,7 @@ try {
         ticketAhorro.includes('700.00'), JSON.stringify(ventaConAhorro));
       await admin.locator('#nav-catalog').click();
       await admin.locator('#combos-admin summary').click();
+      await admin.locator('#combos-admin').screenshot({ path: 'tests/screenshots/paquetes-admin.png' }).catch(() => {});
       await admin.getByRole('button', { name: `Editar paquete ${PAGOS_COMBO_NOMBRE}`, exact: true }).click();
       await admin.getByLabel('Activo', { exact: true }).uncheck();
       await admin.getByRole('button', { name: 'Guardar paquete' }).click();
