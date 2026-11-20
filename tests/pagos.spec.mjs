@@ -205,10 +205,24 @@ try {
     });
     const page = await contexto.newPage();
     await page.goto(`${BASE_URL}/index.html`);
-    const cardCombo = page.locator('#public-combos-grid article', { has: page.getByRole('heading', { name: PAGOS_COMBO_NOMBRE, exact: true }) });
-    await cardCombo.getByRole('button', { name: 'Agregar combo' }).click();
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.locator(`button[data-detalle-id="${productoId}"]`).click();
+    const ficha = page.locator('#ficha-producto');
+    const cuadroProducto = await ficha.boundingBox();
+    const verPaquetes = ficha.getByRole('button', { name: 'Ver paquetes', exact: true });
+    await verPaquetes.click();
+    await ficha.getByRole('heading', { name: 'Paquetes disponibles' }).waitFor();
+    const cuadroPaquete = await ficha.boundingBox();
+    await ficha.getByRole('button', { name: 'Volver al producto', exact: true }).click();
+    const cuadroRegreso = await ficha.boundingBox();
+    check('ficha y paquete conservan posición, tamaño y foco al volver',
+      JSON.stringify(cuadroProducto) === JSON.stringify(cuadroPaquete) &&
+      JSON.stringify(cuadroProducto) === JSON.stringify(cuadroRegreso) &&
+      await verPaquetes.evaluate(el => el === document.activeElement));
+    await verPaquetes.click();
+    await ficha.getByRole('button', { name: 'Agregar paquete', exact: true }).click();
     const ahorroCarrito = await page.locator('#cart-combo').innerText();
-    check('Agregar combo pone ambos componentes en el carrito con el ahorro',
+    check('Agregar paquete pone ambos componentes en el carrito con el ahorro',
       ahorroCarrito.includes(PAGOS_COMBO_NOMBRE) && ahorroCarrito.includes('350.00') &&
       await page.locator('#cart-items-container .cart-item').count() === 2, ahorroCarrito);
     await page.evaluate(() => { cart = []; guardarCart(); renderCart(); });
@@ -294,9 +308,9 @@ try {
         ticketAhorro.includes('700.00'), JSON.stringify(ventaConAhorro));
       await admin.locator('#nav-catalog').click();
       await admin.locator('#combos-admin summary').click();
-      await admin.getByRole('button', { name: `Editar combo ${PAGOS_COMBO_NOMBRE}`, exact: true }).click();
+      await admin.getByRole('button', { name: `Editar paquete ${PAGOS_COMBO_NOMBRE}`, exact: true }).click();
       await admin.getByLabel('Activo', { exact: true }).uncheck();
-      await admin.getByRole('button', { name: 'Guardar combo' }).click();
+      await admin.getByRole('button', { name: 'Guardar paquete' }).click();
       await admin.locator('#combo-lista div', { hasText: `${PAGOS_COMBO_NOMBRE} · 20 % · Inactivo` }).waitFor();
       check('desactivar un combo desde Catálogo no cambia el pedido previo',
         (await leerPedido(uno.c, pedido)).combo_discount === 350);

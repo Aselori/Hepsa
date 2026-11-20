@@ -58,10 +58,9 @@
         .view-section.active { display: block; }
         /* Boton de un producto que ya alcanzo su tope de existencias. */
         button.action-btn.agotado, button.tope { opacity: 0.5; cursor: not-allowed; filter: none; }
-        #public-combos { margin-bottom: 24px; }
-        #public-combos h3 { margin: 0 0 12px; }
-        #public-combos article h3 { margin: 0; }
-        #public-combos article p { color: var(--text-muted); margin: 8px 0; }
+        .enlace-paquete { align-self: flex-start; min-height: 32px; width: auto; padding: 3px 0;
+            border: 0; background: none; color: var(--text-main); font: inherit; font-size: .88rem;
+            font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
         .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
         .product-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.15s ease; }
         .product-card:hover { border-color: var(--input-border); }
@@ -76,25 +75,55 @@
         /* Ficha de producto: diálogo centrado en escritorio, hoja desde abajo en
            el teléfono. El diálogo no lleva padding: así un clic cuyo destino es
            el propio <dialog> sólo puede venir del fondo. */
-        #ficha-producto { box-sizing: border-box; width: min(880px, calc(100vw - 48px)); max-height: calc(100dvh - 48px); padding: 0; border: 1px solid var(--card-border); border-radius: var(--radio); background: var(--card-bg); color: var(--text-main); overflow: auto; overscroll-behavior: contain; }
+        #ficha-producto { box-sizing: border-box; width: min(880px, calc(100vw - 48px)); height: min(540px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); padding: 0; border: 1px solid var(--card-border); border-radius: var(--radio); background: var(--card-bg); color: var(--text-main); overflow: hidden; }
         #ficha-producto::backdrop { background: rgb(0 0 0 / 0.6); }
         #ficha-producto[open] { animation: ficha-entra 0.18s ease-out; }
         @keyframes ficha-entra { from { opacity: 0; transform: translateY(12px) scale(0.98); } }
-        .ficha { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); min-height: 420px; }
+        .ficha { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 100%; }
         .ficha-foto-caja { position: relative; background: var(--table-header-bg); min-height: 260px; }
         .ficha-foto-caja img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
         .ficha-sin-foto { position: absolute; inset: 0; display: grid; place-items: center; color: var(--text-muted); font-size: 0.9rem; }
         .ficha-flecha { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%; border: none; background: rgb(255 255 255 / 0.9); color: #111315; font-size: 1.4rem; line-height: 1; cursor: pointer; box-shadow: 0 1px 4px rgb(0 0 0 / 0.25); }
         .ficha-flecha:disabled { opacity: 0.35; cursor: default; }
         .ficha-flecha.anterior { left: 12px; } .ficha-flecha.siguiente { right: 12px; }
-        .ficha-cuerpo { padding: 28px 28px 24px; display: flex; flex-direction: column; gap: 14px; }
+        .ficha-cuerpo { padding: 24px; min-width: 0; min-height: 0; overflow-y: auto;
+            overscroll-behavior: contain; scroll-padding-block: 16px 20px; }
+        .ficha-vista { display: flex; flex-direction: column; gap: 12px; }
+        .ficha-datos { margin: 0; color: var(--text-muted); font-size: .88rem; line-height: 1.45; }
+        .ficha-especificaciones { border-top: 1px solid var(--card-border); padding-top: 10px; }
+        .ficha-especificaciones summary { cursor: pointer; font-size: .9rem; font-weight: 600; }
+        .ficha-especificaciones .ficha-specs { margin-block: 8px; }
+        .ficha-especificaciones .ficha-descripcion { font-size: .9rem; margin-block: 8px 0; }
+        #ficha-producto button.ficha-navegacion { width: auto; min-height: 40px; align-self: flex-start;
+            padding: 7px 12px; font-size: .88rem; }
+        .ficha-volver { display: inline-flex; align-items: center; gap: 7px; }
+        #ficha-producto[data-vista="paquete"] .ficha-flecha { display: none; }
+        .ficha-paquete-opciones, .ficha-paquete-detalle { display: grid; gap: 8px; }
+        button.ficha-paquete-opcion { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+            gap: 8px; text-align: left; padding: 8px 10px; font-size: .88rem; min-height: 40px; }
+        button.ficha-paquete-opcion[aria-pressed="true"] { border-color: var(--text-main); background: var(--table-header-bg); }
+        .ficha-paquete-opcion strong { white-space: nowrap; }
+        .ficha-paquete-piezas { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+        .ficha-paquete-piezas li { display: flex; align-items: center; gap: 8px; font-size: .9rem; }
+        .ficha-paquete-piezas img { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; }
+        .ficha-paquete-precio { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 9px; margin: 4px 0 0; }
+        .ficha-paquete-precio strong { font-size: 1.18rem; }
+        .ficha-paquete-precio small { color: var(--text-muted); }
+        #ficha-paquete-agregar { align-self: flex-start; width: auto; min-height: 44px; }
+        @media (hover: hover) and (pointer: fine) {
+            .enlace-paquete:hover { background: var(--activo-bg); text-decoration-thickness: 2px; }
+            .ficha-especificaciones summary:hover { text-decoration: underline; text-underline-offset: 3px; }
+            button.ficha-paquete-opcion:hover:not(:disabled), .ficha-cerrar:hover {
+                background: var(--activo-bg); border-color: var(--text-main);
+            }
+        }
         .ficha-cuerpo h2 { margin: 0; padding-right: 36px; font-size: 1.4rem; line-height: 1.25; }
         .ficha-cuerpo .price { margin: 0; }
         .ficha-iva { font-size: 0.85rem; font-weight: 400; color: var(--text-muted); }
         .ficha-specs { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; padding: 14px 0; border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); font-size: 0.95rem; }
         .ficha-specs dt { color: var(--text-muted); } .ficha-specs dd { margin: 0; }
         .ficha-descripcion { margin: 0; color: var(--text-muted); line-height: 1.5; }
-        .ficha-compra { display: flex; gap: 10px; align-items: stretch; margin-top: auto; }
+        .ficha-compra { display: flex; gap: 10px; align-items: stretch; margin-top: 3px; }
         .ficha-cantidad { display: inline-flex; border: 1px solid var(--input-border); border-radius: var(--radio); }
         .ficha-cantidad button { width: 40px; border: none; background: none; color: var(--text-main); font-size: 1.15rem; cursor: pointer; }
         .ficha-cantidad button:disabled { opacity: 0.35; cursor: default; }
@@ -106,16 +135,18 @@
         .ficha-cerrar { position: absolute; top: 12px; right: 12px; z-index: 2; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-main); font-size: 1.3rem; cursor: pointer; }
         .ficha-asa { display: none; }
         /* Foto a pantalla completa: Esc o un toque la regresan. */
-        #ficha-producto.zoom .ficha-foto-caja { position: fixed; inset: 0; z-index: 3; background: rgb(0 0 0 / 0.94); }
+        #ficha-producto.zoom .ficha-foto-caja { position: fixed; inset: 0; height: 100dvh; aspect-ratio: auto; z-index: 3; background: rgb(0 0 0 / 0.94); }
         #ficha-producto.zoom .ficha-foto-caja img { object-fit: contain; cursor: zoom-out; }
         #ficha-producto.zoom .ficha-flecha { display: none; }
         @media (max-width: 640px) {
-            #ficha-producto { width: 100%; max-width: 100%; max-height: 92dvh; margin: auto 0 0; border-radius: 16px 16px 0 0; border-bottom: none; }
+            #ficha-producto { width: 100%; max-width: 100%; height: min(580px, 89dvh); max-height: 92dvh; margin: auto 0 0; border-radius: 16px 16px 0 0; border-bottom: none; }
             #ficha-producto[open] { animation: ficha-sube 0.22s ease-out; }
             @keyframes ficha-sube { from { transform: translateY(100%); } }
-            .ficha { grid-template-columns: 1fr; min-height: 0; }
-            .ficha-foto-caja { aspect-ratio: 4 / 3; min-height: 0; }
-            .ficha-cuerpo { padding: 20px 18px 24px; }
+            .ficha { display: flex; flex-direction: column; overflow-y: auto; overscroll-behavior: contain;
+                scroll-padding-block: 56px 20px; }
+            #ficha-producto:not(.zoom) .ficha-foto-caja { flex: none; height: clamp(155px, 26dvh, 210px); min-height: 0; }
+            .ficha-cuerpo { flex: 0 0 auto; overflow: visible; padding: 16px 20px 22px; }
+            #ficha-paquete-agregar { width: 100%; }
             .ficha-asa { display: block; position: absolute; top: 8px; left: 50%; z-index: 2; width: 44px; height: 5px; margin-left: -22px; border-radius: 3px; background: rgb(255 255 255 / 0.85); box-shadow: 0 0 2px rgb(0 0 0 / 0.4); }
         }
         @media (prefers-reduced-motion: reduce) { #ficha-producto[open] { animation: none; } }
@@ -183,18 +214,21 @@
         #cart-modal.open ~ #cart-fondo { opacity: 1; pointer-events: auto; }
         .cart-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 14px; margin-bottom: 16px; }
         .close-cart { background: transparent; color: var(--text-muted); border: none; font-size: 1.5rem; line-height: 1; cursor: pointer; }
-        /* Cada linea en dos filas: el nombre a todo lo ancho y, debajo, la
-           cantidad y el importe. Asi el nombre no se parte en tres renglones
-           en el telefono y los botones tienen un tamano que se puede tocar. */
-        .cart-item { display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--card-border); padding: 14px 0; }
-        .cart-item-name { font-weight: 600; }
-        .cart-item-unit { display: block; color: var(--text-muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
-        .cart-item-controles { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .cart-item { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px;
+            border-bottom: 1px solid var(--card-border); padding: 14px 0; }
+        .cart-item:has(.cart-item-photo) { grid-template-columns: 52px minmax(0, 1fr); column-gap: 12px; }
+        .cart-item-photo { width: 52px; height: 62px; object-fit: cover; border-radius: 4px;
+            background: var(--table-header-bg); grid-column: 1; grid-row: 1 / span 3; }
+        .cart-item:has(.cart-item-photo) > :not(.cart-item-photo) { grid-column: 2; }
+        .cart-item-name { font-weight: 600; overflow-wrap: anywhere; }
+        .cart-item-unit { display: block; color: var(--text-muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+        .cart-item-controles { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+        .cart-item-price { font-variant-numeric: tabular-nums; white-space: nowrap; }
         .stepper { display: inline-flex; align-items: stretch; border: 1px solid var(--input-border); border-radius: var(--radio); overflow: hidden; }
         .stepper button { width: 36px; height: 36px; padding: 0; background: transparent; border: none; color: var(--text-main); font: inherit; font-size: 1.1rem; cursor: pointer; }
         .stepper button:hover:not(.tope) { background: var(--table-row-hover); }
         .stepper-valor { min-width: 2.5em; display: flex; align-items: center; justify-content: center; border-inline: 1px solid var(--input-border); font-weight: 600; font-variant-numeric: tabular-nums; }
-        .cart-item-quitar { align-self: flex-start; background: none; border: none; padding: 6px 0; margin: -6px 0; color: var(--text-muted); font: inherit; font-size: 0.85rem; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+        .cart-item-quitar { justify-self: start; background: none; border: none; padding: 2px 0; min-height: 24px; margin: 0; color: var(--text-muted); font: inherit; font-size: 0.85rem; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
         .cart-item-quitar:hover { color: var(--peligro); }
         .cart-vacio { color: var(--text-muted); text-align: center; }
         .cart-total { font-size: 1.25rem; font-weight: 700; text-align: right; margin: 18px 0 2px; color: var(--text-main); font-variant-numeric: tabular-nums; }
@@ -287,21 +321,38 @@
                 <button type="button" class="ficha-flecha siguiente" id="ficha-siguiente">›</button>
             </div>
             <div class="ficha-cuerpo">
-                <h2 id="ficha-nombre"></h2>
-                <p class="price"><span id="ficha-precio"></span> <span class="price-moneda">MXN</span> <span class="ficha-iva">+ IVA</span></p>
-                <p class="nota-existencias" id="ficha-existencias"></p>
-                <dl class="ficha-specs" id="ficha-specs" hidden></dl>
-                <p id="ficha-descripcion" class="ficha-descripcion"></p>
-                <div class="ficha-compra" id="ficha-compra">
-                    <div class="ficha-cantidad" role="group" aria-label="Cantidad">
-                        <button type="button" id="ficha-menos" aria-label="Una pieza menos">−</button>
-                        <output id="ficha-cantidad" aria-live="polite">1</output>
-                        <button type="button" id="ficha-mas" aria-label="Una pieza más">+</button>
+                <div class="ficha-vista" id="ficha-info">
+                    <h2 id="ficha-nombre"></h2>
+                    <p class="price"><span id="ficha-precio"></span> <span class="price-moneda">MXN</span> <span class="ficha-iva">+ IVA</span></p>
+                    <p class="ficha-datos" id="ficha-datos" hidden></p>
+                    <p class="nota-existencias" id="ficha-existencias"></p>
+                    <div class="ficha-compra" id="ficha-compra">
+                        <div class="ficha-cantidad" role="group" aria-label="Cantidad">
+                            <button type="button" id="ficha-menos" aria-label="Una pieza menos">−</button>
+                            <output id="ficha-cantidad" aria-live="polite">1</output>
+                            <button type="button" id="ficha-mas" aria-label="Una pieza más">+</button>
+                        </div>
+                        <button type="button" class="action-btn" id="ficha-agregar">Añadir al carrito</button>
                     </div>
-                    <button type="button" class="action-btn" id="ficha-agregar">Añadir al carrito</button>
+                    <p class="ficha-en-carrito" id="ficha-en-carrito" role="status" hidden></p>
+                    <button type="button" class="btn-secundario ficha-navegacion" id="ficha-ver-paquete" hidden>Ver paquete</button>
+                    <details class="ficha-especificaciones" id="ficha-especificaciones">
+                        <summary>Especificaciones</summary>
+                        <dl class="ficha-specs" id="ficha-specs" hidden></dl>
+                        <p id="ficha-descripcion" class="ficha-descripcion"></p>
+                    </details>
+                    <a href="#" id="ficha-cotizar">¿Lo necesitas a otra medida? Cotízalo</a>
                 </div>
-                <p class="ficha-en-carrito" id="ficha-en-carrito" role="status" hidden></p>
-                <a href="#" id="ficha-cotizar">¿Lo necesitas a otra medida? Cotízalo</a>
+                <section class="ficha-vista" id="ficha-paquete" aria-labelledby="ficha-paquete-nombre" hidden>
+                    <h2 id="ficha-paquete-nombre"></h2>
+                    <div id="ficha-paquete-opciones" class="ficha-paquete-opciones" role="group" aria-label="Paquetes disponibles" hidden></div>
+                    <div class="ficha-paquete-detalle">
+                        <ul id="ficha-paquete-piezas" class="ficha-paquete-piezas"></ul>
+                        <p class="ficha-paquete-precio"><strong id="ficha-paquete-precio"></strong><small>+ IVA</small><span id="ficha-paquete-ahorro"></span></p>
+                        <button type="button" class="action-btn" id="ficha-paquete-agregar">Agregar paquete</button>
+                    </div>
+                    <button type="button" class="btn-secundario ficha-navegacion ficha-volver" id="ficha-volver-producto"><span aria-hidden="true">←</span> Volver al producto</button>
+                </section>
             </div>
         </div>
     </dialog>
@@ -315,7 +366,7 @@
         <!-- Subtotal y no total: el IVA lo suma crear_pedido_desde_carrito()
              al confirmar. Decir "Total" aqui hacia que el pedido saliera 16%
              mas caro de lo que el carrito habia mostrado. -->
-        <p id="cart-combo" aria-live="polite" hidden></p>
+        <div id="cart-combo" class="descuento-paquete" aria-live="polite" hidden></div>
         <div class="cart-total">Subtotal: $<span id="cart-total-price">0.00</span></div>
         <p class="cart-iva">Más IVA, que se suma al confirmar.</p>
         <button class="action-btn" id="btn-checkout" onclick="confirmarPedido()">Confirmar pedido</button>
@@ -333,10 +384,6 @@
                 <h2>Línea residencial e industrial</h2>
                 <a href="#" data-ir-cotizador="1" class="enlace-fuerte">¿No está aquí? Cotiza tu pieza a la medida →</a>
             </div>
-            <section id="public-combos" aria-labelledby="public-combos-title" hidden>
-                <h3 id="public-combos-title">Combos</h3>
-                <div class="catalog-grid" id="public-combos-grid"></div>
-            </section>
             <div class="catalog-grid" id="public-catalog-grid">
                 <div class="product-card"><div class="card-img">Foto referencial</div><div class="card-body"><h3 class="product-title">Cargando catálogo…</h3></div></div>
             </div>
@@ -385,7 +432,7 @@
                     <div class="estimado-titulo">Precio estimado</div>
                     <div id="quote-estimate-amount" class="estimado-monto"></div>
                     <div id="quote-estimate-detail" class="estimado-detalle"></div>
-                    <p class="estimado-detalle">El estimado tiene una vigencia de 14 días desde que envías la solicitud.</p>
+                    <p class="estimado-detalle">Vigencia del estimado: 14 días desde el envío.</p>
                     <p class="estimado-aviso">
                         Este monto es <strong>aproximado y no constituye una cotización en firme</strong>.
                         Se calcula sobre medidas, material y acabado; el precio final depende del diseño,
@@ -851,30 +898,6 @@
             document.getElementById('cart-modal').classList.add('open');
         }
 
-        function pintarCombosPublicos() {
-            const grid = document.getElementById('public-combos-grid');
-            grid.replaceChildren(...combosPublicos.map(combo => {
-                const card = Object.assign(document.createElement('article'), { className: 'product-card' });
-                const body = Object.assign(document.createElement('div'), { className: 'card-body' });
-                const titulo = Object.assign(document.createElement('h3'), { textContent: combo.nombre });
-                const piezas = Object.assign(document.createElement('p'), {
-                    textContent: combo.items.map(i => `${i.cantidad} × ${catalogo[i.producto_id].name}`).join(' · '),
-                });
-                const tasa = Object.assign(document.createElement('strong'), {
-                    textContent: `${Number(combo.porcentaje).toLocaleString('es-MX')} % de descuento`,
-                });
-                const boton = Object.assign(document.createElement('button'), {
-                    className: 'action-btn', type: 'button', textContent: 'Agregar combo',
-                });
-                boton.dataset.comboId = combo.id;
-                boton.addEventListener('click', () => agregarComboAlCarrito(combo));
-                body.append(titulo, piezas, tasa, boton);
-                card.append(body);
-                return card;
-            }));
-            document.getElementById('public-combos').hidden = !combosPublicos.length;
-        }
-
         // ─── Checkout ───────────────────────────────────────────────────────
 
         async function confirmarPedido() {
@@ -1038,16 +1061,10 @@
             if (lineas.length !== cart.length) { cart = lineas.map(({ id, qty }) => ({ id, qty })); guardarCart(); }
 
             actualizarBotonesCatalogo();
-            for (const combo of combosPublicos) {
-                const boton = document.querySelector(`[data-combo-id="${combo.id}"]`);
-                boton.disabled = Boolean(faltaExistenciaCombo(combo));
-                boton.textContent = boton.disabled ? 'No hay existencias para el combo' : 'Agregar combo';
-            }
             const ahorro = document.getElementById('cart-combo');
 
             if (lineas.length === 0) {
-                ahorro.hidden = true;
-                ahorro.textContent = '';
+                pintarDescuentoPaquete(ahorro, null);
                 c.innerHTML = '<p class="cart-vacio">El carrito está vacío</p>';
                 document.getElementById('cart-total-price').textContent = '0.00';
                 return;
@@ -1058,10 +1075,12 @@
                 const importe = p.price * qty;
                 total += importe;
                 const enTope = qty >= topeDe(id);
+                const foto = urlImagenSegura(p.image_url);
                 return `<div class="cart-item">
+                    ${foto ? `<img class="cart-item-photo" src="${esc(foto)}" alt="" width="52" height="62" loading="lazy">` : ''}
                     <div>
                         <span class="cart-item-name">${esc(p.name)}</span>
-                        <span class="cart-item-unit">$${p.price.toLocaleString('es-MX')} c/u</span>
+                        ${qty > 1 ? `<span class="cart-item-unit">$${p.price.toLocaleString('es-MX')} c/u</span>` : ''}
                     </div>
                     <div class="cart-item-controles">
                         <div class="stepper">
@@ -1077,8 +1096,11 @@
                 </div>`;
             }).join('');
             const combo = estimarCombo(combosPublicos, lineas.map(({ id, qty, p }) => ({ id, qty, price: p.price })));
-            ahorro.hidden = !combo;
-            ahorro.textContent = combo ? textoAhorroCombo(combo) : '';
+            pintarDescuentoPaquete(ahorro, combo);
+            for (const foto of c.querySelectorAll('.cart-item-photo')) {
+                if (foto.complete && !foto.naturalWidth) foto.remove();
+                else foto.addEventListener('error', () => foto.remove(), { once: true });
+            }
             total -= combo?.descuento || 0;
             document.getElementById('cart-total-price').textContent = total.toLocaleString('en-US', {minimumFractionDigits:2});
         }
@@ -1092,6 +1114,8 @@
             if (qty) return cambiarCantidad(Number(qty.dataset.qtyId), Number(qty.dataset.delta));
             const quitar = ev.target.closest('[data-remove-id]');
             if (quitar) return quitarDelCart(Number(quitar.dataset.removeId));
+            const paquete = ev.target.closest('[data-paquetes-de]');
+            if (paquete) return abrirFicha(Number(paquete.dataset.paquetesDe), { paquete: true });
             const detalle = ev.target.closest('[data-detalle-id]');
             if (detalle) return abrirFicha(Number(detalle.dataset.detalleId));
             const pagar = ev.target.closest('[data-pagar-id]');
@@ -1144,6 +1168,14 @@
             document.getElementById('ficha-nombre').textContent = p.name;
             document.getElementById('ficha-precio').textContent = `$${p.price.toLocaleString('es-MX')}`;
             const { specs, resto } = separarDescripcion(p.description);
+            const valores = new Map(specs.map(([clave, valor]) => [clave.toLowerCase(), valor]));
+            const alto = valores.get('altura') || valores.get('alto');
+            const ancho = valores.get('ancho');
+            const medidas = alto && ancho ? `${alto} de alto × ${ancho} de ancho`
+                : valores.get('medidas') || (alto ? `${alto} de alto` : ancho ? `${ancho} de ancho` : '');
+            const resumen = document.getElementById('ficha-datos');
+            resumen.textContent = [medidas, valores.get('material')].filter(Boolean).join(' · ');
+            resumen.hidden = !resumen.textContent;
             const lista = document.getElementById('ficha-specs');
             lista.replaceChildren(...specs.flatMap(([k, v]) => [
                 Object.assign(document.createElement('dt'), { textContent: k }),
@@ -1153,6 +1185,10 @@
             const descripcion = document.getElementById('ficha-descripcion');
             descripcion.textContent = resto;
             descripcion.hidden = !resto;
+            const especificaciones = document.getElementById('ficha-especificaciones');
+            especificaciones.hidden = !specs.length && !resto;
+            especificaciones.open = false;
+            especificaciones.querySelector('summary').textContent = specs.length ? 'Especificaciones' : 'Detalles del producto';
             document.getElementById('ficha-existencias').dataset.stockNota = String(id);
             // Anterior y siguiente, en el orden del catálogo.
             const ids = idsCatalogo();
@@ -1165,9 +1201,8 @@
                 b.title = otro === undefined ? '' : catalogo[otro].name;
             }
             ficha.classList.remove('zoom');
-            ficha.scrollTop = 0;
+            scrollFicha().scrollTop = 0;
             actualizarBotonesCatalogo();
-            actualizarFicha();
         }
 
         // Cantidad, botón y "en tu carrito": se repinta también cuando el
@@ -1192,13 +1227,103 @@
             }
         }
 
-        function abrirFicha(id, { historial = true } = {}) {
+        const fichaInfo = document.getElementById('ficha-info');
+        const fichaPaquete = document.getElementById('ficha-paquete');
+        const fichaVerPaquete = document.getElementById('ficha-ver-paquete');
+        const fichaAgregarPaquete = document.getElementById('ficha-paquete-agregar');
+        const scrollFicha = () => ficha.querySelector(matchMedia('(max-width: 640px)').matches ? '.ficha' : '.ficha-cuerpo');
+        const paquetesDe = id => combosPublicos.filter(combo => combo.items.some(i => i.producto_id === id));
+        let paqueteElegido = null;
+        let scrollProducto = null;
+
+        function cambiarVistaFicha(vista) {
+            ficha.dataset.vista = vista;
+            fichaInfo.hidden = vista === 'paquete';
+            fichaPaquete.hidden = vista !== 'paquete';
+            ficha.setAttribute('aria-labelledby', vista === 'paquete' ? 'ficha-paquete-nombre' : 'ficha-nombre');
+        }
+
+        function valorPaquete(combo) {
+            const lineas = combo.items.map(({ producto_id: id, cantidad: qty }) => ({ id, qty, price: catalogo[id].price }));
+            const suma = lineas.reduce((total, linea) => total + linea.price * linea.qty, 0);
+            const ahorro = estimarCombo([combo], lineas)?.descuento || 0;
+            return { ahorro, total: suma - ahorro };
+        }
+
+        function elegirPaqueteFicha(combo) {
+            paqueteElegido = combo;
+            const opciones = document.getElementById('ficha-paquete-opciones');
+            for (const boton of opciones.children) boton.setAttribute('aria-pressed', String(Number(boton.dataset.paqueteId) === combo.id));
+            const piezas = document.getElementById('ficha-paquete-piezas');
+            piezas.replaceChildren(...combo.items.map(({ producto_id, cantidad }) => {
+                const producto = catalogo[producto_id];
+                const li = document.createElement('li');
+                const url = urlImagenSegura(producto.image_url);
+                if (url) {
+                    const foto = Object.assign(document.createElement('img'), { src: url, alt: '' });
+                    foto.addEventListener('error', () => foto.remove(), { once: true });
+                    li.append(foto);
+                }
+                li.append(document.createTextNode(`${cantidad} × ${producto.name}`));
+                return li;
+            }));
+            const { ahorro, total } = valorPaquete(combo);
+            document.getElementById('ficha-paquete-precio').textContent = `${monedaPaquete(total)} MXN`;
+            document.getElementById('ficha-paquete-ahorro').textContent = ahorro ? `Ahorras ${monedaPaquete(ahorro)}` : '';
+            fichaAgregarPaquete.disabled = Boolean(faltaExistenciaCombo(combo));
+            fichaAgregarPaquete.textContent = fichaAgregarPaquete.disabled ? 'Sin existencias para el paquete' : 'Agregar paquete';
+        }
+
+        function mostrarPaquetesFicha(paquetes) {
+            const opciones = document.getElementById('ficha-paquete-opciones');
+            const varios = paquetes.length > 1;
+            document.getElementById('ficha-paquete-nombre').textContent = varios ? 'Paquetes disponibles' : paquetes[0].nombre;
+            opciones.hidden = !varios;
+            opciones.replaceChildren(...(varios ? paquetes.map(combo => {
+                const boton = Object.assign(document.createElement('button'), { type: 'button', className: 'btn-secundario ficha-paquete-opcion' });
+                boton.dataset.paqueteId = combo.id;
+                boton.append(Object.assign(document.createElement('span'), { textContent: combo.nombre }),
+                    Object.assign(document.createElement('strong'), { textContent: `−${monedaPaquete(valorPaquete(combo).ahorro)}` }));
+                boton.addEventListener('click', () => elegirPaqueteFicha(combo));
+                return boton;
+            }) : []));
+            cambiarVistaFicha('paquete');
+            elegirPaqueteFicha(paquetes[0]);
+            scrollFicha().scrollTop = 0;
+        }
+
+        fichaVerPaquete.addEventListener('click', () => {
+            scrollProducto = scrollFicha().scrollTop;
+            mostrarPaquetesFicha(paquetesDe(fichaId));
+            ficha.querySelector('[data-ficha-cerrar]').focus({ preventScroll: true });
+        });
+        document.getElementById('ficha-volver-producto').addEventListener('click', () => {
+            cambiarVistaFicha('producto');
+            scrollFicha().scrollTop = scrollProducto ?? 0;
+            (scrollProducto === null ? document.getElementById('ficha-agregar') : fichaVerPaquete).focus({ preventScroll: true });
+            scrollProducto = null;
+        });
+        fichaAgregarPaquete.addEventListener('click', () => {
+            const elegido = paqueteElegido;
+            if (!elegido || faltaExistenciaCombo(elegido)) return;
+            cerrarFicha();
+            agregarComboAlCarrito(elegido);
+        });
+
+        function abrirFicha(id, { historial = true, paquete = false } = {}) {
             if (!catalogo[id]) return;
             pintarFicha(id);
+            const paquetes = paquetesDe(id);
+            scrollProducto = null;
+            fichaVerPaquete.hidden = !paquetes.length;
+            fichaVerPaquete.textContent = paquetes.length > 1 ? 'Ver paquetes' : 'Ver paquete';
+            if (paquete && paquetes.length) mostrarPaquetesFicha(paquetes);
+            else cambiarVistaFicha('producto');
             if (!ficha.open) {
                 ficha.showModal();
                 document.documentElement.style.overflow = 'hidden';
             }
+            actualizarFicha();
             if (!historial) return;
             // Entre productos se reemplaza la entrada: Atrás cierra la ficha
             // en vez de recorrer cada producto visto.
@@ -1217,6 +1342,8 @@
             ficha.classList.remove('zoom');
             ficha.style.transform = '';
             fichaId = null;
+            paqueteElegido = null;
+            scrollProducto = null;
             // Cerrada con Esc: la dirección todavía dice #producto-N.
             if (history.state?.ficha) history.back();
         });
@@ -1258,7 +1385,7 @@
             }
         });
         ficha.addEventListener('keydown', (e) => {
-            if (ficha.classList.contains('zoom') || e.target.closest('input, textarea, select')) return;
+            if (ficha.dataset.vista === 'paquete' || ficha.classList.contains('zoom') || e.target.closest('input, textarea, select')) return;
             const destino = e.key === 'ArrowLeft' ? 'ficha-anterior' : e.key === 'ArrowRight' ? 'ficha-siguiente' : null;
             const b = destino && document.getElementById(destino);
             if (b?.dataset.destino) { e.preventDefault(); abrirFicha(Number(b.dataset.destino)); }
@@ -1268,7 +1395,9 @@
         // arriba del todo (si no, el gesto es para desplazarse).
         let arrastreDesde = null;
         ficha.addEventListener('touchstart', (e) => {
-            arrastreDesde = ficha.scrollTop <= 0 && !ficha.classList.contains('zoom') ? e.touches[0].clientY : null;
+            const sobreCabecera = e.target.closest('.ficha-asa, .ficha-foto-caja');
+            arrastreDesde = sobreCabecera && scrollFicha().scrollTop <= 0 && !ficha.classList.contains('zoom')
+                ? e.touches[0].clientY : null;
         }, { passive: true });
         ficha.addEventListener('touchmove', (e) => {
             if (arrastreDesde === null) return;
@@ -1373,18 +1502,21 @@
             catalogo = Object.fromEntries(data.map((p) => [p.id, p]));
             combosPublicos = (await leerCombosDisponibles(window.supabaseClient))
                 .filter(combo => combo.items.every(item => catalogo[item.producto_id]));
-            pintarCombosPublicos();
 
-            grid.innerHTML = data.map((p) => `
+            grid.innerHTML = data.map(p => {
+                const paquetes = paquetesDe(p.id);
+                return `
                     <div class="product-card">
                         ${urlImagenSegura(p.image_url) ? `<div class="card-img" data-img-id="${p.id}" data-detalle-id="${p.id}"></div>` : ''}
                         <div class="card-body">
                             <h3 class="product-title"><button type="button" data-detalle-id="${p.id}">${esc(p.name)}</button></h3>
                             <span class="price">$${p.price.toLocaleString('es-MX')} <span class="price-moneda">MXN</span></span>
+                            ${paquetes.length ? `<button type="button" class="enlace-paquete" data-paquetes-de="${p.id}">${paquetes.length > 1 ? 'Ver paquetes' : 'Disponible en paquete'}</button>` : ''}
                             <p class="nota-existencias" data-stock-nota="${p.id}"></p>
                             <button class="action-btn" data-add-id="${p.id}">Añadir al carrito</button>
                         </div>
-                    </div>`).join('');
+                    </div>`;
+            }).join('');
 
             for (const p of data) {
                 const href = urlImagenSegura(p.image_url);

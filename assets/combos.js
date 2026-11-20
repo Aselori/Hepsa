@@ -32,8 +32,21 @@ function estimarCombo(combos, lineas) {
     return mejor;
 }
 
-function textoAhorroCombo(combo) {
+function monedaPaquete(importe, decimales = 0) {
+    return Number(importe).toLocaleString('es-MX', {
+        style: 'currency', currency: 'MXN', minimumFractionDigits: decimales, maximumFractionDigits: 2,
+    });
+}
+
+function pintarDescuentoPaquete(elemento, combo) {
+    elemento.hidden = !combo;
+    if (!combo) {
+        elemento.replaceChildren();
+        return;
+    }
+    const etiqueta = Object.assign(document.createElement('strong'), { textContent: 'Descuento por paquete' });
+    const importe = Object.assign(document.createElement('strong'), { textContent: `−${monedaPaquete(combo.descuento, 2)}` });
     const cantidad = combo.juegos > 1 ? ` × ${combo.juegos}` : '';
-    const descuento = combo.descuento.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
-    return `${combo.nombre}${cantidad} · −${descuento}`;
+    const nombre = Object.assign(document.createElement('small'), { textContent: combo.nombre + cantidad });
+    elemento.replaceChildren(etiqueta, importe, nombre);
 }

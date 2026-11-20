@@ -12,6 +12,10 @@
 - Ramas aparte, fuera del `main` local: `fix/producto-sin-precio-oculto`, `demo/datos-en-vivo` y `docs/videos-demostracion`. La rama de demo documenta carga hospedada el 12 y su reversión; vigencia pendiente de comprobar.
 - Convenciones en `CONTRIBUTING.md` y `~/.codex/AGENTS.md`. Curso y generador de manuales en `~/Work/uni/proyint`. Historial de Codex previo al traslado: `codex resume 01a08d52-5047-79e2-84de-603b4220c1d7 -C /home/aselori/Work/projects/hepsa`.
 
+## Revisión visual 2026-11-19
+
+- Primera ronda aprobada para publicar en la rama `feature/cotizaciones-y-combos`. La interfaz ya está integrada en el worktree de esa rama. `npm test` y `npm run test:local` pasaron, incluida la integración con Stripe simulado. La siguiente ronda de refinamiento se hará en la misma rama después de publicar este punto de control. La vista previa en 8646 usa datos sintéticos.
+
 ## Base técnica (septiembre, resumido)
 
 - Docker: el usuario está en el grupo docker; si la sesión del agente no lo

@@ -56,6 +56,10 @@ try {
     check(`${etiqueta}: el título abre la ficha`, await ficha.isVisible());
     await esperar(page, 400); // la animación de entrada termina
     check(`${etiqueta}: la ficha tiene su dirección`, page.url().endsWith('#producto-1'), page.url());
+    const detalle = ficha.locator('#ficha-especificaciones');
+    check(`${etiqueta}: la descripción empieza plegada`, await detalle.getAttribute('open') === null);
+    await detalle.locator('summary').click();
+    await ficha.locator('#ficha-descripcion').waitFor();
     const contenido = await page.evaluate(() => ({
       nombre: document.getElementById('ficha-nombre').textContent,
       descripcion: document.getElementById('ficha-descripcion').textContent,
@@ -70,6 +74,7 @@ try {
     check(`${etiqueta}: la ficha cabe en la pantalla`, caja && caja.x >= 0 && caja.x + caja.width <= ancho + 0.5 && caja.y >= 0 && caja.y + caja.height <= alto + 0.5, JSON.stringify(caja));
     if (ancho < 600) check(`${etiqueta}: en el teléfono la ficha es una hoja pegada abajo`, Math.abs(caja.y + caja.height - alto) < 1.5 && caja.width >= ancho - 1, JSON.stringify(caja));
     await page.screenshot({ path: `tests/screenshots/ficha-${ancho}.png` });
+    await detalle.locator('summary').click();
 
     // ── Compra con tope ────────────────────────────────────────────────────
     const agregar = page.locator('#ficha-agregar');
