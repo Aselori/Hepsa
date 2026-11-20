@@ -19,6 +19,8 @@ DELETE FROM public.orders
  WHERE seller_id IN (SELECT id FROM demo_cuentas)
     OR client_id IN (SELECT id FROM demo_cuentas);       -- order_items se borran en cascada
 DELETE FROM public.cart_items WHERE user_id IN (SELECT id FROM demo_cuentas);
+-- Paquete de demostración (creado el 2026-11-20 para mostrar los paquetes).
+DELETE FROM public.bundles WHERE name = 'Entrada completa';
 DELETE FROM public.custom_requests WHERE email LIKE '%@example.com';
 DELETE FROM public.profiles WHERE id IN (SELECT id FROM demo_cuentas);
 DELETE FROM auth.users WHERE id IN (SELECT id FROM demo_cuentas);  -- factores y sesiones en cascada
