@@ -217,6 +217,8 @@ try {
     }
     if (stripeSimulado) await stripeSimulado.cerrar();
     if (carpetaFunciones) await rm(carpetaFunciones, { recursive: true, force: true });
+    // Las solicitudes desechables pueden referenciar las ventas de estas pruebas.
+    const solicitudes = await admin.from('custom_requests').delete().like('email', '%@test.local');
     // Pedidos de las cuentas desechables, con sus pagos y renglones, antes de
     // borrar el producto que referencian.
     // Pedidos del portal (client_id) y ventas del punto de venta (seller_id).
@@ -231,10 +233,6 @@ try {
         const ordenes = await admin.from('orders').delete().in('id', idsPedidos);
         if (pagos.error || renglones.error || ordenes.error) { console.error('Fallo la limpieza de los pedidos de prueba.'); process.exitCode = 1; }
     }
-    // rls.spec.mjs envia una solicitud como anonimo para comprobar que el precio
-    // lo pone el servidor; el anonimo no puede borrarla, asi que se borra aqui.
-    // Sin esto se acumulaban en la bandeja del panel local.
-    const solicitudes = await admin.from('custom_requests').delete().like('email', '%@test.local');
     // contrasenas.spec.mjs se registra por el portal, sin pasar por ids[].
     const registradas = (await admin.auth.admin.listUsers({ perPage: 1000 })).data?.users ?? [];
     for (const u of registradas.filter((x) => x.email?.endsWith('@contrasena.test'))) {

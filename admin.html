@@ -831,7 +831,10 @@
             const conceptos = posCart.map((c) => c.product_id
                 ? { producto_id: Number(c.product_id), cantidad: 1 }
                 : { concepto: c.item, precio: c.price, cantidad: 1 });
-            const { data: orderId, error: orderError } = await window.supabaseClient.rpc('registrar_venta', {
+            const origen = solicitudOrigen;
+            const { data: orderId, error: orderError } = await window.supabaseClient.rpc(
+                origen ? 'convertir_solicitud_en_venta' : 'registrar_venta', {
+                ...(origen ? { p_solicitud: origen } : {}),
                 p_cliente: cliente, p_conceptos: conceptos,
                 p_pago: document.getElementById('payment-type').value, p_notas: v('ticket-notes') || null,
             });
@@ -853,11 +856,7 @@
             // el PDF de una venta registrada ya no se podía sacar.
             folioRegistrado = orderId;
             document.getElementById('ticket-folio').textContent = `#${orderId}`;
-            if (solicitudOrigen) {
-                const { error } = await window.supabaseClient.from('custom_requests').update({ status: 'En Progreso' }).eq('id', solicitudOrigen);
-                if (error) showToast('La venta quedó registrada, pero la solicitud no cambió de estatus: ' + error.message, 'error');
-                solicitudOrigen = null;
-            }
+            solicitudOrigen = null;
             btn.textContent = 'Venta registrada';
             cargarHistorialBD();
             showToast(`Venta #${orderId} registrada. Exporta el PDF o limpia la venta para empezar otra.`);
@@ -1198,7 +1197,14 @@
             pintura_electrostatica: 'Pintura electrostática', pavonado: 'Pavonado', cromado: 'Cromado' };
 
         // Una solicitud sin estatus o "Pendiente de Revisión" sigue sin respuesta.
-        const sinResponder = (req) => !req.status || req.status === 'Pendiente de Revisión';
+        const cotizacionAbierta = (req) => req.status !== 'Finalizado' && !req.converted_order_id;
+        const cotizacionVencida = (req) => cotizacionAbierta(req) && req.quote_expires_at &&
+            new Date(req.quote_expires_at).getTime() <= Date.now();
+        const sinResponder = (req) => !cotizacionVencida(req) && !req.converted_order_id &&
+            (!req.status || req.status === 'Pendiente de Revisión');
+        const fechaVigencia = new Intl.DateTimeFormat('es-MX', {
+            dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Monterrey',
+        });
         const diasDesde = (fecha) => Math.max(0, Math.floor((Date.now() - new Date(fecha).getTime()) / 86400000));
         const textoEspera = (dias) => dias === 0 ? 'hoy' : dias === 1 ? '1 día' : `${dias} días`;
 
@@ -1414,7 +1420,7 @@
             const lista = document.getElementById('inicio-pendientes');
             const sb = window.supabaseClient;
             const [solicitudes, ventas, productos, sinFactor] = await Promise.all([
-                sb.from('custom_requests').select('status, created_at'),
+                sb.from('custom_requests').select('status, created_at, quote_expires_at, converted_order_id'),
                 sb.from('orders').select('payment_status').in('payment_status', ['anticipo', 'faltante']),
                 sb.from('products').select('stock, price, is_active').or(`stock.lt.${STOCK_BAJO},price.lte.0`),
                 rolActual === 'admin' ? sb.rpc('empleados_sin_segundo_factor') : Promise.resolve({ data: [] }),
@@ -1501,7 +1507,8 @@
             // Lo que espera respuesta va primero, el más antiguo arriba: es lo
             // que urge. Lo ya atendido queda abajo.
             const pendientes = data.filter(sinResponder).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            const atendidas = data.filter(r => !sinResponder(r));
+            const vencidas = data.filter(cotizacionVencida);
+            const atendidas = data.filter(r => !sinResponder(r) && !cotizacionVencida(r));
             const mayorEspera = pendientes.length ? diasDesde(pendientes[0].created_at) : 0;
             pintarResumen('projects-resumen', pendientes.length, 'solicitud', 'solicitudes',
                 ` sin responder; la más antigua espera desde ${mayorEspera === 0 ? 'hoy' : `hace ${textoEspera(mayorEspera)}`}.`);
@@ -1553,12 +1560,23 @@
                 const select = document.createElement('select'); estados.forEach(est => { const option = document.createElement('option'); option.value = est; option.textContent = est; option.selected = req.status === est; select.appendChild(option); }); select.addEventListener('change', () => actualizarEstatusProyecto(req.id, select.value));
                 select.setAttribute('aria-label', `Estatus de ${name || 'la solicitud'}`);
                 const status = document.createElement('td'); status.appendChild(select);
-                if (req.status !== 'Finalizado') {
+                if (req.converted_order_id) {
+                    status.appendChild(textCell(`Venta #${req.converted_order_id}`, 'small'));
+                } else if (cotizacionAbierta(req)) {
+                    const vencida = cotizacionVencida(req);
+                    const requiereRenovar = vencida || !req.quote_expires_at;
+                    const vigencia = textCell(vencida ? 'Vencida' : req.quote_expires_at
+                        ? `Vence el ${fechaVigencia.format(new Date(req.quote_expires_at))}`
+                        : 'Por actualizar', 'small');
+                    vigencia.style.display = 'block';
+                    if (vencida) vigencia.className = 'status-badge status-peligro';
+                    status.appendChild(vigencia);
                     const convertir = document.createElement('button');
                     convertir.type = 'button';
-                    convertir.className = 'btn-secundario btn-convertir';
-                    convertir.textContent = 'Convertir en venta';
-                    convertir.addEventListener('click', () => ventaDesdeSolicitud(req));
+                    convertir.className = requiereRenovar ? 'btn-secundario' : 'btn-secundario btn-convertir';
+                    convertir.textContent = requiereRenovar ? 'Actualizar cotización' : 'Convertir en venta';
+                    convertir.addEventListener('click', () => requiereRenovar
+                        ? renovarCotizacion(req.id, convertir) : ventaDesdeSolicitud(req));
                     status.appendChild(convertir);
                 }
                 row.append(espera, client, piece, estimate, status);
@@ -1568,6 +1586,19 @@
             tbody.replaceChildren(...pendientes.map(fila));
             if (pendientes.length && atendidas.length) tbody.appendChild(filaGrupo('Atendidas', 5));
             atendidas.forEach(r => tbody.appendChild(fila(r)));
+            if (vencidas.length) tbody.append(filaGrupo('Vencidas', 5), ...vencidas.map(fila));
+        }
+
+        async function renovarCotizacion(id, boton) {
+            boton.disabled = true;
+            const { error } = await window.supabaseClient.rpc('renovar_cotizacion', { p_solicitud: id });
+            if (error) {
+                boton.disabled = false;
+                showToast('No se pudo actualizar la cotización: ' + error.message, 'error');
+                return;
+            }
+            showToast('Cotización actualizada. Vigencia de 14 días.');
+            await cargarProyectosBD();
         }
 
         // Una solicitud aceptada se vuelve venta sin volver a capturar nada: se
@@ -1577,6 +1608,11 @@
         let solicitudOrigen = null;
 
         function ventaDesdeSolicitud(req) {
+            if (cotizacionVencida(req)) {
+                showToast('Actualiza la cotización antes de convertirla en venta.', 'error');
+                cargarProyectosBD();
+                return;
+            }
             if (posCart.length && !folioRegistrado
                 && !confirm('Hay una venta en curso sin registrar. ¿Reemplazarla con esta solicitud?')) return;
             clearPOS();

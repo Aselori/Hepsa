@@ -376,6 +376,7 @@
                     <div class="estimado-titulo">Precio estimado</div>
                     <div id="quote-estimate-amount" class="estimado-monto"></div>
                     <div id="quote-estimate-detail" class="estimado-detalle"></div>
+                    <p class="estimado-detalle">El estimado tiene una vigencia de 14 días desde que envías la solicitud.</p>
                     <p class="estimado-aviso">
                         Este monto es <strong>aproximado y no constituye una cotización en firme</strong>.
                         Se calcula sobre medidas, material y acabado; el precio final depende del diseño,
@@ -1435,7 +1436,7 @@
             }]);
             if (error) alert("Error: " + error.message);
             else {
-                alert("Solicitud enviada. En breve nos comunicaremos contigo.");
+                alert("Solicitud enviada. Tu estimado tiene una vigencia de 14 días. En breve nos comunicaremos contigo.");
                 document.querySelectorAll('#view-quote input, #view-quote textarea').forEach(i => i.value = '');
                 document.querySelectorAll('#view-quote select').forEach(s => s.value = '');
                 document.getElementById('quote-estimate').hidden = true;
