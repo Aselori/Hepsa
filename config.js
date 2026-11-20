@@ -31,7 +31,7 @@ window.HEPSA_CONFIG = {
     // Edge Functions create-payment y stripe-webhook estén desplegadas con sus
     // secretos: con false el portal no muestra el botón de pagar. Pasos en
     // docs/pagos-en-linea.md.
-    pagosEnLinea: false,
+    pagosEnLinea: true,
 
     // ¿Se puede pedir más de lo que hay en existencia?
     //
