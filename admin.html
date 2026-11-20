@@ -80,6 +80,15 @@
         .barras .valor { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
         .barras .valor small { color: var(--text-muted); margin-left: 6px; }
         .barras .actual { font-weight: 600; }
+        .pagos-mes { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 6px 20px; margin: 0; padding: 16px 18px; border: 1px solid var(--card-border); border-radius: var(--radio); background: var(--card-bg); }
+        .pagos-mes .monto { display: block; margin-top: 3px; font-size: clamp(1.45rem, 5vw, 1.9rem); line-height: 1.15; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+        .pagos-mes .conteo { color: var(--text-muted); font-size: .9rem; }
+        .pagos-alcance { margin: 8px 0 20px; font-size: .85rem; color: var(--text-muted); }
+        #pagos-duplicados { margin: 0 0 14px; padding: 10px 12px; border-left: 2px solid var(--aviso); border-radius: 0 var(--radio) var(--radio) 0; background: var(--aviso-bg); color: var(--aviso); line-height: 1.45; }
+        .pagos-cliente { overflow-wrap: anywhere; }
+        .pagos-fecha { color: var(--text-muted); }
+        .pagos-revision { display: block; margin-top: 4px; color: var(--text-muted); font-size: .85rem; }
+
         .btn-convertir { display: block; width: auto; margin-top: 8px; padding: 6px 12px; font-size: 0.85rem; }
         .nav-grupo { margin: 14px 12px 4px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
         .pendientes { list-style: none; margin: 0; padding: 0; max-width: 640px; display: flex; flex-direction: column; gap: 8px; }
@@ -199,6 +208,20 @@
             .modal-box { padding: 20px; }
         }
         @media (max-width: 560px) {
+            #view-pagos .encabezado-vista { gap: 8px; margin-bottom: 16px; }
+            #view-pagos table { min-width: 0; }
+            #view-pagos thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+            #pagos-table-body tr[data-pago] { display: grid; grid-template-columns: minmax(0, 1fr) auto;
+                grid-template-areas: "pedido monto" "cliente fecha" "estado estado";
+                gap: 4px 12px; padding: 12px 10px; border-bottom: 1px solid var(--card-border); }
+            #pagos-table-body tr[data-pago]:last-child { border-bottom: 0; }
+            #pagos-table-body tr[data-pago] td { display: block; padding: 0; border: 0; }
+            #pagos-table-body .pagos-pedido { grid-area: pedido; font-weight: 600; }
+            #pagos-table-body .pagos-cliente { grid-area: cliente; font-size: .9rem; }
+            #pagos-table-body .pagos-fecha { grid-area: fecha; text-align: right; font-size: .8rem; }
+            #pagos-table-body .pagos-monto { grid-area: monto; font-weight: 600; white-space: nowrap; }
+            #pagos-table-body .pagos-estado { grid-area: estado; margin-top: 4px; }
+            .pagos-revision { display: inline-block; margin: 0 0 0 6px; }
             .form-grid { grid-template-columns: 1fr; gap: 0; margin-bottom: 0; }
             /* Concepto a todo lo ancho; precio y boton comparten la fila de abajo. */
             .form-grid.fila-concepto { grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
@@ -553,15 +576,19 @@
         <section id="view-pagos" class="view-section">
             <div class="encabezado-vista">
                 <h2>Pagos en línea</h2>
-                <button class="btn-secundario" onclick="cargarPagosBD()">Actualizar</button>
+                <button id="pagos-actualizar" type="button" class="btn-secundario" onclick="cargarPagosBD()">Actualizar</button>
             </div>
-            <p id="pagos-duplicados" class="resumen alerta" hidden></p>
-            <p id="pagos-mes" class="resumen"></p>
+            <p id="pagos-mes" class="pagos-mes" hidden>
+                <span>Recibido este mes<strong id="pagos-mes-monto" class="monto"></strong></span>
+                <span id="pagos-mes-conteo" class="conteo"></span>
+            </p>
+            <p id="pagos-alcance" class="pagos-alcance">Hasta los 200 registros más recientes. El importe del mes excluye duplicados.</p>
+            <p id="pagos-duplicados" hidden></p>
             <div class="panel">
                 <div class="table-container">
-                    <table>
-                        <thead><tr><th>Fecha</th><th>Pedido</th><th>Cliente</th><th class="num">Monto</th><th>Estado</th></tr></thead>
-                        <tbody id="pagos-table-body"></tbody>
+                    <table role="table" aria-label="Pagos registrados" aria-describedby="pagos-alcance">
+                        <thead><tr><th scope="col">Pedido</th><th scope="col">Cliente</th><th scope="col">Fecha</th><th scope="col" class="num">Monto (MXN)</th><th scope="col">Estado</th></tr></thead>
+                        <tbody id="pagos-table-body" role="rowgroup"></tbody>
                     </table>
                 </div>
             </div>
@@ -1545,35 +1572,87 @@
         // Lo que pide acción es un cobro duplicado (dos pestañas pagando el
         // mismo pedido): va arriba y se reembolsa desde el panel de Stripe.
         async function cargarPagosBD() {
+            const actualizar = document.getElementById('pagos-actualizar');
+            if (actualizar.disabled) return;
             const tbody = document.getElementById('pagos-table-body');
-            renderTableMessage(tbody, 5, 'Cargando…');
-            const { data, error } = await window.supabaseClient.from('pagos')
-                .select('id, order_id, monto, moneda, duplicado, creado, orders(client_first_name, client_last_name)')
-                .order('creado', { ascending: false }).limit(200);
-            if (error) { renderTableMessage(tbody, 5, `Error: ${error.message}`, 'mensaje-error'); return; }
-            const duplicados = data.filter((p) => p.duplicado);
-            pintarResumen('pagos-duplicados', duplicados.length, 'cobro duplicado', 'cobros duplicados',
-                ' por reembolsar desde el panel de Stripe.');
-            const hoy = new Date();
-            const delMes = data.filter((p) => { const d = new Date(p.creado); return d.getMonth() === hoy.getMonth() && d.getFullYear() === hoy.getFullYear() && !p.duplicado; });
             const mes = document.getElementById('pagos-mes');
-            const cifra = document.createElement('strong');
-            cifra.textContent = pesos(delMes.reduce((t, p) => t + Number(p.monto), 0));
-            mes.replaceChildren(cifra, document.createTextNode(` cobrados en línea este mes en ${delMes.length === 1 ? '1 pago' : `${delMes.length} pagos`}.`));
-            if (!data.length) { renderTableMessage(tbody, 5, 'Aún no hay pagos en línea.'); return; }
-            tbody.replaceChildren();
-            for (const p of [...duplicados, ...data.filter((x) => !x.duplicado)]) {
-                const row = document.createElement('tr');
-                const celda = (valor, clase = '') => { const td = document.createElement('td'); td.textContent = valor; if (clase) td.className = clase; return td; };
-                const estado = document.createElement('td');
-                const marca = document.createElement('span');
-                marca.className = `status-badge ${p.duplicado ? 'status-peligro' : 'status-ok'}`;
-                marca.textContent = p.duplicado ? 'Duplicado: reembolsar' : 'Cobrado';
-                estado.append(marca);
-                const cliente = `${p.orders?.client_first_name || ''} ${p.orders?.client_last_name || ''}`.trim() || '—';
-                row.append(celda(new Date(p.creado).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })),
-                    celda(String(p.order_id)), celda(cliente), celda(pesos(Number(p.monto)), 'num'), estado);
-                tbody.append(row);
+            const aviso = document.getElementById('pagos-duplicados');
+            const monto = document.getElementById('pagos-mes-monto');
+            const conteo = document.getElementById('pagos-mes-conteo');
+
+            actualizar.disabled = true;
+            mes.hidden = aviso.hidden = true;
+            monto.textContent = conteo.textContent = aviso.textContent = '';
+            renderTableMessage(tbody, 5, 'Cargando pagos…');
+            try {
+                const { data, error } = await window.supabaseClient.from('pagos')
+                    .select('id, order_id, monto, moneda, duplicado, creado, orders(client_first_name, client_last_name)')
+                    .order('creado', { ascending: false }).limit(200);
+                if (error) throw error;
+
+                const duplicados = data.filter((pago) => pago.duplicado);
+                const recibidos = data.filter((pago) => !pago.duplicado);
+                const hoy = new Date();
+                const delMes = recibidos.filter(({ creado }) => {
+                    const fecha = new Date(creado);
+                    return fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear();
+                });
+                const moneda = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+                monto.textContent = moneda.format(delMes.reduce((total, pago) => total + Number(pago.monto), 0)) + ' MXN';
+                conteo.textContent = delMes.length === 1 ? '1 pago' : `${delMes.length} pagos`;
+                mes.hidden = false;
+
+                if (!data.length) {
+                    renderTableMessage(tbody, 5, 'Aún no hay pagos en línea.');
+                    return;
+                }
+
+                if (duplicados.length) {
+                    const total = duplicados.length;
+                    const titulo = document.createElement('strong');
+                    titulo.textContent = total === 1 ? '1 cobro duplicado' : `${total} cobros duplicados`;
+                    aviso.append(titulo, ' al inicio de la lista. Revisa el estado del reembolso en Stripe.');
+                    aviso.hidden = false;
+                }
+
+                const celda = (valor, clase) => {
+                    const td = document.createElement('td');
+                    td.setAttribute('role', 'cell');
+                    td.textContent = valor;
+                    td.className = clase;
+                    return td;
+                };
+                const fechaPago = new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+                tbody.replaceChildren(...[...duplicados, ...recibidos].map((pago) => {
+                    const fila = document.createElement('tr');
+                    fila.dataset.pago = '';
+                    fila.setAttribute('role', 'row');
+                    const estado = celda('', 'pagos-estado');
+                    const marca = document.createElement('span');
+                    marca.className = `status-badge ${pago.duplicado ? 'status-peligro' : 'status-ok'}`;
+                    marca.textContent = pago.duplicado ? 'Duplicado' : 'Cobrado';
+                    estado.append(marca);
+                    if (pago.duplicado) {
+                        const revision = document.createElement('span');
+                        revision.className = 'pagos-revision';
+                        revision.textContent = 'Gestionar en Stripe';
+                        estado.append(revision);
+                    }
+                    const cliente = `${pago.orders?.client_first_name || ''} ${pago.orders?.client_last_name || ''}`.trim() || '—';
+                    fila.append(
+                        celda(`#${pago.order_id}`, 'pagos-pedido'),
+                        celda(cliente, 'pagos-cliente'),
+                        celda(fechaPago.format(new Date(pago.creado)), 'pagos-fecha'),
+                        celda(moneda.format(Number(pago.monto)), 'num pagos-monto'),
+                        estado,
+                    );
+                    return fila;
+                }));
+            } catch (error) {
+                mes.hidden = aviso.hidden = true;
+                renderTableMessage(tbody, 5, 'No se pudieron cargar los pagos. Presiona Actualizar para reintentar.', 'mensaje-error');
+            } finally {
+                actualizar.disabled = false;
             }
         }
 

@@ -233,11 +233,11 @@ try {
 
     const regreso = await page.evaluate(() => ({
       perfil: document.getElementById('view-profile').classList.contains('active'),
-      aviso: document.getElementById('toast-container').textContent,
+      aviso: document.getElementById('pedidos-regreso-mensaje').textContent,
       url: location.search,
     }));
     check('al cancelar en Stripe el portal lo dice y abre el perfil',
-      regreso.perfil && regreso.aviso.includes('No se hizo ningún cargo') && regreso.url === '', JSON.stringify(regreso));
+      regreso.perfil && regreso.aviso.includes('Saliste del pago en línea') && regreso.url === '', JSON.stringify(regreso));
 
     const nota = await page.evaluate(() => document.getElementById('cart-nota-pago').textContent);
     check('con pagos en linea la nota del carrito ya no dice que no se cobra en linea',
@@ -257,6 +257,22 @@ try {
     check('en telefono la pagina no se desborda y el boton de pago se ve completo',
       !telefono.desborda && telefono.botonDentro, JSON.stringify(telefono));
 
+    await page.goto(`${BASE_URL}/index.html?pago=exito&pedido=${pendiente}`);
+    await page.getByText('Pago por confirmar', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Actualizar estado' }).click();
+    check('un regreso de Stripe pendiente permite actualizar sin abrir otro pago',
+      await page.getByText('Pago por confirmar', { exact: true }).isVisible()
+      && !(await page.locator(`[data-pagar-id="${pendiente}"]`).count()));
+    await page.screenshot({ path: 'tests/screenshots/pagos-cliente-confirmando.png', fullPage: true });
+
+    await page.goto(`${BASE_URL}/index.html?pago=exito&pedido=${pedido}`);
+    await page.getByText(`Pago confirmado para el pedido #${pedido}.`, { exact: true }).waitFor();
+    check('el regreso sólo confirma cuando el pedido está pagado en la base',
+      await page.getByText(`Pago confirmado para el pedido #${pedido}.`, { exact: true }).isVisible());
+
+    await page.goto(`${BASE_URL}/index.html?pago=cancelado&pedido=${pendiente}`);
+    await page.locator(`[data-pagar-id="${pendiente}"]`).waitFor();
+    await page.screenshot({ path: 'tests/screenshots/pagos-cliente-pendiente.png', fullPage: true });
     await page.locator(`[data-pagar-id="${pendiente}"]`).click();
     await page.waitForURL(/checkout\.stripe\.com/, { timeout: 15000 });
     check('el botón lleva a la sesión de Stripe', page.url().startsWith('https://checkout.stripe.com/c/pay/cs_test_'), page.url());
@@ -281,9 +297,14 @@ try {
       await filas.first().waitFor({ timeout: 10000 }).catch(() => {});
       const textos = await filas.allInnerTexts();
       check('el panel del admin lista los dos cobros del pedido', textos.length === 2, textos.join(' | '));
-      check('el duplicado va primero y marcado para reembolsar', /Duplicado: reembolsar/.test(textos[0] ?? ''), textos[0] ?? '');
+      check('el duplicado va primero y orienta a Stripe', /Duplicado/.test(textos[0] ?? '') && /Stripe/.test(textos[0] ?? ''), textos[0] ?? '');
       check('el resumen avisa del cobro duplicado', /cobros? duplicados?/.test(await admin.locator('#pagos-duplicados').innerText()));
       await admin.screenshot({ path: 'tests/screenshots/pagos-admin.png', fullPage: true });
+      await admin.setViewportSize({ width: 390, height: 844 });
+      check('en teléfono el historial de pagos cabe sin desplazamiento horizontal',
+        await admin.locator('#view-pagos .table-container').evaluate(el => el.scrollWidth <= el.clientWidth + 1));
+      await admin.screenshot({ path: 'tests/screenshots/pagos-admin-telefono.png', fullPage: true });
+      await admin.setViewportSize({ width: 1280, height: 800 });
       await admin.locator('#nav-pos').click();
       for (const id of [productoId, complementoId, productoId, complementoId]) {
         await admin.locator('#pos-product-select').selectOption(String(id));
