@@ -211,14 +211,40 @@
             #printable-area { position: absolute; left: 0; top: 0; width: 100%; max-width: 350px; box-shadow: none; border: none; padding: 10px; background: white; }
             body { background: white; }
         }
-        .combo-linea { display: grid; grid-template-columns: minmax(0, 1fr) 7em auto; gap: 8px; align-items: center; }
-        .combo-linea button, #combos-admin button { width: auto; }
+        .paquetes-dialogo { box-sizing: border-box; width: min(650px, calc(100% - 24px)); max-height: calc(100% - 24px);
+            overflow-y: auto; padding: clamp(18px, 4vw, 26px); border: 1px solid var(--card-border);
+            border-radius: var(--radio); background: var(--card-bg); color: var(--text-main); }
+        .paquetes-dialogo::backdrop { background: rgb(0 0 0 / .55); }
+        .paquetes-dialogo h2 { margin: 0 0 17px; }
+        .paquetes-dialogo .form-grid > * { min-width: 0; }
+        .paquete-activo { display: flex; align-items: center; gap: 7px; }
+        .paquete-activo input { width: auto; margin: 0; }
+        .paquete-piezas-titulo { font-size: .95rem; margin: 16px 0 0; }
+        .combo-linea { display: grid; grid-template-columns: minmax(0, 1fr) 7em auto; gap: 8px; align-items: end;
+            padding: 10px 0; border-bottom: 1px solid var(--card-border); }
+        .combo-linea label { min-width: 0; margin: 0; display: grid; gap: 4px; }
+        .combo-linea label span { color: var(--text-muted); font-size: .78rem; }
+        .combo-linea :is(input, select) { min-width: 0; margin: 0; }
+        button.paquete-quitar { width: auto; padding: 9px 5px; background: none; border-color: transparent;
+            text-decoration: underline; text-underline-offset: 3px; }
+        #combo-agregar-producto { width: auto; margin: 0 0 14px; }
+        .paquete-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+        .paquete-acciones button, #combos-admin button { width: auto; }
         #combos-admin summary { cursor: pointer; font-weight: 600; }
-        #combo-productos, #combo-lista { display: grid; gap: 8px; margin: 12px 0; }
+        #combo-productos { margin: 6px 0 10px; }
+        #combo-lista { display: grid; gap: 8px; margin: 12px 0; }
         @media (max-width: 500px) {
-            .combo-linea { grid-template-columns: minmax(0, 1fr) auto; }
-            .combo-linea select { grid-column: 1 / -1; }
+            .combo-linea { grid-template-columns: 96px auto; }
+            .combo-linea label:first-child { grid-column: 1 / -1; }
         }
+        @media (hover: hover) and (pointer: fine) {
+            #combos-admin summary:hover { text-decoration: underline; text-underline-offset: 3px; }
+            button.paquete-quitar:hover:not(:disabled) { background: var(--activo-bg); text-decoration-thickness: 2px; }
+        }
+        .solicitud-vigencia { display: block; color: var(--text-muted); margin: 5px 0 0; font-size: .84rem; line-height: 1.35; }
+        .solicitud-vigencia.vencida { color: var(--peligro); font-weight: 600; }
+        .solicitud-acciones > select, .solicitud-acciones > button { width: 100%; }
+        .solicitud-acciones > button { display: block; margin: 8px 0 0; }
     </style>
 </head>
 <body style="display:none;">
@@ -353,7 +379,7 @@
                         <div class="ticket-items" id="ticket-list"></div>
                         <div class="ticket-total">
                             <div style="font-size: 0.9rem; font-weight: normal; color:#555; margin-bottom: 5px;">
-                                <span id="tkt-combo" style="display:block;" hidden></span>
+                                <div id="tkt-combo" class="descuento-paquete" hidden></div>
                                 Subtotal: $<span id="tkt-sub">0.00</span><br>
                                 IVA (<span id="disp-iva-perc">16</span>%): $<span id="tkt-iva">0.00</span>
                             </div>
@@ -411,23 +437,29 @@
             </div>
             <p id="inventory-resumen" class="resumen alerta" hidden></p>
             <details id="combos-admin" class="panel" hidden>
-                <summary>Combos</summary>
+                <summary>Paquetes</summary>
                 <div id="combo-lista"></div>
-                <button type="button" id="combo-nuevo" class="btn-secundario">Agregar combo</button>
-                <form id="combo-form" hidden>
+                <button type="button" id="combo-nuevo" class="btn-secundario">Crear paquete</button>
+            </details>
+            <dialog id="combo-dialogo" class="paquetes-dialogo" aria-labelledby="combo-titulo">
+                <h2 id="combo-titulo">Paquete</h2>
+                <form id="combo-form">
                     <div class="form-grid">
-                        <div class="form-group"><label for="combo-nombre">Nombre del combo</label>
+                        <div class="form-group"><label for="combo-nombre">Nombre del paquete</label>
                             <input id="combo-nombre" maxlength="80" required></div>
                         <div class="form-group"><label for="combo-porcentaje">Descuento (%)</label>
                             <input id="combo-porcentaje" type="number" min="0.01" max="99.99" step="0.01" required></div>
                     </div>
-                    <label><input id="combo-activo" type="checkbox"> Activo</label>
+                    <label class="paquete-activo"><input id="combo-activo" type="checkbox"> Activo</label>
+                    <h3 class="paquete-piezas-titulo">Productos del paquete</h3>
                     <div id="combo-productos"></div>
-                    <button type="button" id="combo-agregar-producto" class="btn-secundario">Agregar producto al combo</button>
-                    <button type="submit" class="action-btn">Guardar combo</button>
-                    <button type="button" id="combo-cancelar" class="btn-secundario">Cancelar</button>
+                    <button type="button" id="combo-agregar-producto" class="btn-secundario">Agregar producto</button>
+                    <div class="paquete-acciones">
+                        <button type="button" id="combo-cancelar" class="btn-secundario">Cancelar</button>
+                        <button type="submit" class="action-btn" id="combo-guardar">Guardar paquete</button>
+                    </div>
                 </form>
-            </details>
+            </dialog>
             <div class="panel" id="panel-alta-producto" hidden>
                 <h3 class="panel-titulo">Agregar producto</h3>
                     <div class="form-grid">
@@ -836,9 +868,7 @@
         }
 
         function pintarDescuentoTicket() {
-            const ahorro = document.getElementById('tkt-combo');
-            ahorro.textContent = comboTicket ? textoAhorroCombo(comboTicket) : '';
-            ahorro.hidden = !comboTicket;
+            pintarDescuentoPaquete(document.getElementById('tkt-combo'), comboTicket);
         }
 
         function removeFromTicket(idx) { if (ventaYaRegistrada()) return; posCart.splice(idx, 1); renderPOSTicket(); }
@@ -971,7 +1001,7 @@
             const total = Number(importesRegistrados?.total ?? subtotal + iva);
             doc.setFontSize(8);
             if (comboTicket) {
-                const etiquetaCombo = doc.splitTextToSize(`Combo: ${comboTicket.nombre} × ${comboTicket.juegos}`, 45);
+                const etiquetaCombo = doc.splitTextToSize(`Paquete: ${comboTicket.nombre} × ${comboTicket.juegos}`, 45);
                 doc.text(etiquetaCombo, 5, y);
                 doc.text(`-$${formatMoney(comboTicket.descuento)}`, W - 5, y, { align: 'right' });
                 y += lineH * etiquetaCombo.length;
@@ -1096,13 +1126,15 @@
 
         let comboEditado = null;
         const formCombo = document.getElementById('combo-form');
+        const dialogoCombo = document.getElementById('combo-dialogo');
+        const botonCancelarCombo = document.getElementById('combo-cancelar');
+        const botonGuardarCombo = document.getElementById('combo-guardar');
         const productosCombo = document.getElementById('combo-productos');
 
         function agregarLineaCombo(item = {}) {
             const linea = Object.assign(document.createElement('div'), { className: 'combo-linea' });
             const producto = document.createElement('select');
             producto.required = true;
-            producto.setAttribute('aria-label', 'Producto del combo');
             producto.append(new Option('Selecciona un producto…', ''));
             for (const p of productosInventario) {
                 producto.append(new Option(p.is_active ? p.name : `${p.name} (oculto)`, p.id));
@@ -1111,13 +1143,22 @@
             const cantidad = Object.assign(document.createElement('input'), {
                 type: 'number', required: true, min: 1, max: 999, step: 1, value: item.cantidad ?? 1,
             });
-            cantidad.setAttribute('aria-label', 'Cantidad en el combo');
             const quitar = Object.assign(document.createElement('button'), {
-                type: 'button', className: 'btn-secundario', textContent: 'Quitar',
+                type: 'button', className: 'btn-secundario paquete-quitar', textContent: 'Quitar',
             });
-            quitar.addEventListener('click', () => linea.remove());
-            linea.append(producto, cantidad, quitar);
+            const etiquetar = (control, texto) => {
+                const label = document.createElement('label');
+                label.append(Object.assign(document.createElement('span'), { textContent: texto }), control);
+                return label;
+            };
+            const rotularAcciones = () => {
+                [...productosCombo.children].forEach((fila, i) =>
+                    fila.querySelector('.paquete-quitar').setAttribute('aria-label', 'Quitar producto ' + (i + 1)));
+            };
+            quitar.addEventListener('click', () => { linea.remove(); rotularAcciones(); });
+            linea.append(etiquetar(producto, 'Producto'), etiquetar(cantidad, 'Cantidad'), quitar);
             productosCombo.append(linea);
+            rotularAcciones();
         }
 
         function editarCombo(combo) {
@@ -1127,7 +1168,8 @@
             document.getElementById('combo-activo').checked = combo?.activo ?? true;
             productosCombo.replaceChildren();
             for (const item of combo?.items ?? [{}, {}]) agregarLineaCombo(item);
-            formCombo.hidden = false;
+            document.getElementById('combo-titulo').textContent = combo ? 'Editar paquete' : 'Crear paquete';
+            dialogoCombo.showModal();
             document.getElementById('combo-nombre').focus();
         }
 
@@ -1140,7 +1182,7 @@
             const { data, error } = await sb.from('combos')
                 .select('id, nombre, porcentaje, activo, items:combo_items(producto_id, cantidad)').order('id');
             if (error) {
-                lista.textContent = 'No se pudieron cargar los combos.';
+                lista.textContent = 'No se pudieron cargar los paquetes.';
                 return;
             }
             lista.replaceChildren(...(data ?? []).map(combo => {
@@ -1150,7 +1192,7 @@
                 const editar = Object.assign(document.createElement('button'), {
                     type: 'button', className: 'btn-secundario', textContent: 'Editar',
                 });
-                editar.setAttribute('aria-label', `Editar combo ${combo.nombre}`);
+                editar.setAttribute('aria-label', `Editar paquete ${combo.nombre}`);
                 editar.addEventListener('click', () => editarCombo(combo));
                 fila.append(texto, editar);
                 return fila;
@@ -1158,7 +1200,8 @@
         }
 
         document.getElementById('combo-nuevo').addEventListener('click', () => editarCombo());
-        document.getElementById('combo-cancelar').addEventListener('click', () => { formCombo.hidden = true; });
+        botonCancelarCombo.addEventListener('click', () => dialogoCombo.close());
+        dialogoCombo.addEventListener('cancel', event => { if (botonGuardarCombo.disabled) event.preventDefault(); });
         document.getElementById('combo-agregar-producto').addEventListener('click', () => agregarLineaCombo());
         formCombo.addEventListener('submit', async event => {
             event.preventDefault();
@@ -1170,19 +1213,24 @@
                 showToast('Elige al menos dos productos distintos.', 'error');
                 return;
             }
-            event.submitter.disabled = true;
-            const { error } = await window.supabaseClient.rpc('guardar_combo', {
-                p_id: comboEditado,
-                p_nombre: document.getElementById('combo-nombre').value.trim(),
-                p_porcentaje: document.getElementById('combo-porcentaje').valueAsNumber,
-                p_activo: document.getElementById('combo-activo').checked,
-                p_items: items,
-            });
-            event.submitter.disabled = false;
-            if (error) { showToast('No se pudo guardar el combo: ' + error.message, 'error'); return; }
-            formCombo.hidden = true;
-            showToast('Combo guardado.');
-            cargarCombosPanel();
+            botonGuardarCombo.disabled = true;
+            botonCancelarCombo.disabled = true;
+            try {
+                const { error } = await window.supabaseClient.rpc('guardar_combo', {
+                    p_id: comboEditado,
+                    p_nombre: document.getElementById('combo-nombre').value.trim(),
+                    p_porcentaje: document.getElementById('combo-porcentaje').valueAsNumber,
+                    p_activo: document.getElementById('combo-activo').checked,
+                    p_items: items,
+                });
+                if (error) { showToast('No se pudo guardar el paquete: ' + error.message, 'error'); return; }
+                dialogoCombo.close();
+                showToast('Paquete guardado.');
+                cargarCombosPanel();
+            } finally {
+                botonGuardarCombo.disabled = false;
+                botonCancelarCombo.disabled = false;
+            }
         });
 
         // Sube la foto al bucket y devuelve su URL publica, o null si fallo (ya
@@ -1841,9 +1889,9 @@
                     const vigencia = textCell(vencida ? 'Vencida' : req.quote_expires_at
                         ? `Vence el ${fechaVigencia.format(new Date(req.quote_expires_at))}`
                         : 'Por actualizar', 'small');
-                    vigencia.style.display = 'block';
-                    if (vencida) vigencia.className = 'status-badge status-peligro';
-                    status.appendChild(vigencia);
+                    vigencia.className = vencida ? 'solicitud-vigencia vencida' : 'solicitud-vigencia';
+                    espera.appendChild(vigencia);
+                    status.classList.add('solicitud-acciones');
                     const convertir = document.createElement('button');
                     convertir.type = 'button';
                     convertir.className = requiereRenovar ? 'btn-secundario' : 'btn-secundario btn-convertir';
