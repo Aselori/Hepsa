@@ -9,5 +9,5 @@
 -- ============================================================================
 
 ALTER TABLE public.products
-  ADD CONSTRAINT products_visible_con_precio
+  ADD CONSTRAINT products_active_requires_price
   CHECK (NOT COALESCE(is_active, false) OR price > 0);

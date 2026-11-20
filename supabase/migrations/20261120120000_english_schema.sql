@@ -137,7 +137,6 @@ ALTER POLICY profiles_select_propio ON public.profiles RENAME TO profiles_select
 ALTER POLICY profiles_update_propio ON public.profiles RENAME TO profiles_update_own;
 
 ALTER POLICY products_select_publico ON public.products RENAME TO products_select_public;
-ALTER TABLE public.products RENAME CONSTRAINT products_visible_con_precio TO products_active_requires_price;
 
 ALTER POLICY orders_select_propias ON public.orders RENAME TO orders_select_own;
 ALTER POLICY order_items_select_propias ON public.order_items RENAME TO order_items_select_own;
