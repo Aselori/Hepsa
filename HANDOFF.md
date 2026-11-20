@@ -1,11 +1,16 @@
-# HEPSA recovery checkpoint
+# HEPSA: punto de recuperación
 
-- Objective: next 2FA deliverable. Cloudflare explicitly deferred. User taking over after original developers left.
-- Scope: local staff-session injection fixes, reliable MFA screens, isolated tests and real local Auth/RLS verification. No production changes or broad rewrite.
-- Rama actual: main limpio (lo de esta sesión está fusionado). Mejoras 1, 2 (modo de prueba, sin activar) y 3 fusionadas.
-- Repository moved from `/home/aselori/Projects/hepsa` to `/home/aselori/Work/projects/hepsa`. Primary prior Codex thread is `01a08d52-5047-79e2-84de-603b4220c1d7`; resume it from the new checkout with `codex resume 01a08d52-5047-79e2-84de-603b4220c1d7 -C /home/aselori/Work/projects/hepsa`, or discover moved-path sessions with `codex resume --all`.
-- CONTRIBUTING.md remains project convention source. User supplied updated global AGENTS instructions (Arch/Omarchy, mise, explicit restart timing).
-- User preference saved globally: enable best free approach when unavailable or explain exact enabling steps; no purchases. Filesystem inspection authorized, secrets excluded.
+## Investigación del 2026-11-19
+
+- El usuario pidió dos mejoras: caducidad de cotizaciones (delegó el plazo y sugirió dos semanas o un mes) y descuentos por combos de productos. Cloudflare sigue diferido.
+- Plan aprobado: vigencia de 14 días para el estimado guardado, renovación a tarifa vigente y conversión validada en PostgreSQL. Combos porcentuales gestionados por admin, aplicados al carrito y al POS, con un tipo de combo por operación, el de mayor ahorro, repetible por juego completo.
+- Ambas mejoras implementadas en `feature/cotizaciones-y-combos`, worktree `/tmp/hepsa-cotizaciones-combos` desde `main`. Las solicitudes previas pendientes o contactadas reciben 14 días al migrar. Una solicitud previa en progreso debe renovarse para volver a convertirla. Las notas y las ventas previas se conservan.
+- Verificación de las mejoras: nueve suites aisladas, integración completa en Supabase local con Chromium y Stripe simulado, sintaxis JS, `git diff --check` y advisor local sin errores. Se comprobó rechazo de cotizaciones vencidas y conversiones duplicadas, ahorro idéntico en el ticket y la venta, importe enviado a Stripe, inventario por componente y confirmación concurrente del carrito. El cotejo de texto con las notas no arrojó conflictos. No se probó la combinación de ramas ni se desplegó. Para una publicación aprobada, aplicar las migraciones antes de publicar el frontend.
+- `feat/notas-internas` parte de `120299e` (`main` y la referencia local `origin/main`). Trabajo previo sin confirmar: `admin.html`, seis pruebas y `supabase/migrations/20261117000001_notas_internas.sql` sin seguimiento. Se conservó íntegro.
+- La bitácora aprobada el 17 permite a vendedor y admin escribir en solicitudes y ventas. Taller escribe en pedidos de producción o instalados y lee por `pedidos_de_taller()`. La nota de una solicitud permanece ahí al convertirla en venta. El RPC de escritura acepta cualquier instalado, aunque la vista de taller muestra sólo los últimos 15.
+- Verificación actual: `git diff --check`, sintaxis JS y nueve suites aisladas en Chromium (`npm test`) correctas. El registro de Claude del 17 muestra pruebas de notas en Supabase local; no se repitió `npm run test:local` en esta revisión. Estado remoto, despliegue y datos hospedados sin comprobar.
+- Ramas aparte, fuera del `main` local: `fix/producto-sin-precio-oculto`, `demo/datos-en-vivo` y `docs/videos-demostracion`. La rama de demo documenta carga hospedada el 12 y su reversión; vigencia pendiente de comprobar.
+- Convenciones en `CONTRIBUTING.md` y `~/.codex/AGENTS.md`. Curso y generador de manuales en `~/Work/uni/proyint`. Historial de Codex previo al traslado: `codex resume 01a08d52-5047-79e2-84de-603b4220c1d7 -C /home/aselori/Work/projects/hepsa`.
 
 ## Base técnica (septiembre, resumido)
 

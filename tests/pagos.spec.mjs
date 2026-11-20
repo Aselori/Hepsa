@@ -19,10 +19,10 @@ const URL_SB = process.env.HEPSA_TEST_SUPABASE_URL;
 const LLAVE = process.env.HEPSA_TEST_SUPABASE_KEY;
 const {
   CLIENTE_EMAIL, CLIENTE_PASS, CLIENTE2_EMAIL, CLIENTE2_PASS,
-  PAGOS_PRODUCTO_ID, STRIPE_WEBHOOK_SECRET, STRIPE_SIMULADO_URL, BASE_URL,
+  PAGOS_PRODUCTO_ID, PAGOS_COMPLEMENTO_ID, PAGOS_COMBO_NOMBRE, STRIPE_WEBHOOK_SECRET, STRIPE_SIMULADO_URL, BASE_URL,
 } = process.env;
 
-if (!URL_SB || !LLAVE || !CLIENTE_EMAIL || !CLIENTE2_EMAIL || !PAGOS_PRODUCTO_ID || !STRIPE_WEBHOOK_SECRET || !STRIPE_SIMULADO_URL || !BASE_URL) {
+if (!URL_SB || !LLAVE || !CLIENTE_EMAIL || !CLIENTE2_EMAIL || !PAGOS_PRODUCTO_ID || !PAGOS_COMPLEMENTO_ID || !PAGOS_COMBO_NOMBRE || !STRIPE_WEBHOOK_SECRET || !STRIPE_SIMULADO_URL || !BASE_URL) {
   console.error('Faltan los fixtures de pagos. Ejecuta esta suite con: npm run test:local');
   process.exit(2);
 }
@@ -39,6 +39,7 @@ function check(nombre, ok, detalle = '') {
 
 const FUNCIONES = `${URL_SB}/functions/v1`;
 const productoId = Number(PAGOS_PRODUCTO_ID);
+const complementoId = Number(PAGOS_COMPLEMENTO_ID);
 const nuevoCliente = () => createClient(URL_SB, LLAVE, { auth: { persistSession: false, autoRefreshToken: false } });
 
 async function entrar(email, pass) {
@@ -70,25 +71,52 @@ const eventoDeSesion = ({ sesion, pedido, centavos, estado = 'paid', tipo = 'che
   data: { object: { id: sesion, object: 'checkout.session', payment_status: estado, amount_total: centavos, currency: 'mxn', metadata: { pedido: String(pedido) } } },
 });
 
-async function crearPedido(c, uid, qty) {
-  const carrito = await c.from('carrito_items').upsert({ user_id: uid, product_id: productoId, qty });
+async function crearPedido(c, uid, qty, qtyComplemento = 0) {
+  const lineas = [{ user_id: uid, product_id: productoId, qty }];
+  if (qtyComplemento) lineas.push({ user_id: uid, product_id: complementoId, qty: qtyComplemento });
+  const carrito = await c.from('carrito_items').upsert(lineas);
   if (carrito.error) throw carrito.error;
   const { data, error } = await c.rpc('crear_pedido_desde_carrito', { p_notas: null });
   if (error) throw error;
   return data;
 }
 
-const leerPedido = async (c, id) => (await c.from('orders').select('total, payment_status').eq('id', id).single()).data;
+const leerPedido = async (c, id) => (await c.from('orders').select('subtotal, total, payment_status, combo_name, combo_count, combo_discount').eq('id', id).single()).data;
 const leerStock = async (c) => (await c.from('products').select('stock').eq('id', productoId).single()).data?.stock;
 
 const uno = await entrar(CLIENTE_EMAIL, CLIENTE_PASS);
 const otro = await entrar(CLIENTE2_EMAIL, CLIENTE2_PASS);
 const uid = (await uno.c.auth.getUser()).data.user.id;
 
+const administrador = await entrar(process.env.ADMIN_EMAIL, process.env.ADMIN_PASS);
+const factorAdmin = (await administrador.c.auth.mfa.listFactors()).data.totp[0];
+const factorVerificado = await administrador.c.auth.mfa.challengeAndVerify({
+  factorId: factorAdmin.id, code: await codigoTOTPFresco(process.env.ADMIN_TOTP),
+});
+if (factorVerificado.error) throw factorVerificado.error;
+
 try {
+  const combo = {
+    p_id: null, p_nombre: PAGOS_COMBO_NOMBRE, p_porcentaje: 20, p_activo: true,
+    p_items: [{ producto_id: productoId, cantidad: 1 }, { producto_id: complementoId, cantidad: 1 }],
+  };
+  const sinPermiso = await uno.c.rpc('guardar_combo', combo);
+  check('un cliente no puede crear combos', !!sinPermiso.error);
+  const creado = await administrador.c.rpc('guardar_combo', combo);
+  const alterno = await administrador.c.rpc('guardar_combo', {
+    ...combo, p_nombre: `${PAGOS_COMBO_NOMBRE} alterno`, p_porcentaje: 10,
+    p_items: [{ producto_id: productoId, cantidad: 2 }, { producto_id: complementoId, cantidad: 1 }],
+  });
+  if (creado.error || alterno.error) throw creado.error || alterno.error;
+
   const stockInicial = await leerStock(uno.c);
-  const pedido = await crearPedido(uno.c, uid, 2);
-  const { total } = await leerPedido(uno.c, pedido);
+  const stockComplemento = (await uno.c.from('products').select('stock').eq('id', complementoId).single()).data.stock;
+  const pedido = await crearPedido(uno.c, uid, 2, 1);
+  const pedidoConAhorro = await leerPedido(uno.c, pedido);
+  const { total } = pedidoConAhorro;
+  check('checkout escoge el mayor ahorro, sin combinar descuentos sobre las mismas piezas',
+    pedidoConAhorro.combo_name === PAGOS_COMBO_NOMBRE && pedidoConAhorro.combo_count === 1 &&
+    pedidoConAhorro.combo_discount === 350 && pedidoConAhorro.subtotal === 2650, JSON.stringify(pedidoConAhorro));
   const centavos = Math.round(Number(total) * 100);
   check('el pedido nace pendiente de pago', (await leerPedido(uno.c, pedido)).payment_status === 'faltante');
 
@@ -138,6 +166,8 @@ try {
   check('el pedido queda pagado', (await leerPedido(uno.c, pedido)).payment_status === 'completo');
   const stockPagado = await leerStock(uno.c);
   check('el pago descuenta las existencias', stockPagado === stockInicial - 2, `antes=${stockInicial} despues=${stockPagado}`);
+  const complementoPagado = (await uno.c.from('products').select('stock').eq('id', complementoId).single()).data.stock;
+  check('el pago descuenta las piezas de cada componente del combo', complementoPagado === stockComplemento - 1);
 
   const repetido = await avisar(pagado);
   check('el mismo aviso otra vez no se cuenta dos veces', repetido.status === 200 && repetido.cuerpo?.resultado === 'repetido', JSON.stringify(repetido.cuerpo));
@@ -163,6 +193,7 @@ try {
 
   // ─── Portal ─────────────────────────────────────────────────────────────
   const pendiente = await crearPedido(uno.c, uid, 1);
+  check('un combo incompleto conserva el precio normal', (await leerPedido(uno.c, pendiente)).combo_discount === 0);
   const navegador = await chromium.launch();
   try {
     const contexto = await navegador.newContext();
@@ -174,6 +205,13 @@ try {
     });
     const page = await contexto.newPage();
     await page.goto(`${BASE_URL}/index.html`);
+    const cardCombo = page.locator('#public-combos-grid article', { has: page.getByRole('heading', { name: PAGOS_COMBO_NOMBRE, exact: true }) });
+    await cardCombo.getByRole('button', { name: 'Agregar combo' }).click();
+    const ahorroCarrito = await page.locator('#cart-combo').innerText();
+    check('Agregar combo pone ambos componentes en el carrito con el ahorro',
+      ahorroCarrito.includes(PAGOS_COMBO_NOMBRE) && ahorroCarrito.includes('350.00') &&
+      await page.locator('#cart-items-container .cart-item').count() === 2, ahorroCarrito);
+    await page.evaluate(() => { cart = []; guardarCart(); renderCart(); });
     await page.waitForFunction(() => window.supabaseClient);
     await page.evaluate(async ([e, p]) => { await window.supabaseClient.auth.signInWithPassword({ email: e, password: p }); }, [CLIENTE_EMAIL, CLIENTE_PASS]);
     await page.goto(`${BASE_URL}/index.html?pago=cancelado&pedido=${pendiente}`);
@@ -232,13 +270,53 @@ try {
       check('el duplicado va primero y marcado para reembolsar', /Duplicado: reembolsar/.test(textos[0] ?? ''), textos[0] ?? '');
       check('el resumen avisa del cobro duplicado', /cobros? duplicados?/.test(await admin.locator('#pagos-duplicados').innerText()));
       await admin.screenshot({ path: 'tests/screenshots/pagos-admin.png', fullPage: true });
+      await admin.locator('#nav-pos').click();
+      for (const id of [productoId, complementoId, productoId, complementoId]) {
+        await admin.locator('#pos-product-select').selectOption(String(id));
+        if (id === productoId) await admin.evaluate(() => cargarInventarioBD());
+        await admin.getByRole('button', { name: '+ Añadir', exact: true }).click();
+      }
+      const vistaPrevia = await admin.evaluate(() => ({
+        subtotal: document.getElementById('tkt-sub').textContent,
+        ahorro: document.getElementById('tkt-combo').textContent,
+        piezas: posCart,
+      }));
+      check('el POS muestra el subtotal con el ahorro antes de registrar',
+        Number(vistaPrevia.subtotal.replaceAll(',', '')) === 2800 && vistaPrevia.ahorro.includes('700.00'),
+        JSON.stringify(vistaPrevia));
+      await admin.locator('#btn-registrar-venta').click();
+      await admin.waitForFunction(() => document.getElementById('ticket-folio').textContent.startsWith('#'));
+      const folioCombo = Number((await admin.locator('#ticket-folio').innerText()).slice(1));
+      const ventaConAhorro = await leerPedido(administrador.c, folioCombo);
+      const ticketAhorro = await admin.locator('#tkt-combo').innerText();
+      check('el ticket y la venta aplican dos veces el combo de mayor ahorro',
+        ventaConAhorro?.combo_count === 2 && ventaConAhorro.combo_discount === 700 && ventaConAhorro.subtotal === 2800 &&
+        ticketAhorro.includes('700.00'), JSON.stringify(ventaConAhorro));
+      await admin.locator('#nav-catalog').click();
+      await admin.locator('#combos-admin summary').click();
+      await admin.getByRole('button', { name: `Editar combo ${PAGOS_COMBO_NOMBRE}`, exact: true }).click();
+      await admin.getByLabel('Activo', { exact: true }).uncheck();
+      await admin.getByRole('button', { name: 'Guardar combo' }).click();
+      await admin.locator('#combo-lista div', { hasText: `${PAGOS_COMBO_NOMBRE} · 20 % · Inactivo` }).waitFor();
+      check('desactivar un combo desde Catálogo no cambia el pedido previo',
+        (await leerPedido(uno.c, pedido)).combo_discount === 350);
     }
   } finally {
     await navegador.close();
   }
+  const carritoConcurrente = await uno.c.from('carrito_items').upsert({ user_id: uid, product_id: productoId, qty: 1 });
+  if (carritoConcurrente.error) throw carritoConcurrente.error;
+  const confirmaciones = await Promise.all([
+    uno.c.rpc('crear_pedido_desde_carrito', { p_notas: null }),
+    uno.c.rpc('crear_pedido_desde_carrito', { p_notas: null }),
+  ]);
+  check('dos confirmaciones simultáneas no consumen el mismo carrito dos veces',
+    confirmaciones.filter(r => Number.isSafeInteger(r.data)).length === 1 &&
+    confirmaciones.filter(r => /carrito está vacío/.test(r.error?.message)).length === 1);
 } finally {
   await uno.c.auth.signOut();
   await otro.c.auth.signOut();
+  await administrador.c.auth.signOut();
 }
 
 const fallidas = checks.filter((ok) => !ok).length;

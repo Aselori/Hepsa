@@ -58,6 +58,10 @@
         .view-section.active { display: block; }
         /* Boton de un producto que ya alcanzo su tope de existencias. */
         button.action-btn.agotado, button.tope { opacity: 0.5; cursor: not-allowed; filter: none; }
+        #public-combos { margin-bottom: 24px; }
+        #public-combos h3 { margin: 0 0 12px; }
+        #public-combos article h3 { margin: 0; }
+        #public-combos article p { color: var(--text-muted); margin: 8px 0; }
         .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
         .product-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radio); overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.15s ease; }
         .product-card:hover { border-color: var(--input-border); }
@@ -311,6 +315,7 @@
         <!-- Subtotal y no total: el IVA lo suma crear_pedido_desde_carrito()
              al confirmar. Decir "Total" aqui hacia que el pedido saliera 16%
              mas caro de lo que el carrito habia mostrado. -->
+        <p id="cart-combo" aria-live="polite" hidden></p>
         <div class="cart-total">Subtotal: $<span id="cart-total-price">0.00</span></div>
         <p class="cart-iva">Más IVA, que se suma al confirmar.</p>
         <button class="action-btn" id="btn-checkout" onclick="confirmarPedido()">Confirmar pedido</button>
@@ -328,6 +333,10 @@
                 <h2>Línea residencial e industrial</h2>
                 <a href="#" data-ir-cotizador="1" class="enlace-fuerte">¿No está aquí? Cotiza tu pieza a la medida →</a>
             </div>
+            <section id="public-combos" aria-labelledby="public-combos-title" hidden>
+                <h3 id="public-combos-title">Combos</h3>
+                <div class="catalog-grid" id="public-combos-grid"></div>
+            </section>
             <div class="catalog-grid" id="public-catalog-grid">
                 <div class="product-card"><div class="card-img">Foto referencial</div><div class="card-body"><h3 class="product-title">Cargando catálogo…</h3></div></div>
             </div>
@@ -523,6 +532,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
+    <script src="assets/combos.js"></script>
     <script src="auth-mfa.js"></script>
     <script>
         // ─── TEMA PERSISTENTE ───────────────────────────────────────────────
@@ -623,6 +633,7 @@
 
         // ─── CARRITO ────────────────────────────────────────────────────────
         let cart = [];
+        let combosPublicos = [];
         let catalogo = {}; // id -> producto, poblado por cargarCatalogoPublico()
         // El carrito guarda { id, qty }. Nada más. Nombre y precio se leen del
         // catálogo al pintar, así que el precio siempre es el de la base y no
@@ -822,6 +833,48 @@
             renderCart();
         }
 
+        function faltaExistenciaCombo(combo) {
+            return combo.items.find(({ producto_id, cantidad }) =>
+                (cart.find(l => l.id === producto_id)?.qty || 0) + cantidad > topeDe(producto_id));
+        }
+
+        function agregarComboAlCarrito(combo) {
+            const falta = faltaExistenciaCombo(combo);
+            if (falta) return avisarTope(falta.producto_id);
+            for (const { producto_id, cantidad } of combo.items) {
+                const linea = cart.find(l => l.id === producto_id);
+                if (linea) linea.qty += cantidad;
+                else cart.push({ id: producto_id, qty: cantidad });
+            }
+            guardarCart();
+            renderCart();
+            document.getElementById('cart-modal').classList.add('open');
+        }
+
+        function pintarCombosPublicos() {
+            const grid = document.getElementById('public-combos-grid');
+            grid.replaceChildren(...combosPublicos.map(combo => {
+                const card = Object.assign(document.createElement('article'), { className: 'product-card' });
+                const body = Object.assign(document.createElement('div'), { className: 'card-body' });
+                const titulo = Object.assign(document.createElement('h3'), { textContent: combo.nombre });
+                const piezas = Object.assign(document.createElement('p'), {
+                    textContent: combo.items.map(i => `${i.cantidad} × ${catalogo[i.producto_id].name}`).join(' · '),
+                });
+                const tasa = Object.assign(document.createElement('strong'), {
+                    textContent: `${Number(combo.porcentaje).toLocaleString('es-MX')} % de descuento`,
+                });
+                const boton = Object.assign(document.createElement('button'), {
+                    className: 'action-btn', type: 'button', textContent: 'Agregar combo',
+                });
+                boton.dataset.comboId = combo.id;
+                boton.addEventListener('click', () => agregarComboAlCarrito(combo));
+                body.append(titulo, piezas, tasa, boton);
+                card.append(body);
+                return card;
+            }));
+            document.getElementById('public-combos').hidden = !combosPublicos.length;
+        }
+
         // ─── Checkout ───────────────────────────────────────────────────────
 
         async function confirmarPedido() {
@@ -985,8 +1038,16 @@
             if (lineas.length !== cart.length) { cart = lineas.map(({ id, qty }) => ({ id, qty })); guardarCart(); }
 
             actualizarBotonesCatalogo();
+            for (const combo of combosPublicos) {
+                const boton = document.querySelector(`[data-combo-id="${combo.id}"]`);
+                boton.disabled = Boolean(faltaExistenciaCombo(combo));
+                boton.textContent = boton.disabled ? 'No hay existencias para el combo' : 'Agregar combo';
+            }
+            const ahorro = document.getElementById('cart-combo');
 
             if (lineas.length === 0) {
+                ahorro.hidden = true;
+                ahorro.textContent = '';
                 c.innerHTML = '<p class="cart-vacio">El carrito está vacío</p>';
                 document.getElementById('cart-total-price').textContent = '0.00';
                 return;
@@ -1015,6 +1076,10 @@
                     <button type="button" class="cart-item-quitar" data-remove-id="${id}">Quitar</button>
                 </div>`;
             }).join('');
+            const combo = estimarCombo(combosPublicos, lineas.map(({ id, qty, p }) => ({ id, qty, price: p.price })));
+            ahorro.hidden = !combo;
+            ahorro.textContent = combo ? textoAhorroCombo(combo) : '';
+            total -= combo?.descuento || 0;
             document.getElementById('cart-total-price').textContent = total.toLocaleString('en-US', {minimumFractionDigits:2});
         }
 
@@ -1306,6 +1371,9 @@
 
             // Índice por id: el carrito guarda ids, no nombres ni precios.
             catalogo = Object.fromEntries(data.map((p) => [p.id, p]));
+            combosPublicos = (await leerCombosDisponibles(window.supabaseClient))
+                .filter(combo => combo.items.every(item => catalogo[item.producto_id]));
+            pintarCombosPublicos();
 
             grid.innerHTML = data.map((p) => `
                     <div class="product-card">

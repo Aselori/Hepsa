@@ -65,6 +65,22 @@ try {
   await page.locator('#inicio-pendientes button', { hasText: 'sin responder' }).click();
   check('la línea de Inicio abre la vista donde se atiende', await page.locator('#view-projects').isVisible());
 
+  const vencida = await page.evaluate(async id => {
+    const sb = window.supabaseClient;
+    const vencimiento = (await sb.from('custom_requests').select('quote_expires_at').eq('id', id).single()).data;
+    const rechazo = await sb.rpc('convertir_solicitud_en_venta', {
+      p_solicitud: id, p_cliente: {}, p_conceptos: [{ concepto: 'Pieza', precio: 100 }], p_pago: 'anticipo',
+    });
+    return { vencimiento: vencimiento?.quote_expires_at, rechazo: rechazo.error?.message };
+  }, env.HEPSA_EXPIRED_QUOTE_ID);
+  check('una cotización que llegó al límite no se convierte desde el RPC',
+    Date.parse(vencida.vencimiento) <= Date.now() && /Actualiza la cotización/.test(vencida.rechazo),
+    JSON.stringify(vencida));
+  const filaVencida = page.locator('#projects-table-body tr', { hasText: 'Prueba Vencida' });
+  await filaVencida.getByRole('button', { name: 'Actualizar cotización' }).click();
+  await filaVencida.getByRole('button', { name: 'Convertir en venta' }).waitFor();
+  check('el vendedor renueva la misma solicitud vencida', (await filaVencida.innerText()).includes('Vence el'));
+
   // ── Solicitud a venta ────────────────────────────────────────────────────
   const solicitud = await page.evaluate(async (email) => (await window.supabaseClient.from('custom_requests')
     .insert({ email, first_name: 'Prueba', last_name_p: 'Vigencia', largo_mm: 1000, alto_mm: 1000,
