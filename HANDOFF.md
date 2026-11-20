@@ -39,6 +39,10 @@ Parte de `origin/main` (5be7c99, notas del taller ya aplicadas en vivo). Trae:
   `webhook-stripe`; las viejas siguen desplegadas hasta borrarlas a mano).
 - Documentos y scripts con los nombres nuevos; se quitaron la revisión de
   septiembre, la corrección del catálogo de octubre y su script.
+- Después de abrir el PR #52: el panel muestraba el rol en inglés (Seller);
+  ahora dice Vendedor, Taller o Administrador y la prueba de RLS lo exige.
+  `cart_items.qty` pasa a `quantity`, y renglones, estados y fechas que
+  nunca deben quedar vacíos pasan a NOT NULL (el hospedado no tiene vacíos).
 
 Verificado: `npm test` (aisladas, incluida `notas-internas.spec.mjs` 17/17) y
 `npm run test:local` completos en verde sobre una base local reconstruida
@@ -87,6 +91,7 @@ sus datos cumplen las reglas nuevas: totales, estados, precios).
 1. Tras la fusión: comprobar en vivo la migración, las funciones y un pago de
    prueba de punta a punta; actualizar y probar los scripts de demostración.
 2. Historial sin rastros de IA y descripciones de PR; borrar ramas viejas.
-3. Manuales: marcas de las capturas con trazo a mano, contenido al día
-   (pagos, notas, paquetes, vigencia, esquema en inglés y normalización),
-   sin rastros de IA, `deliverable-check` limpio.
+3. Manuales: HECHOS (usuario v7, técnico v5) en `~/Downloads/manuales_hepsa/`,
+   generador en `~/Work/uni/proyint/expediente/manuales` (rama `manuales-v5`,
+   sin push). Describen la rama sin publicar: si cambia antes de fusionar,
+   volver a correr preparar.mjs, capturas.mjs y los dos construir.
