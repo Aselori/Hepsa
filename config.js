@@ -33,6 +33,11 @@ window.HEPSA_CONFIG = {
     // docs/pagos-en-linea.md.
     pagosEnLinea: true,
 
+    // Mientras HEPSA no tenga cuenta de Stripe, el pago es una demostración:
+    // un diálogo simula el procesador y la base registra el pago (sin dinero).
+    // En false, el botón abre el pago real de Stripe.
+    pagosSimulados: true,
+
     // ¿Se puede pedir más de lo que hay en existencia?
     //
     // NO se configura aquí. Vive en la base, en quote_settings:

@@ -287,7 +287,15 @@
             nav button, nav a { padding: 7px 8px; font-size: 0.9rem; }
             nav { gap: 4px 12px; }
         }
-    </style>
+            #pago-simulado { box-sizing: border-box; width: min(400px, calc(100% - 32px)); color: var(--text-main);
+            background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 22px; }
+        #pago-simulado h2 { margin: 0 0 10px; font-size: 1.25rem; }
+        #pago-simulado::backdrop { background: rgb(0 0 0 / .55); }
+        #pago-simulado p { margin: 0 0 12px; }
+        #pago-simulado .pago-simulado-nota { color: var(--text-muted); font-size: .88rem; }
+        #pago-simulado button { width: 100%; }
+        #pago-simulado .btn-secundario { margin-top: 8px; }
+</style>
 </head>
 <body>
     <header>
@@ -566,6 +574,13 @@
                 </div>
                 <div class="form-container">
                     <h3 style="margin-top:0; border-bottom: 1px solid var(--card-border); padding-bottom: 10px;">Proyectos activos</h3>
+                    <dialog id="pago-simulado" aria-labelledby="pago-simulado-titulo">
+                        <h2 id="pago-simulado-titulo">Pago de demostración</h2>
+                        <p id="pago-simulado-importe"></p>
+                        <p class="pago-simulado-nota">No se cobra dinero real: el pago queda registrado en el sistema como si lo hubiera confirmado el banco.</p>
+                        <button type="button" class="action-btn" id="pago-simulado-confirmar">Simular confirmación</button>
+                        <button type="button" class="btn-secundario" id="pago-simulado-cancelar">Volver sin confirmar</button>
+                    </dialog>
                     <div id="pedidos-regreso" hidden>
                         <p id="pedidos-regreso-mensaje" role="status"></p>
                         <button type="button" class="btn-secundario" id="pedidos-pago-actualizar">Actualizar estado</button>
@@ -1011,8 +1026,31 @@
         // El monto lo pone la Edge Function a partir de la base, y quien marca
         // el pedido como pagado es el aviso firmado de Stripe, no este código:
         // volver a la página de éxito no prueba que se haya cobrado.
+        // Demostración sin Stripe (pagosSimulados): el diálogo hace de procesador
+        // y simulate_online_payment registra el pago del pedido propio en la base.
+        function pagarSimulado(id, btn) {
+            const dialogo = document.getElementById('pago-simulado');
+            const total = btn.closest('tr')?.children[2]?.textContent.trim() || '';
+            document.getElementById('pago-simulado-importe').textContent = `Pedido #${id}${total ? ` · ${total}` : ''}`;
+            const confirmar = document.getElementById('pago-simulado-confirmar');
+            confirmar.disabled = false;
+            confirmar.textContent = 'Simular confirmación';
+            confirmar.onclick = async () => {
+                confirmar.disabled = true;
+                confirmar.textContent = 'Confirmando…';
+                const { error } = await window.supabaseClient.rpc('simulate_online_payment', { p_order_id: id });
+                dialogo.close();
+                if (error) return mostrarAviso(`<span>No se pudo registrar el pago: ${esc(error.message)}</span>`, 'error', 7000);
+                mostrarAviso(`<span>Pago del pedido <strong>#${Number(id)}</strong> confirmado.</span>`, 'info');
+                cargarPedidosCliente();
+            };
+            document.getElementById('pago-simulado-cancelar').onclick = () => dialogo.close();
+            dialogo.showModal();
+        }
+
         async function pagarEnLinea(id, btn) {
             if (btn.disabled || !window.HEPSA_CONFIG.pagosEnLinea) return;
+            if (window.HEPSA_CONFIG.pagosSimulados) return pagarSimulado(id, btn);
             btn.disabled = true;
             btn.textContent = 'Abriendo pago…';
             btn.setAttribute('aria-busy', 'true');
