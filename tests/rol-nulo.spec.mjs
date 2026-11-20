@@ -58,7 +58,7 @@ try {
   check('no puede ascenderse a admin', despues !== 'admin',
     `role antes=${antes} despues=${despues} error=${JSON.stringify(intento.error?.message ?? null)}`);
 
-  const auditoria = await cliente.rpc('empleados_sin_segundo_factor');
+  const auditoria = await cliente.rpc('staff_without_mfa');
   check('tampoco obtiene la lista del personal', auditoria.error !== null,
     auditoria.error ? `rechazo: ${auditoria.error.message}` : `DEVOLVIO ${auditoria.data?.length} filas`);
 } finally {

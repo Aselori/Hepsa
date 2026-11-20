@@ -27,6 +27,7 @@ try {
       from(table) {
         const query = {
           select() { return query; },
+          not() { return query; },
           order() { return Promise.resolve({ data: window.__adminQueryData[table] || [], error: null }); },
           then(resolve, reject) { return Promise.resolve({ data: window.__adminQueryData[table] || [], error: null }).then(resolve, reject); },
           update(payload) { query.operation = 'update'; query.payload = payload; return query; },
@@ -47,10 +48,10 @@ try {
   await page.evaluate((payload) => {
     window.__xss = 0;
     window.__adminQueryData.products = [{ id: 'p-1', name: window.__productNameForTest, description: payload, price: 1250, stock: 2, is_active: true }];
-    window.__adminQueryData.orders = [{ id: 'o-1', created_at: '2026-09-10T12:00:00Z', client_first_name: payload, client_last_name: payload, client_phone: payload, subtotal: 10, tax: 1.6, total: 11.6, payment_status: 'completo', notes: payload }];
-    window.__adminQueryData.custom_requests = [{ id: 'r-1', first_name: payload, last_name_p: payload, phone: payload, email: payload, largo_mm: 1000, alto_mm: 500, profundidad_mm: 200, material: payload, acabado: payload, specifications: payload, precio_estimado: 100, status: 'Contactado', created_at: '2026-09-10T12:00:00Z' }];
-    window.__adminQueryData.profiles = [{ id: 'u-1', first_name: payload, last_name_p: payload, email: payload, phone: payload, role: payload, created_at: '2026-09-10T12:00:00Z' }];
-    window.__adminQueryData.sinFactor = [{ id: 'u-1', email: payload, first_name: payload, last_name_p: payload, role: 'vendedor' }];
+    window.__adminQueryData.orders = [{ id: 'o-1', created_at: '2026-09-10T12:00:00Z', client_first_name: payload, client_last_name: payload, client_phone: payload, subtotal: 10, tax: 1.6, total: 11.6, payment_status: 'paid', notes: payload }];
+    window.__adminQueryData.custom_requests = [{ id: 'r-1', first_name: payload, last_name: payload, phone: payload, email: payload, length_mm: 1000, height_mm: 500, depth_mm: 200, material: payload, finish: payload, specifications: payload, estimated_price: 100, status: 'contacted', created_at: '2026-09-10T12:00:00Z' }];
+    window.__adminQueryData.profiles = [{ id: 'u-1', first_name: payload, last_name: payload, email: payload, phone: payload, role: payload, created_at: '2026-09-10T12:00:00Z' }];
+    window.__adminQueryData.sinFactor = [{ id: 'u-1', email: payload, first_name: payload, last_name: payload, role: 'seller' }];
   }, payload);
   await page.evaluate((productName) => { window.__productNameForTest = productName; window.__adminQueryData.products[0].name = productName; }, productName);
 
@@ -107,12 +108,12 @@ try {
 
   await page.evaluate(() => {
     const select = document.querySelector('#projects-table-body select');
-    select.value = 'En Progreso';
+    select.value = 'in_progress';
     select.dispatchEvent(new Event('change', { bubbles: true }));
   });
   await page.waitForTimeout(20);
   const projectCall = await page.evaluate(() => window.__adminCalls.find(call => call.table === 'custom_requests' && call.operation === 'update'));
-  check('estatus de proyecto conserva el id de la solicitud', projectCall?.column === 'id' && projectCall.value === 'r-1' && projectCall.payload?.status === 'En Progreso');
+  check('estatus de proyecto conserva el id de la solicitud', projectCall?.column === 'id' && projectCall.value === 'r-1' && projectCall.payload?.status === 'in_progress');
 } finally {
   await context.close();
   await browser.close();

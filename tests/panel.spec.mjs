@@ -19,7 +19,7 @@ import { codigoTOTPFresco } from './totp.mjs';
 const env = process.env;
 const resultados = [];
 function check(nombre, ok, detalle = '') {
-  resultados.push({ nombre, ok });
+  resultados.push({ name: nombre, ok });
   console.log(`${ok ? 'PASA  ' : 'FALLA '} ${nombre}${detalle ? '  — ' + detalle : ''}`);
 }
 
@@ -44,6 +44,7 @@ const browser = await navegadorLocal();
 let pedidoCreado = null;
 let imagenCreada = null;
 let fotoEditada = null;
+let productoSinPrecio = null;
 let page = null;
 
 try {
@@ -65,30 +66,57 @@ try {
   await page.locator('#inicio-pendientes button', { hasText: 'sin responder' }).click();
   check('la línea de Inicio abre la vista donde se atiende', await page.locator('#view-projects').isVisible());
 
+  const vencida = await page.evaluate(async id => {
+    const sb = window.supabaseClient;
+    const vencimiento = (await sb.from('custom_requests').select('quote_expires_at').eq('id', id).single()).data;
+    const rechazo = await sb.rpc('convert_request_to_sale', {
+      p_request_id: id, p_client: {}, p_items: [{ label: 'Pieza', price: 100 }], p_payment: 'deposit',
+    });
+    return { vencimiento: vencimiento?.quote_expires_at, rechazo: rechazo.error?.message };
+  }, env.HEPSA_EXPIRED_QUOTE_ID);
+  check('una cotización que llegó al límite no se convierte desde el RPC',
+    Date.parse(vencida.vencimiento) <= Date.now() && /Actualiza la cotización/.test(vencida.rechazo),
+    JSON.stringify(vencida));
+  const filaVencida = page.locator('#projects-table-body tr', { hasText: 'Prueba Vencida' });
+  await filaVencida.getByRole('button', { name: 'Actualizar cotización' }).click();
+  await filaVencida.getByRole('button', { name: 'Convertir en venta' }).waitFor();
+  check('el vendedor renueva la misma solicitud vencida', (await filaVencida.innerText()).includes('Vence el'));
+  await page.locator('#view-projects').screenshot({ path: 'tests/screenshots/solicitudes-vigencia.png' }).catch(() => {});
+
   // ── Solicitud a venta ────────────────────────────────────────────────────
-  const solicitud = await page.evaluate(async () => (await window.supabaseClient.from('custom_requests')
-    .select('id, email, status, precio_estimado, first_name').not('precio_estimado', 'is', null).neq('status', 'Finalizado').limit(1)).data?.[0]);
+  const solicitud = await page.evaluate(async (email) => (await window.supabaseClient.from('custom_requests')
+    .insert({ email, first_name: 'Prueba', last_name: 'Vigencia', length_mm: 1000, height_mm: 1000,
+      material: 'steel', finish: 'bluing', quote_expires_at: '2000-01-01T00:00:00Z' })
+    .select('id, email, quote_expires_at, first_name').single()).data, `vigencia-${Date.now()}@test.local`);
   if (solicitud) {
+    check('la base fija 14 días aunque el cliente mande otra caducidad',
+      Math.abs(Date.parse(solicitud.quote_expires_at) - Date.now() - 14 * 86400000) < 30000, solicitud.quote_expires_at);
+    await page.evaluate(() => cargarProyectosBD());
     await page.waitForSelector('#projects-table-body .btn-convertir');
     await page.locator('#projects-table-body tr', { hasText: solicitud.email }).locator('.btn-convertir').click();
     const venta = await page.evaluate(() => ({
       visible: document.getElementById('view-pos').classList.contains('active'),
-      nombre: document.getElementById('cli-nom1').value,
-      correo: document.getElementById('cli-email').value,
+      name: document.getElementById('cli-nom1').value,
+      email: document.getElementById('cli-email').value,
       ticket: document.getElementById('ticket-list').innerText,
     }));
     check('"Convertir en venta" llena Nueva venta con el contacto y la pieza',
-      venta.visible && venta.nombre === solicitud.first_name && venta.correo === solicitud.email && /Pieza a medida/.test(venta.ticket),
+      venta.visible && venta.name === solicitud.first_name && venta.email === solicitud.email && /Pieza a medida/.test(venta.ticket),
       JSON.stringify(venta));
     await page.click('#btn-registrar-venta');
     await page.waitForFunction(() => document.getElementById('ticket-folio').textContent.startsWith('#'), null, { timeout: 10000 }).catch(() => {});
-    // El folio aparece antes de que termine el cambio de estatus: se sondea.
-    const leerEstatus = () => page.evaluate(async (id) => (await window.supabaseClient.from('custom_requests').select('status').eq('id', id).single()).data?.status, solicitud.id);
-    let estatus = await leerEstatus();
-    for (let i = 0; i < 20 && estatus !== 'En Progreso'; i++) { await page.waitForTimeout(250); estatus = await leerEstatus(); }
-    const avisos = await page.locator('.toast').allInnerTexts();
-    check('al registrarla, la solicitud pasa a "En Progreso"', estatus === 'En Progreso', `${estatus} · ${avisos.join(' | ')}`);
-    await page.evaluate(async ([id, antes]) => window.supabaseClient.from('custom_requests').update({ status: antes }).eq('id', id), [solicitud.id, solicitud.status]);
+    const vinculada = await page.evaluate(async id => {
+      const sb = window.supabaseClient;
+      const solicitud = (await sb.from('custom_requests').select('status, converted_order_id').eq('id', id).single()).data;
+      const duplicado = await sb.rpc('convert_request_to_sale', {
+        p_request_id: id, p_client: {}, p_items: [{ label: 'Prueba duplicada', price: 100 }], p_payment: 'deposit',
+      });
+      return { solicitud, is_duplicate: duplicado.error?.message };
+    }, solicitud.id);
+    check('la venta y el vínculo a la solicitud se guardan juntos',
+      vinculada.solicitud?.status === 'in_progress' && String(vinculada.solicitud.converted_order_id) ===
+      (await page.locator('#ticket-folio').innerText()).slice(1), JSON.stringify(vinculada));
+    check('una solicitud sólo se convierte una vez', /ya se convirtió/.test(vinculada.is_duplicate), vinculada.is_duplicate);
     await page.evaluate(() => clearPOS());
   } else {
     check('hay una solicitud con estimado para convertir en venta', false, 'el fixture no trae ninguna');
@@ -121,11 +149,11 @@ try {
   await page.selectOption('#pos-product-select', valorProducto);
   await page.waitForTimeout(400);
   const armado = {
-    nombre: await page.inputValue('#ticket-item'),
-    precio: Number(await page.inputValue('#ticket-price')),
+    name: await page.inputValue('#ticket-item'),
+    price: Number(await page.inputValue('#ticket-price')),
   };
   check('elegir del inventario rellena concepto y precio',
-    armado.nombre.length > 0 && armado.precio > 0, `${armado.nombre} $${armado.precio}`);
+    armado.name.length > 0 && armado.price > 0, `${armado.name} $${armado.price}`);
 
   await page.click('button[onclick="addToTicket()"]');
   await page.waitForTimeout(600);
@@ -159,7 +187,7 @@ try {
   check('el ticket muestra el folio real del pedido registrado', folioTicket === `#${pedidoCreado}`, `ticket=${folioTicket} pedido=${pedidoCreado}`);
 
   const cuadra = despues.ultima &&
-    Math.abs(Number(despues.ultima.total) - (armado.precio * 1.16)) < 0.02;
+    Math.abs(Number(despues.ultima.total) - (armado.price * 1.16)) < 0.02;
   check('el ticket calcula IVA y total correctamente', !!cuadra,
     `subtotal=${despues.ultima?.subtotal} iva=${despues.ultima?.tax} total=${despues.ultima?.total}`);
 
@@ -174,14 +202,14 @@ try {
   await page.evaluate(() => showAdminView('history'));
   const selProyecto = `select[aria-label="Proyecto del folio #${pedidoCreado}"]`;
   await page.waitForSelector(selProyecto, { timeout: 10000 });
-  await page.selectOption(selProyecto, 'en_produccion');
+  await page.selectOption(selProyecto, 'in_production');
   await page.waitForTimeout(1500);
-  await page.selectOption(`select[aria-label="Pago del folio #${pedidoCreado}"]`, 'completo');
+  await page.selectOption(`select[aria-label="Pago del folio #${pedidoCreado}"]`, 'paid');
   await page.waitForTimeout(1500);
   const estatus = await page.evaluate(async (id) =>
     (await window.supabaseClient.from('orders').select('project_status, payment_status').eq('id', id).single()).data, pedidoCreado);
   check('desde el historial se cambian el estatus del proyecto y el pago',
-    estatus?.project_status === 'en_produccion' && estatus?.payment_status === 'completo', JSON.stringify(estatus));
+    estatus?.project_status === 'in_production' && estatus?.payment_status === 'paid', JSON.stringify(estatus));
 
   // ── Inventario: la edicion acepta una foto nueva ──────────────────────────
   // Antes solo el alta tenia campo de foto: un producto existente no podia
@@ -206,9 +234,9 @@ try {
     const nombre = `prueba-2fa-${Date.now()}.png`;
     const { error } = await window.supabaseClient.storage.from(bucket)
       .upload(nombre, new Blob([png], { type: 'image/png' }));
-    return { nombre: error ? null : nombre, error: error?.message ?? null };
+    return { name: error ? null : nombre, error: error?.message ?? null };
   }, 'productos');
-  imagenCreada = subida.nombre;
+  imagenCreada = subida.name;
   check('el staff con 2FA puede subir imagenes a Storage',
     subida.error === null, `error=${JSON.stringify(subida.error)}`);
 
@@ -229,7 +257,7 @@ try {
     return { error: error?.message ?? null, rol: data?.role };
   });
   check('un vendedor con 2FA no puede ascenderse a admin',
-    escalada.rol === 'vendedor', `rol=${escalada.rol} error=${JSON.stringify(escalada.error)}`);
+    escalada.rol === 'seller', `rol=${escalada.rol} error=${JSON.stringify(escalada.error)}`);
 
   // ── Un admin SIN 2FA tampoco puede cambiar roles ─────────────────────────
   const ctx2 = await browser.newContext();
@@ -243,12 +271,62 @@ try {
     const { data: antes } = await window.supabaseClient.from('profiles').select('id, role').eq('email', correoCliente);
     if (!antes?.length) return { alcance: 0 };  // ni siquiera lo ve, mejor aun
     const { error } = await window.supabaseClient
-      .from('profiles').update({ role: 'vendedor' }).eq('id', antes[0].id);
+      .from('profiles').update({ role: 'seller' }).eq('id', antes[0].id);
     return { alcance: antes.length, error: error?.message ?? null };
   }, env.CLIENTE_EMAIL);
   check('un admin sin 2FA no alcanza a otros perfiles para ascenderlos',
     sinFactor.alcance === 0, JSON.stringify(sinFactor));
   await ctx2.close();
+
+  // ── Un producto sin precio (precio 0) no se publica ──────────────────────
+  // El formulario marca «Visible» por omisión y el catálogo público sólo
+  // filtra por is_active: sin esto, un producto a $0 quedaba a la venta.
+  // Poner precio es de admin, así que esta parte va con su sesión.
+  const ctx3 = await browser.newContext();
+  const p3 = await ctx3.newPage();
+  await entrarConSegundoFactor(p3, 'ADMIN');
+  await p3.goto(`${BASE}/admin.html`);
+  await p3.waitForTimeout(2500);
+  await p3.evaluate(() => showAdminView('catalog'));
+  await p3.click('#btn-abrir-alta');
+  const nombreSinPrecio = `Prueba sin precio ${Date.now()}`;
+  await p3.fill('#cat-name', nombreSinPrecio);
+  await p3.fill('#cat-price', '0');
+  await p3.fill('#cat-stock', '1');
+  await p3.click('#btn-guardar-prod');
+  await p3.waitForTimeout(2000);
+  const leer = (nombre) => p3.evaluate(async (n) =>
+    (await window.supabaseClient.from('products').select('id, price, is_active').eq('name', n).maybeSingle()).data, nombre);
+  const alta = await leer(nombreSinPrecio);
+  productoSinPrecio = alta?.id ?? null;
+  check('un producto nuevo con precio 0 se guarda oculto aunque «Visible» esté marcado',
+    alta?.is_active === false, JSON.stringify(alta));
+
+  await p3.evaluate((id) => toggleVisibilidad(id, false), productoSinPrecio);
+  await p3.waitForTimeout(1500);
+  check('«Mostrar» no publica un producto sin precio', (await leer(nombreSinPrecio))?.is_active === false);
+
+  const directo = await p3.evaluate(async (id) =>
+    (await window.supabaseClient.from('products').update({ is_active: true }).eq('id', id)).error?.message ?? null, productoSinPrecio);
+  check('la base rechaza publicar un producto sin precio aunque se salte el panel',
+    /products_active_requires_price/.test(directo ?? ''), JSON.stringify(directo));
+
+  await p3.evaluate(async (id) => window.supabaseClient.from('products').update({ price: 100, is_active: true }).eq('id', id), productoSinPrecio);
+  await p3.evaluate(() => cargarInventarioBD());
+  await p3.waitForTimeout(1500);
+  await p3.evaluate((id) => abrirModalEdicion(id), productoSinPrecio);
+  await p3.fill('#edit-prod-price', '0');
+  await p3.click('#modal-edit-product .action-btn');
+  await p3.waitForTimeout(2000);
+  const editado = await leer(nombreSinPrecio);
+  check('quitarle el precio a un producto visible lo oculta',
+    editado?.is_active === false && Number(editado?.price) === 0, JSON.stringify(editado));
+
+  await p3.evaluate(async (id) => window.supabaseClient.from('products').delete().eq('id', id), productoSinPrecio);
+  const sigue = await leer(nombreSinPrecio);
+  if (!sigue) productoSinPrecio = null;
+  check('el producto de prueba se borra', sigue === null);
+  await ctx3.close();
 
 } finally {
   if (pedidoCreado || imagenCreada) {
@@ -282,7 +360,7 @@ try {
     }
     await ctxL.close();
     console.log(`\n(limpieza) pedido de prueba #${pedidoCreado} borrado: ${borrado === 0 ? 'si' : 'NO — ' + borrado}`);
-    if (borrado !== 0) resultados.push({ nombre: 'limpieza del pedido de prueba', ok: false });
+    if (borrado !== 0) resultados.push({ name: 'limpieza del pedido de prueba', ok: false });
   }
   await browser.close();
 }

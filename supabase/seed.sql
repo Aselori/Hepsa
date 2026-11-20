@@ -55,13 +55,13 @@ SELECT setval(
 
 -- Solicitudes sinteticas compatibles con el cotizador estructurado actual.
 
-INSERT INTO public.custom_requests (first_name, last_name_p, email, phone, specifications, status, largo_mm, alto_mm, profundidad_mm, material, acabado) VALUES
+INSERT INTO public.custom_requests (first_name, last_name, email, phone, specifications, status, length_mm, height_mm, depth_mm, material, finish) VALUES
   ('Ana',   'Ramírez', 'ana.ejemplo@correo.test',   '8110000001',
    'Necesito un protector de ventana de 1.67 m de largo por 1.24 m de alto, grosor aproximado 15 cm.',
-   'Pendiente de Revisión', 1670, 1240, 150, 'acero', 'pintura_electrostatica'),
+   'pending', 1670, 1240, 150, 'steel', 'powder_coat'),
   ('Luis',  'Herrera', 'luis.ejemplo@correo.test',  '8110000002',
    'Requiero un portón de 5 x 3 m, acero, acabado en pintura electrostática negra.',
-   'Pendiente de Revisión', 5000, 3000, NULL, 'acero', 'pintura_electrostatica'),
+   'pending', 5000, 3000, NULL, 'steel', 'powder_coat'),
   ('Marta', 'Solís',   'marta.ejemplo@correo.test', '8110000003',
    'Barandal para escalera curva, aproximadamente 4 m de desarrollo, hierro forjado.',
-   'Finalizado', 4000, 1000, NULL, 'hierro_forjado', 'pavonado');
+   'closed', 4000, 1000, NULL, 'wrought_iron', 'bluing');

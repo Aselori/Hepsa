@@ -29,7 +29,7 @@ BEGIN
      AND EXISTS (SELECT 1 FROM public.order_items oi WHERE oi.product_id = p.id);
   GET DIAGNOSTICS v_ocultos = ROW_COUNT;
 
-  DELETE FROM public.carrito_items c USING public.products p
+  DELETE FROM public.cart_items c USING public.products p
    WHERE c.product_id = p.id AND p.description LIKE '[DEMO-BORRAR]%';
   DELETE FROM public.products p
    WHERE p.description LIKE '[DEMO-BORRAR]%'

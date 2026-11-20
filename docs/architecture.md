@@ -46,7 +46,7 @@ El código utiliza el SDK de Supabase para autenticación, consultas a PostgreSQ
 
 ### Edge Functions
 
-`supabase/functions/` contiene lo único que corre en servidor: `crear-pago` y `webhook-stripe`, los pagos con tarjeta de la Mejora 2. Existen porque el cobro necesita una llave secreta de Stripe que no puede viajar al navegador. Detalle en [pagos-en-linea.md](pagos-en-linea.md).
+`supabase/functions/` contiene lo único que corre en servidor: `create-payment` y `stripe-webhook`, los pagos con tarjeta de la Mejora 2. Existen porque el cobro necesita una llave secreta de Stripe que no puede viajar al navegador. Detalle en [pagos-en-linea.md](pagos-en-linea.md).
 
 ## Librerías externas
 

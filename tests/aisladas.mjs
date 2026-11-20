@@ -7,6 +7,7 @@ const archivos = new Map([
     ['/index.html', ['index.html', 'text/html']], ['/admin.html', ['admin.html', 'text/html']],
     ['/config.js', ['config.js', 'text/javascript']], ['/auth-mfa.js', ['auth-mfa.js', 'text/javascript']],
     ['/imagen.jpg', ['imagen.jpg', 'image/jpeg']],
+    ['/assets/combos.js', ['assets/combos.js', 'text/javascript']],
     ['/assets/tema.css', ['assets/tema.css', 'text/css']], ['/assets/favicon.svg', ['assets/favicon.svg', 'image/svg+xml']],
     ['/assets/logo.svg', ['assets/logo.svg', 'image/svg+xml']], ['/assets/logo-dark.svg', ['assets/logo-dark.svg', 'image/svg+xml']],
     ['/assets/fonts/archivo-latin.woff2', ['assets/fonts/archivo-latin.woff2', 'font/woff2']],
@@ -22,7 +23,7 @@ const server = createServer(async (req, res) => {
 });
 await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
 try {
-    for (const archivo of ['admin-rendering.spec.mjs', 'mfa-aislado.spec.mjs', 'responsivo.spec.mjs', 'panel-movil.spec.mjs', 'carrito.spec.mjs', 'pautas.spec.mjs', 'tareas.spec.mjs', 'catalogo-imagen.spec.mjs', 'ficha.spec.mjs', 'notas-taller.spec.mjs']) {
+    for (const archivo of ['admin-rendering.spec.mjs', 'mfa-aislado.spec.mjs', 'responsivo.spec.mjs', 'panel-movil.spec.mjs', 'carrito.spec.mjs', 'pautas.spec.mjs', 'tareas.spec.mjs', 'catalogo-imagen.spec.mjs', 'ficha.spec.mjs', 'notas-internas.spec.mjs']) {
         const child = spawn(process.execPath, [new URL(archivo, import.meta.url).pathname], {
             stdio: 'inherit', env: { ...process.env, BASE_URL: `http://127.0.0.1:${server.address().port}` },
         });

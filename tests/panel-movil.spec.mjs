@@ -41,12 +41,13 @@ async function abrirPanel(browser, ancho, alto) {
     for (const hijo of document.body.children) hijo.style.removeProperty('display');
     const datos = {
       products: [{ id: 'p-1', name: 'Porton residencial para cochera', description: 'Doble puerta, pintura electrostatica', price: 15000, stock: 2, is_active: true }],
-      orders: [{ id: 'o-1', created_at: '2026-09-10T12:00:00Z', client_first_name: 'Mariana', client_last_name: 'Garza', client_phone: '8110000001', subtotal: 9700, tax: 1552, total: 11252, payment_status: 'anticipo', notes: 'Entregar por la tarde' }],
+      orders: [{ id: 'o-1', created_at: '2026-09-10T12:00:00Z', client_first_name: 'Mariana', client_last_name: 'Garza', client_phone: '8110000001', subtotal: 9700, tax: 1552, total: 11252, payment_status: 'deposit', notes: 'Entregar por la tarde' }],
     };
     window.supabaseClient = {
       from(tabla) {
         const consulta = {
           select() { return consulta; },
+          not() { return consulta; },
           in() { return consulta; },
           lt() { return consulta; },
           or() { return consulta; },

@@ -24,7 +24,7 @@ const env = process.env;
 
 const resultados = [];
 function check(nombre, ok, detalle = '') {
-  resultados.push({ nombre, ok });
+  resultados.push({ name: nombre, ok });
   console.log(`${ok ? 'PASA  ' : 'FALLA '} ${nombre}${detalle ? '  — ' + detalle : ''}`);
 }
 
@@ -154,17 +154,17 @@ try {
       method: 'PATCH',
       headers: { apikey: LLAVE, Authorization: `Bearer ${sesionAdmin.access_token}`,
                  'Content-Type': 'application/json', Prefer: 'return=representation' },
-      body: JSON.stringify({ role: 'vendedor' }),
+      body: JSON.stringify({ role: 'seller' }),
     });
     const filas = await r.json();
     if (!r.ok || filas.length !== 1) throw new Error(`ascenso fallido: ${r.status} ${JSON.stringify(filas)}`);
     ascendido = true;
-    check('un admin con 2FA sí puede cambiar un rol', filas[0].role === 'vendedor');
+    check('un admin con 2FA sí puede cambiar un rol', filas[0].role === 'seller');
 
     // Momento util: acaba de existir un empleado sin autenticador, y la
     // auditoria tiene que senalarlo. Sin esta comprobacion la funcion solo se
     // ha visto devolver [] y no sabriamos si detecta algo.
-    const aud = await fetch(`${URL_SB}/rest/v1/rpc/empleados_sin_segundo_factor`, {
+    const aud = await fetch(`${URL_SB}/rest/v1/rpc/staff_without_mfa`, {
       method: 'POST',
       headers: { apikey: LLAVE, Authorization: `Bearer ${sesionAdmin.access_token}`,
                  'Content-Type': 'application/json' },
@@ -249,7 +249,7 @@ try {
       method: 'PATCH',
       headers: { apikey: LLAVE, Authorization: `Bearer ${s.access_token}`,
                  'Content-Type': 'application/json', Prefer: 'return=representation' },
-      body: JSON.stringify({ role: 'cliente' }),
+      body: JSON.stringify({ role: 'customer' }),
     });
     const filas = await r.json();
     const rol = filas?.[0]?.role;
@@ -258,11 +258,11 @@ try {
     // queda ascendido no rompe esta suite, rompe la siguiente: en rls.spec
     // las dos pruebas que comprueban que el cliente sólo se ve a sí mismo
     // empezarían a fallar sin que nada apunte a la causa.
-    if (rol !== 'cliente') {
+    if (rol !== 'customer') {
       console.error('LIMPIEZA FALLIDA: el cliente quedó como ' + rol + '.');
       console.error('Corrígelo antes de correr rls.spec.mjs:');
       console.error(`  update public.profiles set role = 'cliente' where email = '${env.CLIENTE_EMAIL}';`);
-      resultados.push({ nombre: 'limpieza del rol temporal', ok: false });
+      resultados.push({ name: 'limpieza del rol temporal', ok: false });
     }
   }
   await browser.close();

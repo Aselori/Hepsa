@@ -56,26 +56,31 @@ try {
     check(`${etiqueta}: el título abre la ficha`, await ficha.isVisible());
     await esperar(page, 400); // la animación de entrada termina
     check(`${etiqueta}: la ficha tiene su dirección`, page.url().endsWith('#producto-1'), page.url());
+    const detalle = ficha.locator('#ficha-especificaciones');
+    check(`${etiqueta}: la descripción empieza plegada`, await detalle.getAttribute('open') === null);
+    await detalle.locator('summary').click();
+    await ficha.locator('#ficha-descripcion').waitFor();
     const contenido = await page.evaluate(() => ({
-      nombre: document.getElementById('ficha-nombre').textContent,
+      name: document.getElementById('ficha-nombre').textContent,
       descripcion: document.getElementById('ficha-descripcion').textContent,
       inyectadas: document.querySelectorAll('#ficha-producto .ficha-cuerpo img').length,
       foto: document.getElementById('ficha-foto').getAttribute('src'),
       xss: window.__xss,
     }));
-    check(`${etiqueta}: la ficha muestra la descripción`, contenido.nombre === 'Portón residencial' && contenido.descripcion.includes('3.00 × 2.10 m'), contenido.descripcion);
+    check(`${etiqueta}: la ficha muestra la descripción`, contenido.name === 'Portón residencial' && contenido.descripcion.includes('3.00 × 2.10 m'), contenido.descripcion);
     check(`${etiqueta}: la descripción entra como texto, no como HTML`, contenido.inyectadas === 0 && contenido.xss === 0 && contenido.descripcion.includes('<img'));
     check(`${etiqueta}: la ficha usa la foto del producto`, contenido.foto?.endsWith('assets/productos/porton-cochera.jpg'), contenido.foto);
     const caja = await ficha.boundingBox();
     check(`${etiqueta}: la ficha cabe en la pantalla`, caja && caja.x >= 0 && caja.x + caja.width <= ancho + 0.5 && caja.y >= 0 && caja.y + caja.height <= alto + 0.5, JSON.stringify(caja));
     if (ancho < 600) check(`${etiqueta}: en el teléfono la ficha es una hoja pegada abajo`, Math.abs(caja.y + caja.height - alto) < 1.5 && caja.width >= ancho - 1, JSON.stringify(caja));
     await page.screenshot({ path: `tests/screenshots/ficha-${ancho}.png` });
+    await detalle.locator('summary').click();
 
     // ── Compra con tope ────────────────────────────────────────────────────
     const agregar = page.locator('#ficha-agregar');
     await agregar.click();
-    const tras1 = await page.evaluate(() => ({ qty: cart.find((l) => l.id === 1)?.qty, nota: document.getElementById('ficha-existencias').textContent, lleva: document.getElementById('ficha-en-carrito').textContent }));
-    check(`${etiqueta}: agregar actualiza existencias y dice cuánto llevas`, tras1.qty === 1 && tras1.nota === 'Queda 1 disponible' && tras1.lleva.startsWith('En tu carrito: 1 pieza'), JSON.stringify(tras1));
+    const tras1 = await page.evaluate(() => ({ qty: cart.find((l) => l.id === 1)?.qty, description: document.getElementById('ficha-existencias').textContent, lleva: document.getElementById('ficha-en-carrito').textContent }));
+    check(`${etiqueta}: agregar actualiza existencias y dice cuánto llevas`, tras1.qty === 1 && tras1.description === 'Queda 1 disponible' && tras1.lleva.startsWith('En tu carrito: 1 pieza'), JSON.stringify(tras1));
     await agregar.click();
     const tope = await page.evaluate(() => ({ qty: cart.find((l) => l.id === 1)?.qty, boton: document.getElementById('ficha-agregar').textContent, apagado: document.getElementById('ficha-agregar').disabled }));
     check(`${etiqueta}: la ficha respeta el tope de existencias`, tope.qty === 2 && tope.apagado && tope.boton === 'Sin más existencias', JSON.stringify(tope));
@@ -100,13 +105,13 @@ try {
     await page.keyboard.press('ArrowRight');
     await esperar(page);
     const specs = await page.evaluate(() => ({
-      nombre: document.getElementById('ficha-nombre').textContent,
+      name: document.getElementById('ficha-nombre').textContent,
       claves: [...document.querySelectorAll('#ficha-specs dt')].map((d) => d.textContent),
       valores: [...document.querySelectorAll('#ficha-specs dd')].map((d) => d.textContent),
       resto: document.getElementById('ficha-descripcion').textContent,
     }));
     check(`${etiqueta}: la flecha del teclado avanza y la descripción se ordena en especificaciones`,
-      specs.nombre === 'Puerta principal de dos hojas' && specs.claves.join() === 'Altura,Material' && specs.valores.join() === '2.10 m,acero' && specs.resto === 'Apta para interiores y exteriores.',
+      specs.name === 'Puerta principal de dos hojas' && specs.claves.join() === 'Altura,Material' && specs.valores.join() === '2.10 m,acero' && specs.resto === 'Apta para interiores y exteriores.',
       JSON.stringify(specs));
     check(`${etiqueta}: en el último producto no hay siguiente`, await page.locator('#ficha-siguiente').isDisabled());
 
@@ -131,11 +136,11 @@ try {
     const cotizar = await page.evaluate(() => ({
       vista: document.getElementById('view-quote').classList.contains('active'),
       material: document.getElementById('quote-material').value,
-      notas: document.getElementById('quote-specs').value,
+      notes: document.getElementById('quote-specs').value,
       abierta: document.getElementById('ficha-producto').open,
     }));
     check(`${etiqueta}: "Cotízalo" abre el cotizador con el material y una nota del producto`,
-      cotizar.vista && !cotizar.abierta && cotizar.material === 'acero' && cotizar.notas.includes('Puerta principal de dos hojas'), JSON.stringify(cotizar));
+      cotizar.vista && !cotizar.abierta && cotizar.material === 'steel' && cotizar.notes.includes('Puerta principal de dos hojas'), JSON.stringify(cotizar));
     await page.locator('.logo-container').click();
     check(`${etiqueta}: el logo lleva al catálogo`, await page.locator('#view-catalog').isVisible() && !(await page.locator('#view-quote').isVisible()));
     await context.close();

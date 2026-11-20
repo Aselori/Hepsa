@@ -167,6 +167,14 @@ button.btn-secundario {
 button.btn-secundario:hover:not(:disabled) { border-color: var(--text-main); }
 button.action-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
+/* El ahorro comparte la misma alineación en el carrito y el ticket. */
+.descuento-paquete { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px;
+    align-items: baseline; text-align: left; font-size: .9em; }
+.descuento-paquete > strong:nth-child(2) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.descuento-paquete > small { grid-column: 1; opacity: .87; }
+#cart-combo { margin-top: 14px; }
+#tkt-combo { margin-bottom: 4px; }
+
 /* ─── Formularios ────────────────────────────────────────────────────────── */
 label { display: block; margin-bottom: 6px; color: var(--text-label); font-weight: 600; font-size: 0.92rem; }
 input, select, textarea {

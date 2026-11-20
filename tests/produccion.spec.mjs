@@ -2,7 +2,7 @@
 //
 // El taller entra al panel, ve sólo Producción, ve el pedido con sus
 // conceptos y el teléfono pero sin precios, y lo marca como instalado.
-// El pedido lo crea un vendedor por registrar_venta() y lo pasa a producción.
+// El pedido lo crea un vendedor por register_sale() y lo pasa a producción.
 import { createClient } from '@supabase/supabase-js';
 import { BASE, URL_SB, LLAVE, navegadorLocal } from './entorno-local.mjs';
 import { codigoTOTPFresco } from './totp.mjs';
@@ -28,15 +28,15 @@ const vendedor = createClient(URL_SB, LLAVE, { auth: { persistSession: false, au
   if (v.error) throw new Error(`VENDEDOR 2FA: ${v.error.message}`);
 }
 
-const venta = await vendedor.rpc('registrar_venta', {
-  p_cliente: { nombre: 'Prueba', apellidos: 'Taller', telefono: '81 1234 5678' },
-  p_conceptos: [{ concepto: 'Barandal de escalera', precio: 7919.37, cantidad: 2 }],
-  p_pago: 'anticipo', p_notas: 'Instalar en Calle Prueba 123',
+const venta = await vendedor.rpc('register_sale', {
+  p_client: { name: 'Prueba', last_name: 'Taller', phone: '81 1234 5678' },
+  p_items: [{ label: 'Barandal de escalera', price: 7919.37, quantity: 2 }],
+  p_payment: 'deposit', p_notes: 'Instalar en Calle Prueba 123',
 });
-if (venta.error) throw new Error(`registrar_venta: ${venta.error.message}`);
+if (venta.error) throw new Error(`register_sale: ${venta.error.message}`);
 const pedido = venta.data;
-const avance = await vendedor.rpc('avanzar_proyecto', { p_pedido: pedido, p_estado: 'en_produccion' });
-if (avance.error) throw new Error(`avanzar_proyecto: ${avance.error.message}`);
+const avance = await vendedor.rpc('set_project_status', { p_order_id: pedido, p_status: 'in_production' });
+if (avance.error) throw new Error(`set_project_status: ${avance.error.message}`);
 
 const browser = await navegadorLocal();
 try {
@@ -77,7 +77,7 @@ try {
   const instalado = page.locator('#instalados-lista .pedido-taller', { hasText: `Pedido ${pedido} ` });
   await instalado.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
   const estado = (await vendedor.from('orders').select('project_status').eq('id', pedido).single()).data?.project_status;
-  check('"Marcar instalado" lo pasa a instalado en la base', estado === 'instalado', estado);
+  check('"Marcar instalado" lo pasa a instalado en la base', estado === 'installed', estado);
   check('y deja de estar en la lista de producción', await tarjeta.count() === 0);
 
   await page.locator('.instalados summary').click();
