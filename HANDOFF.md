@@ -39,7 +39,7 @@ Parte de `origin/main` (5be7c99, notas del taller ya aplicadas en vivo). Trae:
   `webhook-stripe`; las viejas siguen desplegadas hasta borrarlas a mano).
 - Documentos y scripts con los nombres nuevos; se quitaron la revisión de
   septiembre, la corrección del catálogo de octubre y su script.
-- Después de abrir el PR #52: el panel muestraba el rol en inglés (Seller);
+- Después de abrir el PR #52: el panel mostraba el rol en inglés (Seller);
   ahora dice Vendedor, Taller o Administrador y la prueba de RLS lo exige.
   `cart_items.qty` pasa a `quantity`, y renglones, estados y fechas que
   nunca deben quedar vacíos pasan a NOT NULL (el hospedado no tiene vacíos).
