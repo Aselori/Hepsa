@@ -18,6 +18,7 @@ const sdk = await build({ stdin: { contents: "export { createClient } from '@sup
 const archivos = new Map([
     ['/index.html', ['index.html', 'text/html']], ['/admin.html', ['admin.html', 'text/html']],
     ['/auth-mfa.js', ['auth-mfa.js', 'text/javascript']], ['/imagen.jpg', ['imagen.jpg', 'image/jpeg']],
+    ['/assets/combos.js', ['assets/combos.js', 'text/javascript']],
     ['/assets/tema.css', ['assets/tema.css', 'text/css']], ['/assets/favicon.svg', ['assets/favicon.svg', 'image/svg+xml']],
     ['/assets/logo.svg', ['assets/logo.svg', 'image/svg+xml']], ['/assets/logo-dark.svg', ['assets/logo-dark.svg', 'image/svg+xml']],
     ['/assets/fonts/archivo-latin.woff2', ['assets/fonts/archivo-latin.woff2', 'font/woff2']],

@@ -22,13 +22,15 @@ const ids = [];
 const clientes = [];
 // Mejora 2: producto propio de la suite de pagos (el pago descuenta stock y no
 // debe tocar el catalogo de ejemplo), Stripe simulado y Edge Functions.
-let productoPagos = null;
+const productosPagos = [];
+const tagCombo = `Combo prueba ${randomUUID().slice(0, 8)}`;
 let stripeSimulado = null;
 let funciones = null;
 let carpetaFunciones = null;
 const archivos = new Map([
     ['/index.html', ['index.html', 'text/html']], ['/admin.html', ['admin.html', 'text/html']],
     ['/auth-mfa.js', ['auth-mfa.js', 'text/javascript']], ['/imagen.jpg', ['imagen.jpg', 'image/jpeg']],
+    ['/assets/combos.js', ['assets/combos.js', 'text/javascript']],
     ['/assets/tema.css', ['assets/tema.css', 'text/css']], ['/assets/favicon.svg', ['assets/favicon.svg', 'image/svg+xml']],
     ['/assets/logo.svg', ['assets/logo.svg', 'image/svg+xml']], ['/assets/logo-dark.svg', ['assets/logo-dark.svg', 'image/svg+xml']],
     ['/assets/fonts/archivo-latin.woff2', ['assets/fonts/archivo-latin.woff2', 'font/woff2']],
@@ -140,14 +142,25 @@ try {
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
     env.BASE_URL = `http://127.0.0.1:${server.address().port}`;
 
-    {
+    for (const [variable, price] of [['PAGOS_PRODUCTO_ID', 1250], ['PAGOS_COMPLEMENTO_ID', 500]]) {
         const { data, error } = await admin.from('products')
-            .insert({ name: `Prueba de pagos ${randomUUID().slice(0, 8)}`, price: 1250, stock: 10, is_active: true })
+            .insert({ name: `Prueba de pagos ${randomUUID().slice(0, 8)}`, price, stock: 10, is_active: true })
             .select('id').single();
         if (error) throw new Error(`No se pudo crear el producto de pagos: ${error.message}`);
-        productoPagos = data.id;
-        env.PAGOS_PRODUCTO_ID = String(data.id);
+        productosPagos.push(data.id);
+        env[variable] = String(data.id);
     }
+    env.PAGOS_COMBO_NOMBRE = tagCombo;
+
+    const cotizacion = await admin.from('custom_requests').insert({
+        first_name: 'Prueba', last_name_p: 'Vencida', email: `vencida-${randomUUID()}@test.local`,
+        largo_mm: 1000, alto_mm: 1000, material: 'acero', acabado: 'pavonado',
+    }).select('id').single();
+    if (cotizacion.error) throw cotizacion.error;
+    const vencimiento = await admin.from('custom_requests')
+        .update({ quote_expires_at: new Date().toISOString() }).eq('id', cotizacion.data.id);
+    if (vencimiento.error) throw vencimiento.error;
+    env.HEPSA_EXPIRED_QUOTE_ID = cotizacion.data.id;
 
     // El simulado corre en la red de Supabase local, junto a las funciones.
     const proyecto = (await readFile(new URL('../supabase/config.toml', import.meta.url), 'utf8')).match(/^project_id\s*=\s*"([^"]+)"/m)[1];
@@ -241,9 +254,13 @@ try {
         if (borrado.error) { console.error(`Fallo la limpieza de ${u.email}: ${borrado.error.message}`); process.exitCode = 1; }
     }
     if (solicitudes.error) { console.error(`Fallo la limpieza de las solicitudes de prueba: ${solicitudes.error.message}`); process.exitCode = 1; }
-    if (productoPagos) {
-        const borrado = await admin.from('products').delete().eq('id', productoPagos);
-        if (borrado.error) { console.error(`Fallo la limpieza del producto de pagos: ${borrado.error.message}`); process.exitCode = 1; }
+    if (productosPagos.length) {
+        const combos = await admin.from('combos').delete().in('nombre', [tagCombo, `${tagCombo} alterno`]);
+        const borrado = await admin.from('products').delete().in('id', productosPagos);
+        if (combos.error || borrado.error) {
+            console.error(`Fallo la limpieza de combos y productos de pagos: ${combos.error?.message || borrado.error.message}`);
+            process.exitCode = 1;
+        }
     }
     for (const id of ids) {
         // El esquema heredado no tiene cascade de auth.users a profiles/carrito.

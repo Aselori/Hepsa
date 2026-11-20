@@ -202,6 +202,14 @@
             #printable-area { position: absolute; left: 0; top: 0; width: 100%; max-width: 350px; box-shadow: none; border: none; padding: 10px; background: white; }
             body { background: white; }
         }
+        .combo-linea { display: grid; grid-template-columns: minmax(0, 1fr) 7em auto; gap: 8px; align-items: center; }
+        .combo-linea button, #combos-admin button { width: auto; }
+        #combos-admin summary { cursor: pointer; font-weight: 600; }
+        #combo-productos, #combo-lista { display: grid; gap: 8px; margin: 12px 0; }
+        @media (max-width: 500px) {
+            .combo-linea { grid-template-columns: minmax(0, 1fr) auto; }
+            .combo-linea select { grid-column: 1 / -1; }
+        }
     </style>
 </head>
 <body style="display:none;">
@@ -336,6 +344,7 @@
                         <div class="ticket-items" id="ticket-list"></div>
                         <div class="ticket-total">
                             <div style="font-size: 0.9rem; font-weight: normal; color:#555; margin-bottom: 5px;">
+                                <span id="tkt-combo" style="display:block;" hidden></span>
                                 Subtotal: $<span id="tkt-sub">0.00</span><br>
                                 IVA (<span id="disp-iva-perc">16</span>%): $<span id="tkt-iva">0.00</span>
                             </div>
@@ -392,6 +401,24 @@
                 <button id="btn-abrir-alta" class="action-btn" aria-expanded="false" aria-controls="panel-alta-producto" onclick="alternarAltaProducto()">+ Agregar producto</button>
             </div>
             <p id="inventory-resumen" class="resumen alerta" hidden></p>
+            <details id="combos-admin" class="panel" hidden>
+                <summary>Combos</summary>
+                <div id="combo-lista"></div>
+                <button type="button" id="combo-nuevo" class="btn-secundario">Agregar combo</button>
+                <form id="combo-form" hidden>
+                    <div class="form-grid">
+                        <div class="form-group"><label for="combo-nombre">Nombre del combo</label>
+                            <input id="combo-nombre" maxlength="80" required></div>
+                        <div class="form-group"><label for="combo-porcentaje">Descuento (%)</label>
+                            <input id="combo-porcentaje" type="number" min="0.01" max="99.99" step="0.01" required></div>
+                    </div>
+                    <label><input id="combo-activo" type="checkbox"> Activo</label>
+                    <div id="combo-productos"></div>
+                    <button type="button" id="combo-agregar-producto" class="btn-secundario">Agregar producto al combo</button>
+                    <button type="submit" class="action-btn">Guardar combo</button>
+                    <button type="button" id="combo-cancelar" class="btn-secundario">Cancelar</button>
+                </form>
+            </details>
             <div class="panel" id="panel-alta-producto" hidden>
                 <h3 class="panel-titulo">Agregar producto</h3>
                     <div class="form-grid">
@@ -529,6 +556,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
+    <script src="assets/combos.js"></script>
     <script>
         // Iconos del interruptor de tema. Van como SVG y no como emoji para que
         // se vean igual en cualquier sistema y hereden el color del texto.
@@ -601,6 +629,7 @@
             });
             // Alta de productos sólo para el admin (products_insert_admin).
             document.getElementById('btn-abrir-alta').hidden = userRole !== 'admin';
+            document.getElementById('combos-admin').hidden = userRole !== 'admin';
             // El taller sólo tiene Producción: no carga ventas, catálogo ni
             // precios, que de todos modos la base no le entrega.
             if (userRole === 'taller') {
@@ -679,6 +708,9 @@
         }
 
         let posCart = [];
+        let combosParaVenta = [];
+        let comboTicket = null;
+        let importesRegistrados = null;
         let configIVA = 0.16;
         let rolActual = null;
         let idActual = null;
@@ -743,12 +775,16 @@
 
         function addToTicket() {
             if (ventaYaRegistrada()) return;
-            const i = document.getElementById('ticket-item').value.trim();
-            const p = parseFloat(document.getElementById('ticket-price').value);
             const prodSelectId = document.getElementById('pos-product-select').value;
-            if(!i || isNaN(p) || p <= 0) { showToast('Ingresa un concepto y precio válido', 'error'); return; }
-            
-            posCart.push({ item: i, price: p, product_id: prodSelectId || null });
+            const producto = productosInventario.find(x => String(x.id) === prodSelectId);
+            const item = producto?.name ?? document.getElementById('ticket-item').value.trim();
+            const price = Number(producto?.price ?? document.getElementById('ticket-price').value);
+            if (!item || !Number.isFinite(price) || price <= 0) {
+                showToast('Ingresa un concepto y precio válido', 'error');
+                return;
+            }
+
+            posCart.push({ item, price, product_id: prodSelectId || null });
             
             document.getElementById('ticket-item').value = '';
             document.getElementById('ticket-price').value = '';
@@ -774,14 +810,26 @@
                                 remove.textContent = '×';
                 remove.setAttribute('aria-label', `Quitar ${x.item} del ticket`);
                 remove.addEventListener('click', () => removeFromTicket(idx));
-                row.append(item, price, remove);
+                row.append(item, price);
+                if (!folioRegistrado) row.append(remove);
                 l.appendChild(row);
             });
+            comboTicket = estimarCombo(combosParaVenta, posCart
+                .filter(x => x.product_id)
+                .map(x => ({ id: Number(x.product_id), qty: 1, price: x.price })));
+            posSubtotal -= comboTicket?.descuento || 0;
+            pintarDescuentoTicket();
             const iva = posSubtotal * configIVA;
             const total = posSubtotal + iva;
             document.getElementById('tkt-sub').textContent = formatMoney(posSubtotal);
             document.getElementById('tkt-iva').textContent = formatMoney(iva);
             document.getElementById('tkt-total').textContent = formatMoney(total);
+        }
+
+        function pintarDescuentoTicket() {
+            const ahorro = document.getElementById('tkt-combo');
+            ahorro.textContent = comboTicket ? textoAhorroCombo(comboTicket) : '';
+            ahorro.hidden = !comboTicket;
         }
 
         function removeFromTicket(idx) { if (ventaYaRegistrada()) return; posCart.splice(idx, 1); renderPOSTicket(); }
@@ -797,6 +845,9 @@
 
         function clearPOS() {
             posCart = [];
+            comboTicket = null;
+            importesRegistrados = null;
+            pintarDescuentoTicket();
             solicitudOrigen = null;
             posSubtotal = 0;
             ['cli-nom1','cli-nom2','cli-ap-pat','cli-ap-mat','cli-tel','cli-email', 'ticket-notes'].forEach(id => {
@@ -844,8 +895,13 @@
                 return;
             }
             // El ticket muestra lo que quedó guardado, no la cuenta del navegador.
-            const { data: guardada } = await window.supabaseClient.from('orders').select('subtotal, tax, total').eq('id', orderId).single();
+            const { data: guardada } = await window.supabaseClient.from('orders').select('subtotal, tax, total, combo_name, combo_count, combo_discount').eq('id', orderId).single();
             if (guardada) {
+                importesRegistrados = guardada;
+                comboTicket = guardada.combo_name ? {
+                    nombre: guardada.combo_name, juegos: guardada.combo_count, descuento: Number(guardada.combo_discount),
+                } : null;
+                pintarDescuentoTicket();
                 document.getElementById('tkt-sub').textContent = formatMoney(Number(guardada.subtotal));
                 document.getElementById('tkt-iva').textContent = formatMoney(Number(guardada.tax));
                 document.getElementById('tkt-total').textContent = formatMoney(Number(guardada.total));
@@ -901,8 +957,17 @@
 
             doc.setLineDash([]); doc.line(5, y, W - 5, y); y += 2; doc.line(5, y, W - 5, y); y += 5;
 
-            const iva = posSubtotal * configIVA; const total = posSubtotal + iva;
-            doc.setFontSize(8); doc.text(`Subtotal:`, 5, y); doc.text(`$${formatMoney(posSubtotal)}`, W - 5, y, { align: 'right' }); y += lineH;
+            const subtotal = Number(importesRegistrados?.subtotal ?? posSubtotal);
+            const iva = Number(importesRegistrados?.tax ?? subtotal * configIVA);
+            const total = Number(importesRegistrados?.total ?? subtotal + iva);
+            doc.setFontSize(8);
+            if (comboTicket) {
+                const etiquetaCombo = doc.splitTextToSize(`Combo: ${comboTicket.nombre} × ${comboTicket.juegos}`, 45);
+                doc.text(etiquetaCombo, 5, y);
+                doc.text(`-$${formatMoney(comboTicket.descuento)}`, W - 5, y, { align: 'right' });
+                y += lineH * etiquetaCombo.length;
+            }
+            doc.text(`Subtotal:`, 5, y); doc.text(`$${formatMoney(subtotal)}`, W - 5, y, { align: 'right' }); y += lineH;
             doc.text(`IVA (${Math.round(configIVA * 100)}%):`, 5, y); doc.text(`$${formatMoney(iva)}`, W - 5, y, { align: 'right' }); y += lineH;
             doc.setFont('courier', 'bold'); doc.setFontSize(11); doc.text('TOTAL:', 5, y); doc.text(`$${formatMoney(total)} MXN`, W - 5, y, { align: 'right' }); y += 8;
 
@@ -995,6 +1060,7 @@
                     tbody.appendChild(row);
                 });
                 const select = document.getElementById('pos-product-select');
+                const productoSeleccionado = select.value;
                 select.replaceChildren();
                 const placeholder = document.createElement('option');
                 placeholder.value = ''; placeholder.textContent = 'Seleccionar producto…';
@@ -1005,8 +1071,110 @@
                     option.textContent = `${p.name} — $${p.price}`;
                     select.appendChild(option);
                 });
+                if (productoSeleccionado) {
+                    select.value = productoSeleccionado;
+                    if (select.value) autoFillPrice();
+                    else {
+                        select.value = '';
+                        document.getElementById('ticket-item').value = '';
+                        document.getElementById('ticket-price').value = '';
+                        showToast('El producto seleccionado ya no está disponible.', 'error');
+                    }
+                }
+                await cargarCombosPanel();
             }
         }
+
+        let comboEditado = null;
+        const formCombo = document.getElementById('combo-form');
+        const productosCombo = document.getElementById('combo-productos');
+
+        function agregarLineaCombo(item = {}) {
+            const linea = Object.assign(document.createElement('div'), { className: 'combo-linea' });
+            const producto = document.createElement('select');
+            producto.required = true;
+            producto.setAttribute('aria-label', 'Producto del combo');
+            producto.append(new Option('Selecciona un producto…', ''));
+            for (const p of productosInventario) {
+                producto.append(new Option(p.is_active ? p.name : `${p.name} (oculto)`, p.id));
+            }
+            producto.value = item.producto_id ?? '';
+            const cantidad = Object.assign(document.createElement('input'), {
+                type: 'number', required: true, min: 1, max: 999, step: 1, value: item.cantidad ?? 1,
+            });
+            cantidad.setAttribute('aria-label', 'Cantidad en el combo');
+            const quitar = Object.assign(document.createElement('button'), {
+                type: 'button', className: 'btn-secundario', textContent: 'Quitar',
+            });
+            quitar.addEventListener('click', () => linea.remove());
+            linea.append(producto, cantidad, quitar);
+            productosCombo.append(linea);
+        }
+
+        function editarCombo(combo) {
+            comboEditado = combo?.id ?? null;
+            document.getElementById('combo-nombre').value = combo?.nombre ?? '';
+            document.getElementById('combo-porcentaje').value = combo?.porcentaje ?? '';
+            document.getElementById('combo-activo').checked = combo?.activo ?? true;
+            productosCombo.replaceChildren();
+            for (const item of combo?.items ?? [{}, {}]) agregarLineaCombo(item);
+            formCombo.hidden = false;
+            document.getElementById('combo-nombre').focus();
+        }
+
+        async function cargarCombosPanel() {
+            const sb = window.supabaseClient;
+            combosParaVenta = await leerCombosDisponibles(sb);
+            if (!folioRegistrado && posCart.length) renderPOSTicket();
+            if (rolActual !== 'admin') return;
+            const lista = document.getElementById('combo-lista');
+            const { data, error } = await sb.from('combos')
+                .select('id, nombre, porcentaje, activo, items:combo_items(producto_id, cantidad)').order('id');
+            if (error) {
+                lista.textContent = 'No se pudieron cargar los combos.';
+                return;
+            }
+            lista.replaceChildren(...(data ?? []).map(combo => {
+                const fila = document.createElement('div');
+                const texto = document.createTextNode(
+                    `${combo.nombre} · ${combo.porcentaje} %${combo.activo ? '' : ' · Inactivo'} `);
+                const editar = Object.assign(document.createElement('button'), {
+                    type: 'button', className: 'btn-secundario', textContent: 'Editar',
+                });
+                editar.setAttribute('aria-label', `Editar combo ${combo.nombre}`);
+                editar.addEventListener('click', () => editarCombo(combo));
+                fila.append(texto, editar);
+                return fila;
+            }));
+        }
+
+        document.getElementById('combo-nuevo').addEventListener('click', () => editarCombo());
+        document.getElementById('combo-cancelar').addEventListener('click', () => { formCombo.hidden = true; });
+        document.getElementById('combo-agregar-producto').addEventListener('click', () => agregarLineaCombo());
+        formCombo.addEventListener('submit', async event => {
+            event.preventDefault();
+            const items = [...productosCombo.children].map(linea => ({
+                producto_id: Number(linea.querySelector('select').value),
+                cantidad: linea.querySelector('input').valueAsNumber,
+            }));
+            if (items.length < 2 || new Set(items.map(i => i.producto_id)).size !== items.length) {
+                showToast('Elige al menos dos productos distintos.', 'error');
+                return;
+            }
+            event.submitter.disabled = true;
+            const { error } = await window.supabaseClient.rpc('guardar_combo', {
+                p_id: comboEditado,
+                p_nombre: document.getElementById('combo-nombre').value.trim(),
+                p_porcentaje: document.getElementById('combo-porcentaje').valueAsNumber,
+                p_activo: document.getElementById('combo-activo').checked,
+                p_items: items,
+            });
+            event.submitter.disabled = false;
+            if (error) { showToast('No se pudo guardar el combo: ' + error.message, 'error'); return; }
+            formCombo.hidden = true;
+            showToast('Combo guardado.');
+            cargarCombosPanel();
+        });
 
         // Sube la foto al bucket y devuelve su URL publica, o null si fallo (ya
         // avisada). La usan el alta y la edicion: antes solo el alta tenia
