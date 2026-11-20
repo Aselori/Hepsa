@@ -763,7 +763,7 @@
 
         async function enviarCarrito() {
             if (!usuarioActual) return;
-            const items = cart.map((l) => ({ user_id: usuarioActual, product_id: l.id, qty: l.qty }));
+            const items = cart.map((l) => ({ user_id: usuarioActual, product_id: l.id, quantity: l.qty }));
 
             // Primero escribir, después limpiar. Al revés habría un instante en
             // que el carrito guardado queda vacío, y si la escritura falla ahí
@@ -800,13 +800,13 @@
         async function sincronizarCarritoConLaCuenta(userId) {
             usuarioActual = userId;
             const { data, error } = await window.supabaseClient
-                .from('cart_items').select('product_id, qty');
+                .from('cart_items').select('product_id, quantity');
             if (error) return;
 
             const recienIniciada = localStorage.getItem(LLAVE_FUSION) === '1';
             localStorage.removeItem(LLAVE_FUSION);
 
-            const deLaCuenta = new Map((data || []).map((r) => [r.product_id, r.qty]));
+            const deLaCuenta = new Map((data || []).map((r) => [r.product_id, r.quantity]));
 
             let resultado;
             if (recienIniciada) {

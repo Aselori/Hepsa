@@ -538,17 +538,17 @@ try {
     // el primer intento y no espera nada. page.evaluate si espera la promesa.
     await esperarEnLaBase(pageA, async () => {
       const { data } = await window.supabaseClient
-        .from('cart_items').select('product_id, qty');
-      return data?.length === 2 && data.find((r) => r.product_id === 5)?.qty === 2;
+        .from('cart_items').select('product_id, quantity');
+      return data?.length === 2 && data.find((r) => r.product_id === 5)?.quantity === 2;
     });
 
     const guardadoEnBase = await pageA.evaluate(async () => {
       const { data } = await window.supabaseClient
-        .from('cart_items').select('product_id, qty').order('product_id');
+        .from('cart_items').select('product_id, quantity').order('product_id');
       return data;
     });
     check('el carrito se guarda en la cuenta',
-      guardadoEnBase?.length === 2 && guardadoEnBase.find((r) => r.product_id === 5)?.qty === 2,
+      guardadoEnBase?.length === 2 && guardadoEnBase.find((r) => r.product_id === 5)?.quantity === 2,
       JSON.stringify(guardadoEnBase));
     await ctxA.close();
 
@@ -1087,15 +1087,15 @@ try {
       trasEntrar.length === 1 && trasEntrar[0].qty === 2, JSON.stringify(trasEntrar));
 
     await esperarEnLaBase(page, async () => {
-      const { data } = await window.supabaseClient.from('cart_items').select('qty');
-      return data?.length === 1 && data[0].qty === 2;
+      const { data } = await window.supabaseClient.from('cart_items').select('quantity');
+      return data?.length === 1 && data[0].quantity === 2;
     });
     const enCuenta = await page.evaluate(async () => {
-      const { data } = await window.supabaseClient.from('cart_items').select('product_id, qty');
+      const { data } = await window.supabaseClient.from('cart_items').select('product_id, quantity');
       return data;
     });
     check('y ademas queda guardado en la cuenta',
-      enCuenta?.length === 1 && enCuenta[0].qty === 2, JSON.stringify(enCuenta));
+      enCuenta?.length === 1 && enCuenta[0].quantity === 2, JSON.stringify(enCuenta));
 
     await page.evaluate(async () => {
       await window.supabaseClient.from('cart_items').delete().eq('user_id', usuarioActual);

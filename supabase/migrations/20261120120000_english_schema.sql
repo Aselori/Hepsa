@@ -77,7 +77,8 @@ ALTER TABLE public.carrito_items RENAME TO cart_items;
 ALTER INDEX public.carrito_items_pkey RENAME TO cart_items_pkey;
 ALTER INDEX public.carrito_items_user_idx RENAME TO cart_items_user_idx;
 ALTER TABLE public.cart_items RENAME CONSTRAINT carrito_items_product_id_fkey TO cart_items_product_id_fkey;
-ALTER TABLE public.cart_items RENAME CONSTRAINT carrito_items_qty_check TO cart_items_qty_check;
+ALTER TABLE public.cart_items RENAME COLUMN qty TO quantity;
+ALTER TABLE public.cart_items RENAME CONSTRAINT carrito_items_qty_check TO cart_items_quantity_check;
 ALTER POLICY carrito_propio_select ON public.cart_items RENAME TO cart_items_select_own;
 ALTER POLICY carrito_propio_insert ON public.cart_items RENAME TO cart_items_insert_own;
 ALTER POLICY carrito_propio_update ON public.cart_items RENAME TO cart_items_update_own;
@@ -192,7 +193,7 @@ ALTER TABLE public.orders
 -- Columnas que siempre se llenan (por omisión o por las funciones) y que no
 -- tienen sentido vacías: un renglón sin pedido, un pedido sin estado de pago
 -- o de proyecto, o una venta o solicitud sin fecha.
-ALTER TABLE public.order_items ALTER COLUMN order_id SET NOT NULL;
+ALTER TABLE public.order_items ALTER COLUMN order_id SET NOT NULL, ALTER COLUMN quantity SET NOT NULL;
 ALTER TABLE public.orders
     ALTER COLUMN payment_status SET NOT NULL,
     ALTER COLUMN project_status SET NOT NULL,
@@ -398,18 +399,18 @@ BEGIN
   -- Bloquear los renglones confirmados y tomar una sola lectura del catálogo.
   -- Una segunda confirmación espera el primer pedido y vuelve a leer el carrito.
   WITH cart AS MATERIALIZED (
-    SELECT c.product_id, c.qty
+    SELECT c.product_id, c.quantity
     FROM public.cart_items c
     WHERE c.user_id = v_uid
     ORDER BY c.product_id
     FOR UPDATE
   )
-  SELECT SUM(p.price * c.qty),
+  SELECT SUM(p.price * c.quantity),
          jsonb_agg(jsonb_build_object('product_id', p.id, 'label', p.name,
-                                     'quantity', c.qty, 'price', p.price)),
+                                     'quantity', c.quantity, 'price', p.price)),
          string_agg(p.name, ', ') FILTER (WHERE p.is_active IS NOT TRUE),
-         string_agg(format('%s (hay %s, pediste %s)', p.name, p.stock, c.qty), '; ')
-           FILTER (WHERE c.qty > COALESCE(p.stock, 0))
+         string_agg(format('%s (hay %s, pediste %s)', p.name, p.stock, c.quantity), '; ')
+           FILTER (WHERE c.quantity > COALESCE(p.stock, 0))
     INTO v_subtotal, v_lines, v_inactive, v_out_of_stock
     FROM cart c
     JOIN public.products p ON p.id = c.product_id;

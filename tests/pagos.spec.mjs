@@ -72,8 +72,8 @@ const eventoDeSesion = ({ sesion, pedido, centavos, estado = 'paid', tipo = 'che
 });
 
 async function crearPedido(c, uid, qty, qtyComplemento = 0) {
-  const lineas = [{ user_id: uid, product_id: productoId, qty }];
-  if (qtyComplemento) lineas.push({ user_id: uid, product_id: complementoId, qty: qtyComplemento });
+  const lineas = [{ user_id: uid, product_id: productoId, quantity: qty }];
+  if (qtyComplemento) lineas.push({ user_id: uid, product_id: complementoId, quantity: qtyComplemento });
   const carrito = await c.from('cart_items').upsert(lineas);
   if (carrito.error) throw carrito.error;
   const { data, error } = await c.rpc('create_order_from_cart', { p_notes: null });
@@ -340,7 +340,7 @@ try {
   } finally {
     await navegador.close();
   }
-  const carritoConcurrente = await uno.c.from('cart_items').upsert({ user_id: uid, product_id: productoId, qty: 1 });
+  const carritoConcurrente = await uno.c.from('cart_items').upsert({ user_id: uid, product_id: productoId, quantity: 1 });
   if (carritoConcurrente.error) throw carritoConcurrente.error;
   const confirmaciones = await Promise.all([
     uno.c.rpc('create_order_from_cart', { p_notes: null }),
