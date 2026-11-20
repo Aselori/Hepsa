@@ -66,9 +66,14 @@ try {
   check('la línea de Inicio abre la vista donde se atiende', await page.locator('#view-projects').isVisible());
 
   // ── Solicitud a venta ────────────────────────────────────────────────────
-  const solicitud = await page.evaluate(async () => (await window.supabaseClient.from('custom_requests')
-    .select('id, email, status, precio_estimado, first_name').not('precio_estimado', 'is', null).neq('status', 'Finalizado').limit(1)).data?.[0]);
+  const solicitud = await page.evaluate(async (email) => (await window.supabaseClient.from('custom_requests')
+    .insert({ email, first_name: 'Prueba', last_name_p: 'Vigencia', largo_mm: 1000, alto_mm: 1000,
+      material: 'acero', acabado: 'pavonado', quote_expires_at: '2000-01-01T00:00:00Z' })
+    .select('id, email, quote_expires_at, first_name').single()).data, `vigencia-${Date.now()}@test.local`);
   if (solicitud) {
+    check('la base fija 14 días aunque el cliente mande otra caducidad',
+      Math.abs(Date.parse(solicitud.quote_expires_at) - Date.now() - 14 * 86400000) < 30000, solicitud.quote_expires_at);
+    await page.evaluate(() => cargarProyectosBD());
     await page.waitForSelector('#projects-table-body .btn-convertir');
     await page.locator('#projects-table-body tr', { hasText: solicitud.email }).locator('.btn-convertir').click();
     const venta = await page.evaluate(() => ({
@@ -82,13 +87,18 @@ try {
       JSON.stringify(venta));
     await page.click('#btn-registrar-venta');
     await page.waitForFunction(() => document.getElementById('ticket-folio').textContent.startsWith('#'), null, { timeout: 10000 }).catch(() => {});
-    // El folio aparece antes de que termine el cambio de estatus: se sondea.
-    const leerEstatus = () => page.evaluate(async (id) => (await window.supabaseClient.from('custom_requests').select('status').eq('id', id).single()).data?.status, solicitud.id);
-    let estatus = await leerEstatus();
-    for (let i = 0; i < 20 && estatus !== 'En Progreso'; i++) { await page.waitForTimeout(250); estatus = await leerEstatus(); }
-    const avisos = await page.locator('.toast').allInnerTexts();
-    check('al registrarla, la solicitud pasa a "En Progreso"', estatus === 'En Progreso', `${estatus} · ${avisos.join(' | ')}`);
-    await page.evaluate(async ([id, antes]) => window.supabaseClient.from('custom_requests').update({ status: antes }).eq('id', id), [solicitud.id, solicitud.status]);
+    const vinculada = await page.evaluate(async id => {
+      const sb = window.supabaseClient;
+      const solicitud = (await sb.from('custom_requests').select('status, converted_order_id').eq('id', id).single()).data;
+      const duplicado = await sb.rpc('convertir_solicitud_en_venta', {
+        p_solicitud: id, p_cliente: {}, p_conceptos: [{ concepto: 'Prueba duplicada', precio: 100 }], p_pago: 'anticipo',
+      });
+      return { solicitud, duplicado: duplicado.error?.message };
+    }, solicitud.id);
+    check('la venta y el vínculo a la solicitud se guardan juntos',
+      vinculada.solicitud?.status === 'En Progreso' && String(vinculada.solicitud.converted_order_id) ===
+      (await page.locator('#ticket-folio').innerText()).slice(1), JSON.stringify(vinculada));
+    check('una solicitud sólo se convierte una vez', /ya se convirtió/.test(vinculada.duplicado), vinculada.duplicado);
     await page.evaluate(() => clearPOS());
   } else {
     check('hay una solicitud con estimado para convertir en venta', false, 'el fixture no trae ninguna');
